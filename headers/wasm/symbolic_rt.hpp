@@ -7,7 +7,9 @@
 #include <fstream>
 #include <iterator>
 #include <memory>
+#include <optional>
 #include <ostream>
+#include <string>
 #include <variant>
 #include <vector>
 
@@ -20,6 +22,7 @@ public:
 class Symbol : public Symbolic {
 public:
   Symbol(int id) : id(id) {}
+  int get_id() const { return id; }
 
 private:
   int id;
@@ -54,6 +57,7 @@ struct SymVal {
   SymVal leq(const SymVal &other) const;
   SymVal gt(const SymVal &other) const;
   SymVal geq(const SymVal &other) const;
+  SymVal negate() const;
 };
 
 inline SymVal Concrete(Num num) {
@@ -109,6 +113,9 @@ inline SymVal SymVal::geq(const SymVal &other) const {
 inline SymVal SymVal::is_zero() const {
   return SymVal(std::make_shared<SymBinary>(EQ, *this, Concrete(I32V(0))));
 }
+inline SymVal SymVal::negate() const {
+  return SymVal(std::make_shared<SymBinary>(EQ, *this, Concrete(I32V(0))));
+}
 
 inline SymVal SymVal::makeSymbolic() const {
   auto concrete = dynamic_cast<SymConcrete *>(symptr.get());
@@ -136,6 +143,11 @@ public:
   }
 
   SymVal peek() { return stack.back(); }
+
+  void reset() {
+    // Reset the symbolic stack
+    stack.clear();
+  }
 
   std::vector<SymVal> stack;
 };
@@ -165,6 +177,11 @@ public:
     stack[stack.size() - 1 - index] = val;
   }
 
+  void reset() {
+    // Reset the symbolic frames
+    stack.clear();
+  }
+
   std::vector<SymVal> stack;
 };
 
@@ -190,14 +207,28 @@ struct Node {
 
     os << "}\n";
   }
-  int get_next_id(int &id_counter) { return id_counter++; }
-  virtual int generate_dot(std::ostream &os, int parent_dot_id,
-                           const std::string &edge_label) = 0;
+  virtual void generate_dot(std::ostream &os, int parent_dot_id,
+                            const std::string &edge_label) = 0;
 
 protected:
   // Counter for unique node IDs across the entire graph, only for generating
   // graphviz purpose
   static int current_id;
+  void graphviz_node(std::ostream &os, const int node_id,
+                     const std::string &label, const std::string &shape,
+                     const std::string &fillcolor) {
+    os << "  node" << node_id << " [label=\"" << label << "\", shape=" << shape
+       << ", style=filled, fillcolor=" << fillcolor << "];\n";
+  }
+
+  void graphviz_edge(std::ostream &os, int from_id, int target_id,
+                     const std::string &edge_label) {
+    os << "  node" << from_id << " -> node" << target_id;
+    if (!edge_label.empty()) {
+      os << " [label=\"" << edge_label << "\"]";
+    }
+    os << ";\n";
+  }
 };
 
 // TODO: use this header file in multiple compilation units will cause problems
@@ -234,21 +265,16 @@ struct IfElseNode : Node {
     return result;
   }
 
-  int generate_dot(std::ostream &os, int parent_dot_id,
-                   const std::string &edge_label) override {
+  void generate_dot(std::ostream &os, int parent_dot_id,
+                    const std::string &edge_label) override {
     int current_node_dot_id = current_id;
     current_id += 1;
 
-    os << "  node" << current_node_dot_id << " [label=\"If\","
-       << "shape=diamond, fillcolor=lightyellow];\n";
+    graphviz_node(os, current_node_dot_id, "If", "diamond", "lightyellow");
 
     // Draw edge from parent if this is not the root node
     if (parent_dot_id != -1) {
-      os << "  node" << parent_dot_id << " -> node" << current_node_dot_id;
-      if (!edge_label.empty()) {
-        os << " [label=\"" << edge_label << "\"]";
-      }
-      os << ";\n";
+      graphviz_edge(os, parent_dot_id, current_node_dot_id, edge_label);
     }
     assert(true_branch != nullptr);
     assert(true_branch->node != nullptr);
@@ -256,7 +282,6 @@ struct IfElseNode : Node {
     assert(false_branch != nullptr);
     assert(false_branch->node != nullptr);
     false_branch->node->generate_dot(os, current_node_dot_id, "false");
-    return current_node_dot_id;
   }
 };
 
@@ -265,39 +290,92 @@ struct UnExploredNode : Node {
   std::string to_string() override { return "UnexploredNode"; }
 
 protected:
-  int generate_dot(std::ostream &os, int parent_dot_id,
-                   const std::string &edge_label) override {
+  void generate_dot(std::ostream &os, int parent_dot_id,
+                    const std::string &edge_label) override {
     int current_node_dot_id = current_id++;
-
-    os << "  node" << current_node_dot_id
-       << " [label=\"Unexplored\", shape=octagon, style=filled, "
-          "fillcolor=lightgrey];\n";
+    graphviz_node(os, current_node_dot_id, "Unexplored", "octagon",
+                  "lightgrey");
 
     if (parent_dot_id != -1) {
-      os << "  node" << parent_dot_id << " -> node" << current_node_dot_id;
-      if (!edge_label.empty()) {
-        os << " [label=\"" << edge_label << "\"]";
-      }
-      os << ";\n";
+      graphviz_edge(os, parent_dot_id, current_node_dot_id, edge_label);
     }
+  }
+};
 
-    return current_node_dot_id;
+struct Finished : Node {
+  Finished() {}
+  std::string to_string() override { return "FinishedNode"; }
+
+protected:
+  void generate_dot(std::ostream &os, int parent_dot_id,
+                    const std::string &edge_label) override {
+    int current_node_dot_id = current_id++;
+    graphviz_node(os, current_node_dot_id, "Finished", "box", "lightgreen");
+
+    if (parent_dot_id != -1) {
+      graphviz_edge(os, parent_dot_id, current_node_dot_id, edge_label);
+    }
+  }
+};
+
+struct Failed : Node {
+  Failed() {}
+  std::string to_string() override { return "FailedNode"; }
+
+protected:
+  void generate_dot(std::ostream &os, int parent_dot_id,
+                    const std::string &edge_label) override {
+    int current_node_dot_id = current_id++;
+    graphviz_node(os, current_node_dot_id, "Failed", "box", "red");
+
+    if (parent_dot_id != -1) {
+      graphviz_edge(os, parent_dot_id, current_node_dot_id, edge_label);
+    }
   }
 };
 
 static UnExploredNode unexplored;
 
 inline NodeBox::NodeBox()
-    : node(std::make_unique<
-           UnExploredNode>() /* TODO: avoid allocation of unexplored node */) {}
+    : node(std::make_unique<UnExploredNode>()),
+      /* TODO: avoid allocation of unexplored node */
+      parent(nullptr) {}
 
 class ExploreTree_t {
 public:
   explicit ExploreTree_t()
       : root(std::make_unique<NodeBox>()), cursor(root.get()) {}
+
+  void reset_cursor() {
+    // Reset the cursor to the root of the tree
+    cursor = root.get();
+  }
+
+  std::monostate fillFinishedNode() {
+    if (dynamic_cast<UnExploredNode *>(cursor->node.get())) {
+      cursor->node = std::make_unique<Finished>();
+    } else {
+      assert(dynamic_cast<Finished *>(cursor->node.get()) != nullptr);
+    }
+    return std::monostate{};
+  }
+
+  std::monostate fillFailedNode() {
+    if (dynamic_cast<UnExploredNode *>(cursor->node.get())) {
+      cursor->node = std::make_unique<Failed>();
+    } else {
+      assert(dynamic_cast<Failed *>(cursor->node.get()) != nullptr);
+    }
+    return std::monostate{};
+  }
+
   std::monostate fillIfElseNode(SymVal cond) {
-    // fill the current node with an ifelse branch node
-    cursor->node = std::make_unique<IfElseNode>(cond);
+    // fill the current NodeBox with an ifelse branch node it's unexplored
+    if (dynamic_cast<UnExploredNode *>(cursor->node.get())) {
+      cursor->node = std::make_unique<IfElseNode>(cond);
+    }
+    assert(dynamic_cast<IfElseNode *>(cursor->node.get()) != nullptr &&
+           "Current node is not an IfElseNode, cannot fill it!");
     return std::monostate();
   }
 
@@ -328,13 +406,60 @@ public:
   std::monostate dump_graphviz(std::string filepath) {
     std::ofstream ofs(filepath);
     if (!ofs.is_open()) {
-      throw std::runtime_error("Failed to open explore_tree.dot for writing");
+      throw std::runtime_error("Failed to open " + filepath + "  for writing");
     }
     to_graphviz(ofs);
     return std::monostate();
   }
 
+  std::optional<std::vector<SymVal>> get_unexplored_conditions() {
+    // Get all unexplored conditions in the tree
+    std::vector<SymVal> result;
+    auto box = pick_unexplored();
+    if (!box) {
+      return std::nullopt;
+    }
+    while (box->parent) {
+      auto parent = box->parent;
+      auto if_else_node = dynamic_cast<IfElseNode *>(parent->node.get());
+      if (if_else_node) {
+        if (if_else_node->true_branch.get() == box) {
+          // If the current box is the true branch, add the condition
+          result.push_back(if_else_node->cond);
+        } else if (if_else_node->false_branch.get() == box) {
+          // If the current box is the false branch, add the negated condition
+          result.push_back(if_else_node->cond.negate());
+        } else {
+          throw std::runtime_error("Unexpected node structure in explore tree");
+        }
+      }
+      // Move to parent
+      box = box->parent;
+    }
+    return result;
+  }
+
+  NodeBox *pick_unexplored() {
+    // Pick an unexplored node from the tree
+    // For now, we just iterate through the tree and return the first unexplored
+    return pick_unexplored_of(root.get());
+  }
+
 private:
+  NodeBox *pick_unexplored_of(NodeBox *node) {
+    if (dynamic_cast<UnExploredNode *>(node->node.get()) != nullptr) {
+      return node;
+    }
+    auto if_else_node = dynamic_cast<IfElseNode *>(node->node.get());
+    if (if_else_node) {
+      NodeBox *result = pick_unexplored_of(if_else_node->true_branch.get());
+      if (result) {
+        return result;
+      }
+      return pick_unexplored_of(if_else_node->false_branch.get());
+    }
+    return nullptr; // No unexplored node found
+  }
   std::unique_ptr<NodeBox> root;
   NodeBox *cursor;
 };
@@ -344,10 +469,28 @@ static ExploreTree_t ExploreTree;
 class SymEnv_t {
 public:
   Num read(SymVal sym) {
-    // Read a symbolic value from the symbolic environment
-    // For now, we just return a zero
     return Num(0);
+    auto symbol = dynamic_cast<Symbol *>(sym.symptr.get());
+    assert(symbol);
+    return map[symbol->get_id()];
   }
+
+  void update(std::vector<Num> new_env) { map = std::move(new_env); }
+
+  std::string to_string() const {
+    std::string result;
+    result += "(\n";
+    for (int i = 0; i < map.size(); ++i) {
+      const Num &num = map[i];
+      result +=
+          "  (" + std::to_string(i) + "->" + std::to_string(num.value) + ")\n";
+    }
+    result += ")";
+    return result;
+  }
+
+private:
+  std::vector<Num> map; // The symbolic environment, a vector of Num
 };
 
 static SymEnv_t SymEnv;

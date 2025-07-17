@@ -416,7 +416,7 @@ trait StagedWasmEvaluator extends SAIOps {
         }
     }
     val (instrs, locals) = (funBody.body, funBody.locals)
-    Stack.initialize()
+    resetStacks()
     Frames.pushFrame(locals)
     eval(instrs, (_: Context) => forwardKont, mkont, ((_: Context) => forwardKont)::Nil)(Context(Nil, locals))
     Frames.popFrame(locals.size)
@@ -428,10 +428,7 @@ trait StagedWasmEvaluator extends SAIOps {
       if (printRes) {
         Stack.print()
       }
-      dumpTree match {
-        case Some(filePath) => ExploreTree.dumpGraphiviz(filePath)
-        case None => ()
-      }
+      ExploreTree.fillWithFinished()
       "no-op".reflectCtrlWith[Unit]()
     }
     val temp: Rep[MCont[Unit]] = topFun(haltK)
@@ -558,6 +555,7 @@ trait StagedWasmEvaluator extends SAIOps {
   object Memory {
     def storeInt(base: Rep[Int], offset: Int, value: Rep[Int]): Rep[Unit] = {
       "memory-store-int".reflectCtrlWith[Unit](base, offset, value)
+      // todo: store symbolic value to memory via extract/concat operation
     }
 
     def loadInt(base: Rep[Int], offset: Int): StagedNum = {
@@ -568,6 +566,10 @@ trait StagedWasmEvaluator extends SAIOps {
     def grow(delta: Rep[Int]): Rep[Int] = {
       "memory-grow".reflectCtrlWith[Int](delta)
     }
+  }
+
+  def resetStacks(): Rep[Unit] = {
+    "reset-stacks".reflectCtrlWith[Unit]()
   }
 
   // call unreachable
@@ -615,6 +617,10 @@ trait StagedWasmEvaluator extends SAIOps {
   object ExploreTree {
     def fillWithIfElse(s: Rep[SymVal]): Rep[Unit] = {
       "tree-fill-if-else".reflectCtrlWith[Unit](s)
+    }
+
+    def fillWithFinished(): Rep[Unit] = {
+      "tree-fill-finished".reflectCtrlWith[Unit]()
     }
 
     def moveCursor(branch: Boolean): Rep[Unit] = {
@@ -875,6 +881,8 @@ trait StagedWasmCppGen extends CGenBase with CppSAICodeGenBase {
   }
 
   override def shallow(n: Node): Unit = n match {
+    case Node(_, "reset-stacks", _, _) =>
+      emit("reset_stacks()")
     case Node(_, "frame-get", List(i), _) =>
       emit("Frames.get("); shallow(i); emit(")")
     case Node(_, "sym-frame-get", List(i), _) =>
@@ -977,6 +985,8 @@ trait StagedWasmCppGen extends CGenBase with CppSAICodeGenBase {
       emit("assert("); shallow(cond); emit(")")
     case Node(_, "tree-fill-if-else", List(s), _) => 
       emit("ExploreTree.fillIfElseNode("); shallow(s); emit(")")
+    case Node(_, "tree-fill-finished", List(), _) =>
+      emit("ExploreTree.fillFinishedNode()")
     case Node(_, "tree-move-cursor", List(b), _) =>
       emit("ExploreTree.moveCursor("); shallow(b); emit(")")
     case Node(_, "tree-print", List(), _) =>

@@ -52,8 +52,6 @@ static Num I32V(int v) { return v; }
 
 static Num I64V(int64_t v) { return v; }
 
-using Slice = std::vector<Num>;
-
 const int STACK_SIZE = 1024 * 64;
 
 class Stack_t {
@@ -118,8 +116,11 @@ public:
   }
 
   void initialize() {
-    // do nothing for now
+    // todo: remove this method
+   reset();
   }
+
+  void reset() { count = 0; }
 
 private:
   int32_t count;
@@ -150,6 +151,8 @@ public:
     assert(size >= 0);
     count += size;
   }
+
+  void reset() { count = 0; }
 
 private:
   int32_t count;
