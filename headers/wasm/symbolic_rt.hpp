@@ -193,6 +193,13 @@ struct NodeBox {
   explicit NodeBox();
   std::unique_ptr<Node> node;
   NodeBox *parent;
+
+  std::monostate fillIfElseNode(SymVal cond);
+  std::monostate fillFinishedNode();
+  std::monostate fillFailedNode();
+  std::monostate fillUnreachableNode();
+
+  std::vector<SymVal> collect_path_conds();
 };
 
 struct Node {
@@ -334,12 +341,86 @@ protected:
   }
 };
 
-static UnExploredNode unexplored;
+struct Unreachable : Node {
+  Unreachable() {}
+  std::string to_string() override { return "UnreachableNode"; }
+
+protected:
+  void generate_dot(std::ostream &os, int parent_dot_id,
+                    const std::string &edge_label) override {
+    int current_node_dot_id = current_id++;
+    graphviz_node(os, current_node_dot_id, "Unreachable", "box", "orange");
+
+    if (parent_dot_id != -1) {
+      graphviz_edge(os, parent_dot_id, current_node_dot_id, edge_label);
+    }
+  }
+};
 
 inline NodeBox::NodeBox()
     : node(std::make_unique<UnExploredNode>()),
       /* TODO: avoid allocation of unexplored node */
       parent(nullptr) {}
+
+inline std::monostate NodeBox::fillIfElseNode(SymVal cond) {
+  // fill the current NodeBox with an ifelse branch node it's unexplored
+  if (dynamic_cast<UnExploredNode *>(node.get())) {
+    node = std::make_unique<IfElseNode>(cond);
+  }
+  assert(dynamic_cast<IfElseNode *>(node.get()) != nullptr &&
+         "Current node is not an IfElseNode, cannot fill it!");
+  return std::monostate();
+}
+
+inline std::monostate NodeBox::fillFinishedNode() {
+  if (dynamic_cast<UnExploredNode *>(node.get())) {
+    node = std::make_unique<Finished>();
+  } else {
+    assert(dynamic_cast<Finished *>(node.get()) != nullptr);
+  }
+  return std::monostate();
+}
+
+inline std::monostate NodeBox::fillFailedNode() {
+  if (dynamic_cast<UnExploredNode *>(node.get())) {
+    node = std::make_unique<Failed>();
+  } else {
+    assert(dynamic_cast<Failed *>(node.get()) != nullptr);
+  }
+  return std::monostate();
+}
+
+inline std::monostate NodeBox::fillUnreachableNode() {
+  if (dynamic_cast<UnExploredNode *>(node.get())) {
+    node = std::make_unique<Unreachable>();
+  } else {
+    assert(dynamic_cast<Unreachable *>(node.get()) != nullptr);
+  }
+  return std::monostate();
+}
+
+inline std::vector<SymVal> NodeBox::collect_path_conds() {
+  auto box = this;
+  auto result = std::vector<SymVal>();
+  while (box->parent) {
+    auto parent = box->parent;
+    auto if_else_node = dynamic_cast<IfElseNode *>(parent->node.get());
+    if (if_else_node) {
+      if (if_else_node->true_branch.get() == box) {
+        // If the current box is the true branch, add the condition
+        result.push_back(if_else_node->cond);
+      } else if (if_else_node->false_branch.get() == box) {
+        // If the current box is the false branch, add the negated condition
+        result.push_back(if_else_node->cond.negate());
+      } else {
+        throw std::runtime_error("Unexpected node structure in explore tree");
+      }
+    }
+    // Move to parent
+    box = box->parent;
+  }
+  return result;
+}
 
 class ExploreTree_t {
 public:
@@ -351,32 +432,12 @@ public:
     cursor = root.get();
   }
 
-  std::monostate fillFinishedNode() {
-    if (dynamic_cast<UnExploredNode *>(cursor->node.get())) {
-      cursor->node = std::make_unique<Finished>();
-    } else {
-      assert(dynamic_cast<Finished *>(cursor->node.get()) != nullptr);
-    }
-    return std::monostate{};
-  }
+  std::monostate fillFinishedNode() { return cursor->fillFinishedNode(); }
 
-  std::monostate fillFailedNode() {
-    if (dynamic_cast<UnExploredNode *>(cursor->node.get())) {
-      cursor->node = std::make_unique<Failed>();
-    } else {
-      assert(dynamic_cast<Failed *>(cursor->node.get()) != nullptr);
-    }
-    return std::monostate{};
-  }
+  std::monostate fillFailedNode() { return cursor->fillFailedNode(); }
 
   std::monostate fillIfElseNode(SymVal cond) {
-    // fill the current NodeBox with an ifelse branch node it's unexplored
-    if (dynamic_cast<UnExploredNode *>(cursor->node.get())) {
-      cursor->node = std::make_unique<IfElseNode>(cond);
-    }
-    assert(dynamic_cast<IfElseNode *>(cursor->node.get()) != nullptr &&
-           "Current node is not an IfElseNode, cannot fill it!");
-    return std::monostate();
+    return cursor->fillIfElseNode(cond);
   }
 
   std::monostate moveCursor(bool branch) {
@@ -419,24 +480,7 @@ public:
     if (!box) {
       return std::nullopt;
     }
-    while (box->parent) {
-      auto parent = box->parent;
-      auto if_else_node = dynamic_cast<IfElseNode *>(parent->node.get());
-      if (if_else_node) {
-        if (if_else_node->true_branch.get() == box) {
-          // If the current box is the true branch, add the condition
-          result.push_back(if_else_node->cond);
-        } else if (if_else_node->false_branch.get() == box) {
-          // If the current box is the false branch, add the negated condition
-          result.push_back(if_else_node->cond.negate());
-        } else {
-          throw std::runtime_error("Unexpected node structure in explore tree");
-        }
-      }
-      // Move to parent
-      box = box->parent;
-    }
-    return result;
+    return box->collect_path_conds();
   }
 
   NodeBox *pick_unexplored() {

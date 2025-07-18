@@ -37,18 +37,22 @@ public:
 inline void ConcolicDriver::run() {
   ManagedConcolicCleanup cleanup{*this};
   while (true) {
-    auto cond = ExploreTree.get_unexplored_conditions();
     ExploreTree.reset_cursor();
 
-    if (!cond.has_value()) {
-      std::cout << "No unexplored conditions found, exiting..." << std::endl;
+    auto unexplored = ExploreTree.pick_unexplored();
+    if (!unexplored) {
+      std::cout << "No unexplored nodes found, exiting..." << std::endl;
       return;
     }
-    auto new_env = solver.solve(cond.value());
+    auto cond = unexplored->collect_path_conds();
+    auto new_env = solver.solve(cond);
     if (!new_env.has_value()) {
-      std::cout << "All unexplored paths are unreachable, exiting..."
+      // TODO: current implementation is buggy, there could be other reachable
+      // unexplored paths
+      std::cout << "Found an unreachable path, marking it as unreachable..."
                 << std::endl;
-      return;
+      unexplored->fillUnreachableNode();
+      continue;  
     }
     SymEnv.update(std::move(new_env.value()));
     try {

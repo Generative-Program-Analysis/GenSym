@@ -982,7 +982,7 @@ trait StagedWasmCppGen extends CGenBase with CppSAICodeGenBase {
     case Node(_, "sym-env-read", List(sym), _) =>
       emit("SymEnv.read("); shallow(sym); emit(")")
     case Node(_, "assert-true", List(cond), _) =>
-      emit("assert("); shallow(cond); emit(")")
+      emit("GENSYM_ASSERT("); shallow(cond); emit(")")
     case Node(_, "tree-fill-if-else", List(s), _) => 
       emit("ExploreTree.fillIfElseNode("); shallow(s); emit(")")
     case Node(_, "tree-fill-finished", List(), _) =>
