@@ -1,3 +1,6 @@
+#ifndef WASM_CONCRETE_RT_HPP
+#define WASM_CONCRETE_RT_HPP
+
 #include <cassert>
 #include <cstdint>
 #include <cstdio>
@@ -48,8 +51,6 @@ struct Num {
 static Num I32V(int v) { return v; }
 
 static Num I64V(int64_t v) { return v; }
-
-using Slice = std::vector<Num>;
 
 const int STACK_SIZE = 1024 * 64;
 
@@ -115,8 +116,11 @@ public:
   }
 
   void initialize() {
-    // do nothing for now
+    // todo: remove this method
+   reset();
   }
+
+  void reset() { count = 0; }
 
 private:
   int32_t count;
@@ -147,6 +151,8 @@ public:
     assert(size >= 0);
     count += size;
   }
+
+  void reset() { count = 0; }
 
 private:
   int32_t count;
@@ -201,3 +207,5 @@ struct Memory_t {
 };
 
 static Memory_t Memory(1); // 1 page memory
+
+#endif // WASM_CONCRETE_RT_HPP
