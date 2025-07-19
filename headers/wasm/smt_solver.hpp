@@ -13,8 +13,7 @@
 class Solver {
 public:
   Solver() {}
-  std::optional<std::tuple<std::vector<Num>, std::set<int>>>
-  solve(const std::vector<SymVal> &conditions) {
+  std::optional<std::vector<Num>> solve(const std::vector<SymVal> &conditions) {
     // make an conjunction of all conditions
     z3::expr conjunction = z3_ctx.bool_val(true);
     for (const auto &cond : conditions) {
@@ -33,26 +32,27 @@ public:
       return std::nullopt; // No solution found
     case z3::sat: {
       z3::model model = z3_solver.get_model();
-      std::vector<Num> result(max_id + 1, Num(0));
+      std::vector<Num> result;
       // Reference:
       // https://github.com/Z3Prover/z3/blob/master/examples/c%2B%2B/example.cpp#L59
 
-      std::cout << "Solved Z3 model" << model << std::endl;
-      std::set<int> seen_ids;
+      std::cout << "Solved Z3 model" << std::endl << model << std::endl;
       for (unsigned i = 0; i < model.size(); ++i) {
         z3::func_decl var = model[i];
         z3::expr value = model.get_const_interp(var);
         std::string name = var.name().str();
         if (name.starts_with("s_")) {
           int id = std::stoi(name.substr(2));
-          seen_ids.insert(id);
+          if (id >= result.size()) {
+            result.resize(id + 1);
+          }
           result[id] = Num(value.get_numeral_int());
         } else {
           std::cout << "Find a variable that is not created by GenSym: " << name
                     << std::endl;
         }
       }
-      return std::make_tuple(result, seen_ids);
+      return result;
     }
     case z3::unknown:
       throw std::runtime_error("Z3 solver returned unknown status");

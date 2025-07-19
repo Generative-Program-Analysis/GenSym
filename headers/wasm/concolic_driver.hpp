@@ -47,8 +47,6 @@ inline void ConcolicDriver::run() {
       return;
     }
     auto cond = unexplored->collect_path_conds();
-    std::vector<Num> new_env;
-    std::set<int> valid_ids;
     auto result = solver.solve(cond);
     if (!result.has_value()) {
       // TODO: current implementation is buggy, there could be other reachable
@@ -58,8 +56,8 @@ inline void ConcolicDriver::run() {
       unexplored->fillUnreachableNode();
       continue;
     }
-    std::tie(new_env, valid_ids) = std::move(result.value());
-    SymEnv.update(std::move(new_env), std::move(valid_ids));
+    auto new_env = result.value();
+    SymEnv.update(std::move(new_env));
     try {
       entrypoint();
       std::cout << "Execution finished successfully with symbolic environment:"

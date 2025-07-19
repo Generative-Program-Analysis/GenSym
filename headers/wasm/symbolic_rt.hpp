@@ -531,7 +531,7 @@ public:
     return map[symbol->get_id()];
   }
 
-  void update(std::vector<Num> new_env, std::set<int> valid_ids) {
+  void update(std::vector<Num> new_env) {
     map = std::move(new_env);
   }
 
@@ -549,7 +549,6 @@ public:
 
 private:
   std::vector<Num> map;    // The symbolic environment, a vector of Num
-  std::set<int> valid_ids; // The set of valid IDs in the symbolic environment
 };
 
 static SymEnv_t SymEnv;
