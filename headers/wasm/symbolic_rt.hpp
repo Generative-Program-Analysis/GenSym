@@ -9,6 +9,7 @@
 #include <memory>
 #include <optional>
 #include <ostream>
+#include <set>
 #include <string>
 #include <variant>
 #include <vector>
@@ -19,9 +20,13 @@ public:
   virtual ~Symbolic() = default; // Make Symbolic polymorphic
 };
 
+static int max_id = 0;
+
 class Symbol : public Symbolic {
 public:
-  Symbol(int id) : id(id) {}
+  // TODO: add type information to determine the size of bitvector
+  // for now we just assume that only i32 will be used
+  Symbol(int id) : id(id) { max_id = std::max(max_id, id); }
   int get_id() const { return id; }
 
 private:
@@ -190,7 +195,7 @@ static SymFrames_t SymFrames;
 struct Node;
 
 struct NodeBox {
-  explicit NodeBox();
+  explicit NodeBox(NodeBox *parent);
   std::unique_ptr<Node> node;
   NodeBox *parent;
 
@@ -247,9 +252,9 @@ struct IfElseNode : Node {
   std::unique_ptr<NodeBox> true_branch;
   std::unique_ptr<NodeBox> false_branch;
 
-  IfElseNode(SymVal cond)
-      : cond(cond), true_branch(std::make_unique<NodeBox>()),
-        false_branch(std::make_unique<NodeBox>()) {}
+  IfElseNode(SymVal cond, NodeBox *parent)
+      : cond(cond), true_branch(std::make_unique<NodeBox>(parent)),
+        false_branch(std::make_unique<NodeBox>(parent)) {}
 
   std::string to_string() override {
     std::string result = "IfElseNode {\n";
@@ -357,15 +362,15 @@ protected:
   }
 };
 
-inline NodeBox::NodeBox()
+inline NodeBox::NodeBox(NodeBox *parent)
     : node(std::make_unique<UnExploredNode>()),
       /* TODO: avoid allocation of unexplored node */
-      parent(nullptr) {}
+      parent(parent) {}
 
 inline std::monostate NodeBox::fillIfElseNode(SymVal cond) {
   // fill the current NodeBox with an ifelse branch node it's unexplored
   if (dynamic_cast<UnExploredNode *>(node.get())) {
-    node = std::make_unique<IfElseNode>(cond);
+    node = std::make_unique<IfElseNode>(cond, this);
   }
   assert(dynamic_cast<IfElseNode *>(node.get()) != nullptr &&
          "Current node is not an IfElseNode, cannot fill it!");
@@ -425,7 +430,7 @@ inline std::vector<SymVal> NodeBox::collect_path_conds() {
 class ExploreTree_t {
 public:
   explicit ExploreTree_t()
-      : root(std::make_unique<NodeBox>()), cursor(root.get()) {}
+      : root(std::make_unique<NodeBox>(nullptr)), cursor(root.get()) {}
 
   void reset_cursor() {
     // Reset the cursor to the root of the tree
@@ -513,13 +518,22 @@ static ExploreTree_t ExploreTree;
 class SymEnv_t {
 public:
   Num read(SymVal sym) {
-    return Num(0);
     auto symbol = dynamic_cast<Symbol *>(sym.symptr.get());
     assert(symbol);
+    if (symbol->get_id() >= map.size()) {
+      map.resize(symbol->get_id() + 1);
+    }
+#if DEBUG
+    std::cout << "Read symbol: " << symbol->get_id()
+              << " from symbolic environment" << std::endl;
+    std::cout << "Current symbolic environment: " << to_string() << std::endl;
+#endif
     return map[symbol->get_id()];
   }
 
-  void update(std::vector<Num> new_env) { map = std::move(new_env); }
+  void update(std::vector<Num> new_env, std::set<int> valid_ids) {
+    map = std::move(new_env);
+  }
 
   std::string to_string() const {
     std::string result;
@@ -534,7 +548,8 @@ public:
   }
 
 private:
-  std::vector<Num> map; // The symbolic environment, a vector of Num
+  std::vector<Num> map;    // The symbolic environment, a vector of Num
+  std::set<int> valid_ids; // The set of valid IDs in the symbolic environment
 };
 
 static SymEnv_t SymEnv;

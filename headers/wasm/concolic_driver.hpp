@@ -1,11 +1,13 @@
 #ifndef CONCOLIC_DRIVER_HPP
 #define CONCOLIC_DRIVER_HPP
 
+#include "concrete_rt.hpp"
 #include "smt_solver.hpp"
 #include "symbolic_rt.hpp"
 #include <functional>
 #include <ostream>
 #include <string>
+#include <vector>
 
 class ConcolicDriver {
   friend class ManagedConcolicCleanup;
@@ -45,16 +47,19 @@ inline void ConcolicDriver::run() {
       return;
     }
     auto cond = unexplored->collect_path_conds();
-    auto new_env = solver.solve(cond);
-    if (!new_env.has_value()) {
+    std::vector<Num> new_env;
+    std::set<int> valid_ids;
+    auto result = solver.solve(cond);
+    if (!result.has_value()) {
       // TODO: current implementation is buggy, there could be other reachable
       // unexplored paths
       std::cout << "Found an unreachable path, marking it as unreachable..."
                 << std::endl;
       unexplored->fillUnreachableNode();
-      continue;  
+      continue;
     }
-    SymEnv.update(std::move(new_env.value()));
+    std::tie(new_env, valid_ids) = std::move(result.value());
+    SymEnv.update(std::move(new_env), std::move(valid_ids));
     try {
       entrypoint();
       std::cout << "Execution finished successfully with symbolic environment:"
