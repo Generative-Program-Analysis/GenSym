@@ -26,28 +26,57 @@ trait StagedWasmEvaluator extends SAIOps {
   trait ReturnSite
 
   trait StagedNum {
+    def tipe: ValueType
+  }
+
+  trait StagedConcreteNum {
     def tipe: ValueType = this match {
-      case I32(_, _) => NumType(I32Type)
-      case I64(_, _) => NumType(I64Type)
-      case F32(_, _) => NumType(F32Type)
-      case F64(_, _) => NumType(F64Type)
+      case I32C(_) => NumType(I32Type)
+      case I64C(_) => NumType(I64Type)
+      case F32C(_) => NumType(F32Type)
+      case F64C(_) => NumType(F64Type)
     }
 
     def i: Rep[Num]
+  }
+
+  case class I32C(i: Rep[Num]) extends StagedConcreteNum
+  case class I64C(i: Rep[Num]) extends StagedConcreteNum
+  case class F32C(i: Rep[Num]) extends StagedConcreteNum
+  case class F64C(i: Rep[Num]) extends StagedConcreteNum
+
+
+  trait StagedSymbolicNum {
+    def tipe: ValueType = this match {
+      case I32S(_) => NumType(I32Type)
+      case I64S(_) => NumType(I64Type)
+      case F32S(_) => NumType(F32Type)
+      case F64S(_) => NumType(F64Type)
+    }
 
     def s: Rep[SymVal]
   }
-  case class I32(i: Rep[Num], s: Rep[SymVal]) extends StagedNum
-  case class I64(i: Rep[Num], s: Rep[SymVal]) extends StagedNum
-  case class F32(i: Rep[Num], s: Rep[SymVal]) extends StagedNum
-  case class F64(i: Rep[Num], s: Rep[SymVal]) extends StagedNum
 
-  def toStagedNum(num: Num): StagedNum = {
+  case class I32S(s: Rep[SymVal]) extends StagedSymbolicNum
+  case class I64S(s: Rep[SymVal]) extends StagedSymbolicNum
+  case class F32S(s: Rep[SymVal]) extends StagedSymbolicNum
+  case class F64S(s: Rep[SymVal]) extends StagedSymbolicNum
+
+  def toStagedNum(num: Num): StagedConcreteNum = {
     num match {
-      case I32V(_) => I32(num, Concrete(num))
-      case I64V(_) => I64(num, Concrete(num))
-      case F32V(_) => F32(num, Concrete(num))
-      case F64V(_) => F64(num, Concrete(num))
+      case I32V(_) => I32C(num)
+      case I64V(_) => I64C(num)
+      case F32V(_) => F32C(num)
+      case F64V(_) => F64C(num)
+    }
+  }
+
+  def toStagedSymbolicNum(num: Num): StagedSymbolicNum = {
+    num match {
+      case I32V(_) => I32S(Concrete(num))
+      case I64V(_) => I64S(Concrete(num))
+      case F32V(_) => F32S(Concrete(num))
+      case F64V(_) => F64S(Concrete(num))
     }
   }
 
@@ -59,12 +88,21 @@ trait StagedWasmEvaluator extends SAIOps {
       case NumType(F64Type) => 8
     }
 
-    def toTagger: (Rep[Num], Rep[SymVal]) => StagedNum = {
+    def concreteTag: (Rep[Num]) => StagedConcreteNum = {
       ty match {
-        case NumType(I32Type) => I32
-        case NumType(I64Type) => I64
-        case NumType(F32Type) => F32
-        case NumType(F64Type) => F64
+        case NumType(I32Type) => I32C
+        case NumType(I64Type) => I64C
+        case NumType(F32Type) => F32C
+        case NumType(F64Type) => F64C
+      }
+    }
+
+    def symbolicTag: (Rep[SymVal]) => StagedSymbolicNum = {
+      ty match {
+        case NumType(I32Type) => I32S
+        case NumType(I64Type) => I64S
+        case NumType(F32Type) => F32S
+        case NumType(F64Type) => F64S
       }
     }
   }
@@ -80,6 +118,12 @@ trait StagedWasmEvaluator extends SAIOps {
     def pop(): (ValueType, Context) = {
       val (ty :: rest) = stackTypes
       (ty, Context(rest, frameTypes))
+    }
+
+    def take(n: Int): Context = {
+      Predef.assert(n <= stackTypes.size, s"Context.take size $n is larger than stack size ${stackTypes.size}")
+      val (taken, rest) = stackTypes.splitAt(n)
+      Context(rest, frameTypes)
     }
 
     def shift(offset: Int, size: Int): Context = {
@@ -126,78 +170,136 @@ trait StagedWasmEvaluator extends SAIOps {
     val (inst, rest) = (insts.head, insts.tail)
     inst match {
       case Drop =>
-        val (_, newCtx) = Stack.pop()
+        val (ty, newCtx) = ctx.pop()
+        Stack.popC(ty)
+        Stack.popS(ty)
         eval(rest, kont, mkont, trail)(newCtx)
       case WasmConst(num) =>
-        val newCtx = Stack.push(toStagedNum(num))
+        Stack.pushC(toStagedNum(num))
+        Stack.pushS(toStagedSymbolicNum(num))
+        val newCtx = ctx.push(num.tipe(module))
         eval(rest, kont, mkont, trail)(newCtx)
       case Symbolic(ty) =>
-        val (id, newCtx1) = Stack.pop()
+        Stack.popC(ty)
+        val id = Stack.popS(ty)
         val symVal = id.makeSymbolic()
-        val concVal = SymEnv.read(symVal)
-        val tagger = ty.toTagger
-        val value = tagger(concVal, symVal)
-        val newCtx2 = Stack.push(value)(newCtx1)
-        eval(rest, kont, mkont, trail)(newCtx2)
+        val num = SymEnv.read(symVal.s)
+        Stack.pushC(ty.concreteTag(num))
+        Stack.pushS(symVal)
+        val newCtx = ctx.pop()._2.push(ty)
+        eval(rest, kont, mkont, trail)(newCtx)
       case LocalGet(i) =>
-        val newCtx = Stack.push(Frames.get(i))
+        Stack.pushC(Frames.getC(i))
+        Stack.pushS(Frames.getS(i))
+        val newCtx = ctx.push(ctx.frameTypes(i))
         eval(rest, kont, mkont, trail)(newCtx)
       case LocalSet(i) =>
-        val (num, newCtx) = Stack.pop()
-        Frames.set(i, num)(newCtx)
+        val (ty, newCtx) = ctx.pop()
+        val num = Stack.popC(ty)
+        val sym = Stack.popS(ty)
+        Frames.setC(i, num)
+        Frames.setS(i, sym)
         eval(rest, kont, mkont, trail)(newCtx)
       case LocalTee(i) =>
-        val (num, newCtx) = Stack.peek
-        Frames.set(i, num)
-        eval(rest, kont, mkont, trail)(newCtx)
+        val ty = ctx.pop()._1
+        val num = Stack.peekC(ty)
+        val sym = Stack.peekS(ty)
+        Frames.setC(i, num)
+        Frames.setS(i, sym)
+        eval(rest, kont, mkont, trail)(ctx)
       case GlobalGet(i) =>
-        val newCtx = Stack.push(Globals(i))
+        Stack.pushC(Globals.getC(i))
+        Stack.pushS(Globals.getS(i))
+        val newCtx = ctx.push(module.globals(i).ty.ty)
         eval(rest, kont, mkont, trail)(newCtx)
       case GlobalSet(i) =>
-        val (value, newCtx) = Stack.pop()
+        val (ty, newCtx) = ctx.pop()
+        val num = Stack.popC(ty)
+        val sym = Stack.popS(ty)
         module.globals(i).ty match {
-          case GlobalType(tipe, true) => Globals(i) = value
+          case GlobalType(tipe, true) => {
+            Globals.setC(i, num)
+            Globals.setS(i, sym)
+          }
           case _ => throw new Exception("Cannot set immutable global")
         }
         eval(rest, kont, mkont, trail)(newCtx)
       case Store(StoreOp(align, offset, ty, None)) =>
-        val (value, newCtx1) = Stack.pop()
-        val (addr, newCtx2) = Stack.pop()(newCtx1)
+        val (ty1, newCtx1) = ctx.pop()
+        val value = Stack.popC(ty1)
+        val symValue = Stack.popS(ty1)
+        val (ty2, newCtx2) = newCtx1.pop()
+        val addr = Stack.popC(ty2)
+        val symAddr = Stack.popS(ty2)
         Memory.storeInt(addr.toInt, offset, value.toInt)
         eval(rest, kont, mkont, trail)(newCtx2)
       case Nop => eval(rest, kont, mkont, trail)
       case Load(LoadOp(align, offset, ty, None, None)) =>
-        val (addr, newCtx1) = Stack.pop()
-        val value = Memory.loadInt(addr.toInt, offset)
-        val newCtx2 = Stack.push(value)(newCtx1)
+        val (ty1, newCtx1) = ctx.pop()
+        val addr = Stack.popC(ty1)
+        Stack.popS(ty1)
+        val num = Memory.loadIntC(addr.toInt, offset)
+        val sym = Memory.loadIntS(addr.toInt, offset)
+        Stack.pushC(num)
+        Stack.pushS(sym)
+        val newCtx2 = newCtx1.push(ty)
         eval(rest, kont, mkont, trail)(newCtx2)
       case MemorySize => ???
       case MemoryGrow =>
-        val (delta, newCtx1) = Stack.pop()
+        val (ty, newCtx) = ctx.pop()
+        val delta = Stack.popC(ty)
+        Stack.popS(ty)
         val ret = Memory.grow(delta.toInt)
         val retNum = Values.I32V(ret)
+        // For now, we assume that the result of memory.grow only depends on the execution path, 
+        // we can relax this by turning it return to a symbol value and mimic the memory.grow's result as input. 
         val retSym = "Concrete".reflectCtrlWith[SymVal](retNum)
-        val newCtx2 = Stack.push(I32(retNum, retSym))(newCtx1)
+        Stack.pushC(I32C(retNum))
+        Stack.pushS(I32S(retSym))
+        val newCtx2 = ctx.push(NumType(I32Type))
         eval(rest, kont, mkont, trail)(newCtx2)
       case MemoryFill => ???
       case Unreachable => unreachable()
       case Test(op) =>
-        val (v, newCtx1) = Stack.pop()
-        val newCtx2 = Stack.push(evalTestOp(op, v))(newCtx1)
+        val (ty, newCtx1) = ctx.pop()
+        val v = Stack.popC(ty)
+        val s = Stack.popS(ty)
+        Stack.pushC(evalTestOpC(op, v))
+        Stack.pushS(evalTestOpS(op, s))
+        val newCtx2 = newCtx1.push(v.tipe)
         eval(rest, kont, mkont, trail)(newCtx2)
       case Unary(op) =>
-        val (v, newCtx1) = Stack.pop()
-        val newCtx2 = Stack.push(evalUnaryOp(op, v))(newCtx1)
+        val (ty, newCtx1) = ctx.pop()
+        val v = Stack.popC(ty)
+        val s = Stack.popS(ty)
+        val res = evalUnaryOpC(op, v)
+        Stack.pushC(res)
+        Stack.pushS(evalUnaryOpS(op, s))
+        val newCtx2 = newCtx1.push(res.tipe)
         eval(rest, kont, mkont, trail)(newCtx2)
       case Binary(op) =>
-        val (v2, newCtx1) = Stack.pop()
-        val (v1, newCtx2) = Stack.pop()(newCtx1)
-        val newCtx3 = Stack.push(evalBinOp(op, v1, v2))(newCtx2)
+        val (ty2, newCtx1) = ctx.pop()
+        val v2 = Stack.popC(ty2)
+        val s2 = Stack.popS(ty2)
+        val (ty1, newCtx2) = newCtx1.pop()
+        val v1 = Stack.popC(ty1)
+        val s1 = Stack.popS(ty1)
+        val res = evalBinOpC(op, v1, v2)
+        Stack.pushC(res)
+        Stack.pushS(evalBinOpS(op, s1, s2))
+        val newCtx3 = newCtx2.push(res.tipe)
         eval(rest, kont, mkont, trail)(newCtx3)
       case Compare(op) =>
-        val (v2, newCtx1) = Stack.pop()
-        val (v1, newCtx2) = Stack.pop()(newCtx1)
-        val newCtx3 = Stack.push(evalRelOp(op, v1, v2))(newCtx2)
+        val (ty2, newCtx1) = ctx.pop()
+        val v2 = Stack.popC(ty2)
+        val s2 = Stack.popS(ty2)
+        val (ty1, newCtx2) = newCtx1.pop()
+        val v1 = Stack.popC(ty1)
+        val s1 = Stack.popS(ty1)
+        val res = evalRelOpC(op, v1, v2)
+        Stack.pushC(res)
+        Stack.pushS(evalRelOpS(op, s1, s2))
+        val newCtx3 = newCtx2.push(res.tipe)
         eval(rest, kont, mkont, trail)(newCtx3)
       case WasmBlock(ty, inner) =>
         // no need to modify the stack when entering a block
@@ -208,7 +310,9 @@ trait StagedWasmEvaluator extends SAIOps {
         def restK(restCtx: Context): Rep[Cont[Unit]] = topFun((mk: Rep[MCont[Unit]]) => {
           info(s"Exiting the block, stackSize =", Stack.size)
           val offset = restCtx.stackTypes.size - exitSize
-          val newRestCtx = Stack.shift(offset, funcTy.out.size)(restCtx)
+          Stack.shiftC(offset, funcTy.out.size)
+          Stack.shiftS(offset, funcTy.out.size)
+          val newRestCtx = restCtx.shift(offset, funcTy.out.size)
           eval(rest, kont, mk, trail)(newRestCtx)
         })
         eval(inner, restK _, mkont, restK _ :: trail)
@@ -219,31 +323,37 @@ trait StagedWasmEvaluator extends SAIOps {
         def restK(restCtx: Context): Rep[Cont[Unit]] = topFun((mk: Rep[MCont[Unit]]) => {
           info(s"Exiting the loop, stackSize =", Stack.size)
           val offset = restCtx.stackTypes.size - exitSize
-          val newRestCtx = Stack.shift(offset, funcTy.out.size)(restCtx)
+          Stack.shiftC(offset, funcTy.out.size)
+          Stack.shiftS(offset, funcTy.out.size)
+          val newRestCtx = restCtx.shift(offset, funcTy.out.size)
           eval(rest, kont, mk, trail)(newRestCtx)
         })
         val enterSize = ctx.stackTypes.size
         def loop(restCtx: Context): Rep[Cont[Unit]] = topFun((mk: Rep[MCont[Unit]]) => {
           info(s"Entered the loop, stackSize =", Stack.size)
           val offset = restCtx.stackTypes.size - enterSize
-          val newRestCtx = Stack.shift(offset, funcTy.inps.size)(restCtx)
+          Stack.shiftC(offset, funcTy.inps.size)
+          Stack.shiftS(offset, funcTy.inps.size)
+          val newRestCtx = restCtx.shift(offset, funcTy.inps.size)
           eval(inner, restK _, mk, loop _ :: trail)(newRestCtx)
         })
         loop(ctx)(mkont)
       case If(ty, thn, els) =>
         val funcTy = ty.funcType
-        val (cond, newCtx) = Stack.pop()
+        val (condTy, newCtx) = ctx.pop()
+        val cond = Stack.popC(condTy)
+        val symCond = Stack.popS(condTy)
         val exitSize = newCtx.stackTypes.size - funcTy.inps.size + funcTy.out.size
-        // TODO: can we avoid code duplication here?
-        val dummy = makeDummy
         def restK(restCtx: Context): Rep[Cont[Unit]] = topFun((mk: Rep[MCont[Unit]]) => {
           info(s"Exiting the if, stackSize =", Stack.size)
           val offset = restCtx.stackTypes.size - exitSize
-          val newRestCtx = Stack.shift(offset, funcTy.out.size)(restCtx)
+          Stack.shiftC(offset, funcTy.out.size)
+          Stack.shiftS(offset, funcTy.out.size)
+          val newRestCtx = restCtx.shift(offset, funcTy.out.size)
           eval(rest, kont, mk, trail)(newRestCtx)
         })
         // TODO: put the cond.s to path condition
-        ExploreTree.fillWithIfElse(cond.s)
+        ExploreTree.fillWithIfElse(symCond.s)
         if (cond.toInt != 0) {
           ExploreTree.moveCursor(true)
           eval(thn, restK _, mkont, restK _ :: trail)(newCtx)
@@ -256,10 +366,11 @@ trait StagedWasmEvaluator extends SAIOps {
         info(s"Jump to $label")
         trail(label)(ctx)(mkont)
       case BrIf(label) =>
-        val (cond, newCtx) = Stack.pop()
+        val (ty, newCtx) = ctx.pop()
+        val cond = Stack.popC(ty)
+        val symCond = Stack.popS(ty)
         info(s"The br_if(${label})'s condition is ", cond.toInt)
-        // TODO: put the cond.s to path condition
-        ExploreTree.fillWithIfElse(cond.s)
+        ExploreTree.fillWithIfElse(symCond.s)
         if (cond.toInt != 0) {
           info(s"Jump to $label")
           ExploreTree.moveCursor(true)
@@ -271,12 +382,15 @@ trait StagedWasmEvaluator extends SAIOps {
         }
         ()
       case BrTable(labels, default) =>
-        val (label, newCtx) = Stack.pop()
+        val (ty, newCtx) = ctx.pop()
+        val label = Stack.popC(ty)
+        val labelSym = Stack.popS(ty)
         def aux(choices: List[Int], idx: Int): Rep[Unit] = {
           if (choices.isEmpty) trail(default)(newCtx)(mkont)
           else {
             val cond = (label - toStagedNum(I32V(idx))).isZero()
-            ExploreTree.fillWithIfElse(cond.s)
+            val condSym = (labelSym - toStagedSymbolicNum(I32V(idx))).isZero()
+            ExploreTree.fillWithIfElse(condSym.s)
             if (cond.toInt != 0) {
               ExploreTree.moveCursor(true)
               trail(choices.head)(newCtx)(mkont)
@@ -323,37 +437,49 @@ trait StagedWasmEvaluator extends SAIOps {
             callee
           }
         // Predef.println(s"[DEBUG] locals size: ${locals.size}")
-        val (args, newCtx) = Stack.take(ty.inps.size)
+        val newCtx = ctx.take(ty.inps.size)
+        val argsC = Stack.takeC(ty.inps)
+        val argsS = Stack.takeS(ty.inps)
         if (isTail) {
           // when tail call, return to the caller's return continuation
-          Frames.popFrame(ctx.frameTypes.size)
-          Frames.pushFrame(locals)
-          Frames.putAll(args)
+          Frames.popFrameC(ctx.frameTypes.size)
+          Frames.popFrameS(ctx.frameTypes.size)
+          Frames.pushFrameC(locals)
+          Frames.pushFrameS(locals)
+          Frames.putAllC(argsC)
+          Frames.putAllS(argsS)
           callee(mkont)
         } else {
           // We make a new trail by `restK`, since function creates a new block to escape
           // (more or less like `return`)
           val restK: Rep[Cont[Unit]] = topFun((mk: Rep[MCont[Unit]]) => {
             info(s"Exiting the function at $funcIndex, stackSize =", Stack.size)
-            Frames.popFrame(locals.size)
+            Frames.popFrameC(locals.size)
+            Frames.popFrameS(locals.size)
             eval(rest, kont, mk, trail)(newCtx.copy(stackTypes = ty.out.reverse ++ ctx.stackTypes.drop(ty.inps.size)))
           })
           val dummy = makeDummy
           val newMKont: Rep[MCont[Unit]] = funHere((_u: Rep[Unit]) => {
             restK(mkont)
           }, dummy)
-          Frames.pushFrame(locals)
-          Frames.putAll(args)
+          Frames.pushFrameC(locals)
+          Frames.pushFrameS(locals)
+          Frames.putAllC(argsC)
+          Frames.putAllS(argsS)
           callee(newMKont)
         }
       case Import("console", "log", _)
          | Import("spectest", "print_i32", _) =>
         //println(s"[DEBUG] current stack: $stack")
-        val (v, newCtx) = Stack.pop()
+        val (ty, newCtx) = ctx.pop()
+        val v = Stack.popC(ty)
+        Stack.popS(ty)
         println(v.toInt)
         eval(rest, kont, mkont, trail)(newCtx)
       case Import("console", "assert", _) =>
-        val (v, newCtx) = Stack.pop()
+        val (ty, newCtx) = ctx.pop()
+        val v = Stack.popC(ty)
+        Stack.popS(ty)
         runtimeAssert(v.toInt != 0)
         eval(rest, kont, mkont, trail)(newCtx)
       case Import(_, _, _) => throw new Exception(s"Unknown import at $funcIndex")
@@ -361,18 +487,29 @@ trait StagedWasmEvaluator extends SAIOps {
     }
   }
 
-  def evalTestOp(op: TestOp, value: StagedNum): StagedNum = op match {
+  def evalTestOpC(op: TestOp, value: StagedConcreteNum): StagedConcreteNum = op match {
     case Eqz(_) => value.isZero
   }
 
-  def evalUnaryOp(op: UnaryOp, value: StagedNum): StagedNum = op match {
+  def evalTestOpS(op: TestOp, value: StagedSymbolicNum): StagedSymbolicNum = op match {
+    case Eqz(_) => value.isZero
+  }
+
+  def evalUnaryOpC(op: UnaryOp, value: StagedConcreteNum): StagedConcreteNum = op match {
     case Clz(_) => value.clz()
     case Ctz(_) => value.ctz()
     case Popcnt(_) => value.popcnt()
     case _ => ???
   }
 
-  def evalBinOp(op: BinOp, v1: StagedNum, v2: StagedNum): StagedNum = op match {
+  def evalUnaryOpS(op: UnaryOp, value: StagedSymbolicNum): StagedSymbolicNum = op match {
+    case Clz(_) => value.clz()
+    case Ctz(_) => value.ctz()
+    case Popcnt(_) => value.popcnt()
+    case _ => ???
+  }
+
+  def evalBinOpC(op: BinOp, v1: StagedConcreteNum, v2: StagedConcreteNum): StagedConcreteNum = op match {
     case Add(_) => v1 + v2
     case Mul(_) => v1 * v2
     case Sub(_) => v1 - v2
@@ -386,7 +523,35 @@ trait StagedWasmEvaluator extends SAIOps {
       throw new Exception(s"Unknown binary operation $op")
   }
 
-  def evalRelOp(op: RelOp, v1: StagedNum, v2: StagedNum): StagedNum = op match {
+  def evalBinOpS(op: BinOp, v1: StagedSymbolicNum, v2: StagedSymbolicNum): StagedSymbolicNum = op match {
+    case Add(_) => v1 + v2
+    case Mul(_) => v1 * v2
+    case Sub(_) => v1 - v2
+    case Shl(_) => v1 << v2
+    // case ShrS(_) => v1 >> v2 // TODO: signed shift right
+    case ShrU(_) => v1 >> v2
+    case And(_) => v1 & v2
+    case DivS(_) => v1 / v2
+    case DivU(_) => v1 / v2
+    case _ =>
+      throw new Exception(s"Unknown binary operation $op")
+  }
+
+  def evalRelOpC(op: RelOp, v1: StagedConcreteNum, v2: StagedConcreteNum): StagedConcreteNum = op match {
+    case Eq(_) => v1 numEq v2
+    case Ne(_) => v1 numNe v2
+    case LtS(_) => v1 < v2
+    case LtU(_) => v1 ltu v2
+    case GtS(_) => v1 > v2
+    case GtU(_) => v1 gtu v2
+    case LeS(_) => v1 <= v2
+    case LeU(_) => v1 leu v2
+    case GeS(_) => v1 >= v2
+    case GeU(_) => v1 geu v2
+    case _ => ???
+  }
+
+  def evalRelOpS(op: RelOp, v1: StagedSymbolicNum, v2: StagedSymbolicNum): StagedSymbolicNum = op match {
     case Eq(_) => v1 numEq v2
     case Ne(_) => v1 numNe v2
     case LtS(_) => v1 < v2
@@ -426,9 +591,11 @@ trait StagedWasmEvaluator extends SAIOps {
     }
     val (instrs, locals) = (funBody.body, funBody.locals)
     resetStacks()
-    Frames.pushFrame(locals)
+    Frames.pushFrameC(locals)
+    Frames.pushFrameS(locals)
     eval(instrs, (_: Context) => forwardKont, mkont, ((_: Context) => forwardKont)::Nil)(Context(Nil, locals))
-    Frames.popFrame(locals.size)
+    Frames.popFrameC(locals.size)
+    Frames.popFrameS(locals.size)
   }
 
   def evalTop(main: Option[String], printRes: Boolean, dumpTree: Option[String]): Rep[Unit] = {
@@ -450,66 +617,78 @@ trait StagedWasmEvaluator extends SAIOps {
 
   // stack operations
   object Stack {
-    def shift(offset: Int, size: Int)(ctx: Context): Context = {
+    def shiftC(offset: Int, size: Int) = {
       if (offset > 0) {
         "stack-shift".reflectCtrlWith[Unit](offset, size)
       }
-      ctx.shift(offset, size)
+    }
+
+    def shiftS(offset: Int, size: Int) = {
+      if (offset > 0) {
+        "sym-stack-shift".reflectCtrlWith[Unit](offset, size)
+      }
     }
 
     def initialize(): Rep[Unit] = {
       "stack-init".reflectCtrlWith[Unit]()
     }
 
-    def pop()(implicit ctx: Context): (StagedNum, Context) = {
-      val (ty, newContext) = ctx.pop()
-      val num = ty match {
-        case NumType(I32Type) => I32("stack-pop".reflectCtrlWith[Num](), "sym-stack-pop".reflectCtrlWith[SymVal]())
-        case NumType(I64Type) => I64("stack-pop".reflectCtrlWith[Num](), "sym-stack-pop".reflectCtrlWith[SymVal]())
-        case NumType(F32Type) => F32("stack-pop".reflectCtrlWith[Num](), "sym-stack-pop".reflectCtrlWith[SymVal]())
-        case NumType(F32Type) => F64("stack-pop".reflectCtrlWith[Num](), "sym-stack-pop".reflectCtrlWith[SymVal]())
-      }
-      (num, newContext)
+    def popC(ty: ValueType): StagedConcreteNum = ty match {
+      case NumType(I32Type) => I32C("stack-pop".reflectCtrlWith[Num]())
+      case NumType(I64Type) => I64C("stack-pop".reflectCtrlWith[Num]())
+      case NumType(F32Type) => F32C("stack-pop".reflectCtrlWith[Num]())
+      case NumType(F32Type) => F64C("stack-pop".reflectCtrlWith[Num]())
     }
 
-    def peek(implicit ctx: Context): (StagedNum, Context) = {
-      val ty = ctx.stackTypes.head
-      val num = ty match {
-        case NumType(I32Type) => I32("stack-peek".reflectCtrlWith[Num](), "sym-stack-peek".reflectCtrlWith[SymVal]())
-        case NumType(I64Type) => I64("stack-peek".reflectCtrlWith[Num](), "sym-stack-peek".reflectCtrlWith[SymVal]())
-        case NumType(F32Type) => F32("stack-peek".reflectCtrlWith[Num](), "sym-stack-peek".reflectCtrlWith[SymVal]())
-        case NumType(F32Type) => F64("stack-peek".reflectCtrlWith[Num](), "sym-stack-peek".reflectCtrlWith[SymVal]())
-      }
-      (num, ctx)
+    def popS(ty: ValueType): StagedSymbolicNum = ty match {
+      case NumType(I32Type) => I32S("sym-stack-pop".reflectCtrlWith[SymVal]())
+      case NumType(I64Type) => I64S("sym-stack-pop".reflectCtrlWith[SymVal]())
+      case NumType(F32Type) => F32S("sym-stack-pop".reflectCtrlWith[SymVal]())
+      case NumType(F64Type) => F64S("sym-stack-pop".reflectCtrlWith[SymVal]())
     }
 
-    def push(num: StagedNum)(implicit ctx: Context): Context = {
-      num match {
-        case I32(v, s) => "stack-push".reflectCtrlWith[Unit](v); "sym-stack-push".reflectCtrlWith[Unit](s)
-        case I64(v, s) => "stack-push".reflectCtrlWith[Unit](v); "sym-stack-push".reflectCtrlWith[Unit](s)
-        case F32(v, s) => "stack-push".reflectCtrlWith[Unit](v); "sym-stack-push".reflectCtrlWith[Unit](s)
-        case F64(v, s) => "stack-push".reflectCtrlWith[Unit](v); "sym-stack-push".reflectCtrlWith[Unit](s)
-      }
-      ctx.push(num.tipe)
+    def peekC(ty: ValueType): StagedConcreteNum = ty match {
+      case NumType(I32Type) => I32C("stack-peek".reflectCtrlWith[Num]())
+      case NumType(I64Type) => I64C("stack-peek".reflectCtrlWith[Num]())
+      case NumType(F32Type) => F32C("stack-peek".reflectCtrlWith[Num]())
+      case NumType(F32Type) => F64C("stack-peek".reflectCtrlWith[Num]())
     }
 
-    def take(n: Int)(implicit ctx: Context): (List[StagedNum], Context) = n match {
-      case 0 => (Nil, ctx)
-      case n =>
-        val (v, newCtx1) = pop()
-        val (rest, newCtx2) = take(n - 1)
-        (v::rest, newCtx2)
+    def peekS(ty: ValueType): StagedSymbolicNum = ty match {
+      case NumType(I32Type) => I32S("sym-stack-peek".reflectCtrlWith[SymVal]())
+      case NumType(I64Type) => I64S("sym-stack-peek".reflectCtrlWith[SymVal]())
+      case NumType(F32Type) => F32S("sym-stack-peek".reflectCtrlWith[SymVal]())
+      case NumType(F64Type) => F64S("sym-stack-peek".reflectCtrlWith[SymVal]())
     }
 
-    def drop(n: Int)(implicit ctx: Context): Context = {
-      take(n)._2
+    def pushC(num: StagedConcreteNum) = num match {
+      case I32C(v) => "stack-push".reflectCtrlWith[Unit](v)
+      case I64C(v) => "stack-push".reflectCtrlWith[Unit](v)
+      case F32C(v) => "stack-push".reflectCtrlWith[Unit](v)
+      case F64C(v) => "stack-push".reflectCtrlWith[Unit](v)
     }
 
-    def shift(offset: Rep[Int], size: Rep[Int]): Rep[Unit] = {
-      if (offset > 0) {
-        "stack-shift".reflectCtrlWith[Unit](offset, size)
-        "sym-stack-shift".reflectCtrlWith[Unit](offset, size)
-      }
+    def pushS(num: StagedSymbolicNum) = num match {
+      case I32S(s) => "sym-stack-push".reflectCtrlWith[Unit](s)
+      case I64S(s) => "sym-stack-push".reflectCtrlWith[Unit](s)
+      case F32S(s) => "sym-stack-push".reflectCtrlWith[Unit](s)
+      case F64S(s) => "sym-stack-push".reflectCtrlWith[Unit](s)
+    }
+
+    def takeC(types: List[ValueType]): List[StagedConcreteNum] = types match {
+      case Nil => Nil
+      case t :: ts =>
+        val v = popC(t)
+        val rest = takeC(ts)
+        v :: rest
+    }
+
+    def takeS(types: List[ValueType]): List[StagedSymbolicNum] = types match {
+      case Nil => Nil
+      case t :: ts =>
+        val v = popS(t)
+        val rest = takeS(ts)
+        v :: rest
     }
 
     def print(): Rep[Unit] = {
@@ -522,41 +701,72 @@ trait StagedWasmEvaluator extends SAIOps {
   }
 
   object Frames {
-    def get(i: Int)(implicit ctx: Context): StagedNum = {
+    def getC(i: Int)(implicit ctx: Context): StagedConcreteNum = {
       // val offset = ctx.frameTypes.take(i).map(_.size).sum
       ctx.frameTypes(i) match {
-        case NumType(I32Type) => I32("frame-get".reflectCtrlWith[Num](i), "sym-frame-get".reflectCtrlWith[SymVal](i))
-        case NumType(I64Type) => I64("frame-get".reflectCtrlWith[Num](i), "sym-frame-get".reflectCtrlWith[SymVal](i))
-        case NumType(F32Type) => F32("frame-get".reflectCtrlWith[Num](i), "sym-frame-get".reflectCtrlWith[SymVal](i))
-        case NumType(F64Type) => F64("frame-get".reflectCtrlWith[Num](i), "sym-frame-get".reflectCtrlWith[SymVal](i))
+        case NumType(I32Type) => I32C("frame-get".reflectCtrlWith[Num](i))
+        case NumType(I64Type) => I64C("frame-get".reflectCtrlWith[Num](i))
+        case NumType(F32Type) => F32C("frame-get".reflectCtrlWith[Num](i))
+        case NumType(F64Type) => F64C("frame-get".reflectCtrlWith[Num](i))
       }
     }
 
-    def set(i: Int, v: StagedNum)(implicit ctx: Context): Rep[Unit] = {
-      // val offset = ctx.frameTypes.take(i).map(_.size).sum
+    def getS(i: Int)(implicit ctx: Context): StagedSymbolicNum = {
+      ctx.frameTypes(i) match {
+        case NumType(I32Type) => I32S("sym-frame-get".reflectCtrlWith[SymVal](i))
+        case NumType(I64Type) => I64S("sym-frame-get".reflectCtrlWith[SymVal](i))
+        case NumType(F32Type) => F32S("sym-frame-get".reflectCtrlWith[SymVal](i))
+        case NumType(F64Type) => F64S("sym-frame-get".reflectCtrlWith[SymVal](i))
+      }
+    }
+
+    def setC(i: Int, v: StagedConcreteNum): Rep[Unit] = {
       v match {
-        case I32(v, s) => "frame-set".reflectCtrlWith[Unit](i, v); "sym-frame-set".reflectCtrlWith[Unit](i, s)
-        case I64(v, s) => "frame-set".reflectCtrlWith[Unit](i, v); "sym-frame-set".reflectCtrlWith[Unit](i, s)
-        case F32(v, s) => "frame-set".reflectCtrlWith[Unit](i, v); "sym-frame-set".reflectCtrlWith[Unit](i, s)
-        case F64(v, s) => "frame-set".reflectCtrlWith[Unit](i, v); "sym-frame-set".reflectCtrlWith[Unit](i, s)
+        case I32C(v) => "frame-set".reflectCtrlWith[Unit](i, v)
+        case I64C(v) => "frame-set".reflectCtrlWith[Unit](i, v)
+        case F32C(v) => "frame-set".reflectCtrlWith[Unit](i, v)
+        case F64C(v) => "frame-set".reflectCtrlWith[Unit](i, v)
       }
     }
 
-    def pushFrame(locals: List[ValueType]): Rep[Unit] = {
+    def setS(i: Int, s: StagedSymbolicNum): Rep[Unit] = {
+      s match {
+        case I32S(s) => "sym-frame-set".reflectCtrlWith[Unit](i, s)
+        case I64S(s) => "sym-frame-set".reflectCtrlWith[Unit](i, s)
+        case F32S(s) => "sym-frame-set".reflectCtrlWith[Unit](i, s)
+        case F64S(s) => "sym-frame-set".reflectCtrlWith[Unit](i, s)
+      }
+    }
+
+    def pushFrameC(locals: List[ValueType]): Rep[Unit] = {
       // Predef.println(s"[DEBUG] push frame: $locals")
       val size = locals.size
       "frame-push".reflectCtrlWith[Unit](size)
+    }
+
+    def pushFrameS(locals: List[ValueType]): Rep[Unit] = {
+      // Predef.println(s"[DEBUG] push frame: $locals")
+      val size = locals.size
       "sym-frame-push".reflectCtrlWith[Unit](size)
     }
 
-    def popFrame(size: Int): Rep[Unit] = {
+    def popFrameC(size: Int): Rep[Unit] = {
       "frame-pop".reflectCtrlWith[Unit](size)
+    }
+
+    def popFrameS(size: Int): Rep[Unit] = {
       "sym-frame-pop".reflectCtrlWith[Unit](size)
     }
 
-    def putAll(args: List[StagedNum])(implicit ctx: Context): Rep[Unit] = {
+    def putAllC(args: List[StagedConcreteNum]): Rep[Unit] = {
       for ((arg, i) <- args.view.reverse.zipWithIndex) {
-        Frames.set(i, arg)
+        Frames.setC(i, arg)
+      }
+    }
+
+    def putAllS(args: List[StagedSymbolicNum]): Rep[Unit] = {
+      for ((arg, i) <- args.view.reverse.zipWithIndex) {
+        Frames.setS(i, arg)
       }
     }
   }
@@ -567,8 +777,12 @@ trait StagedWasmEvaluator extends SAIOps {
       // todo: store symbolic value to memory via extract/concat operation
     }
 
-    def loadInt(base: Rep[Int], offset: Int): StagedNum = {
-      I32("I32V".reflectCtrlWith[Num]("memory-load-int".reflectCtrlWith[Int](base, offset)), "sym-load-int-todo".reflectCtrlWith[SymVal](base, offset))
+    def loadIntC(base: Rep[Int], offset: Int): StagedConcreteNum = {
+      I32C("I32V".reflectCtrlWith[Num]("memory-load-int".reflectCtrlWith[Int](base, offset)))
+    }
+
+    def loadIntS(base: Rep[Int], offset: Int): StagedSymbolicNum = {
+      I32S("sym-load-int-todo".reflectCtrlWith[SymVal](base, offset))
     }
 
     // Returns the previous memory size on success, or -1 if the memory cannot be grown.
@@ -603,21 +817,39 @@ trait StagedWasmEvaluator extends SAIOps {
 
   // global read/write
   object Globals {
-    def apply(i: Int): StagedNum = {
+    def getC(i: Int): StagedConcreteNum = {
       module.globals(i).ty match {
-        case GlobalType(NumType(I32Type), _) => I32("global-get".reflectCtrlWith[Num](i), "sym-global-get".reflectCtrlWith[SymVal](i))
-        case GlobalType(NumType(I64Type), _) => I64("global-get".reflectCtrlWith[Num](i), "sym-global-get".reflectCtrlWith[SymVal](i))
-        case GlobalType(NumType(F32Type), _) => F32("global-get".reflectCtrlWith[Num](i), "sym-global-get".reflectCtrlWith[SymVal](i))
-        case GlobalType(NumType(F64Type), _) => F64("global-get".reflectCtrlWith[Num](i), "sym-global-get".reflectCtrlWith[SymVal](i))
+        case GlobalType(NumType(I32Type), _) => I32C("global-get".reflectCtrlWith[Num](i))
+        case GlobalType(NumType(I64Type), _) => I64C("global-get".reflectCtrlWith[Num](i))
+        case GlobalType(NumType(F32Type), _) => F32C("global-get".reflectCtrlWith[Num](i))
+        case GlobalType(NumType(F64Type), _) => F64C("global-get".reflectCtrlWith[Num](i))
       }
     }
 
-    def update(i: Int, v: StagedNum): Rep[Unit] = {
+    def getS(i: Int): StagedSymbolicNum = {
       module.globals(i).ty match {
-        case GlobalType(NumType(I32Type), _) => "global-set".reflectCtrlWith[Unit](i, v.i);"sym-global-set".reflectCtrlWith[Unit](i, v.s)
-        case GlobalType(NumType(I64Type), _) => "global-set".reflectCtrlWith[Unit](i, v.i);"sym-global-set".reflectCtrlWith[Unit](i, v.s)
-        case GlobalType(NumType(F32Type), _) => "global-set".reflectCtrlWith[Unit](i, v.i);"sym-global-set".reflectCtrlWith[Unit](i, v.s)
-        case GlobalType(NumType(F64Type), _) => "global-set".reflectCtrlWith[Unit](i, v.i);"sym-global-set".reflectCtrlWith[Unit](i, v.s)
+        case GlobalType(NumType(I32Type), _) => I32S("sym-global-get".reflectCtrlWith[SymVal](i))
+        case GlobalType(NumType(I64Type), _) => I64S("sym-global-get".reflectCtrlWith[SymVal](i))
+        case GlobalType(NumType(F32Type), _) => F32S("sym-global-get".reflectCtrlWith[SymVal](i))
+        case GlobalType(NumType(F64Type), _) => F64S("sym-global-get".reflectCtrlWith[SymVal](i))
+      }
+    }
+
+    def setC(i: Int, v: StagedConcreteNum): Rep[Unit] = {
+      module.globals(i).ty match {
+        case GlobalType(NumType(I32Type), _) => "global-set".reflectCtrlWith[Unit](i, v.i)
+        case GlobalType(NumType(I64Type), _) => "global-set".reflectCtrlWith[Unit](i, v.i)
+        case GlobalType(NumType(F32Type), _) => "global-set".reflectCtrlWith[Unit](i, v.i)
+        case GlobalType(NumType(F64Type), _) => "global-set".reflectCtrlWith[Unit](i, v.i)
+      }
+    }
+
+    def setS(i: Int, s: StagedSymbolicNum): Rep[Unit] = {
+      module.globals(i).ty match {
+        case GlobalType(NumType(I32Type), _) => "sym-global-set".reflectCtrlWith[Unit](i, s.s)
+        case GlobalType(NumType(I64Type), _) => "sym-global-set".reflectCtrlWith[Unit](i, s.s)
+        case GlobalType(NumType(F32Type), _) => "sym-global-set".reflectCtrlWith[Unit](i, s.s)
+        case GlobalType(NumType(F64Type), _) => "sym-global-set".reflectCtrlWith[Unit](i, s.s)
       }
     }
   }
@@ -652,164 +884,320 @@ trait StagedWasmEvaluator extends SAIOps {
   }
 
   // runtime Num type
-  implicit class StagedNumOps(num: StagedNum) {
+  implicit class StagedConcreteNumOps(num: StagedConcreteNum) {
 
     def toInt: Rep[Int] = "num-to-int".reflectCtrlWith[Int](num.i)
 
-    def isZero(): StagedNum = num match {
-      case I32(x_c, x_s) => I32(Values.I32V("is-zero".reflectCtrlWith[Int](num.toInt)), "sym-is-zero".reflectCtrlWith[SymVal](x_s))
+    def isZero(): StagedConcreteNum = num match {
+      case I32C(x_c) => I32C(Values.I32V("is-zero".reflectCtrlWith[Int](num.toInt)))
     }
 
-    def clz(): StagedNum = num match {
-      case I32(x_c, x_s) => I32("clz".reflectCtrlWith[Num](x_c), "sym-clz".reflectCtrlWith[SymVal](x_s))
-      case I64(x_c, x_s) => I64("clz".reflectCtrlWith[Num](x_c), "sym-clz".reflectCtrlWith[SymVal](x_s))
+    def clz(): StagedConcreteNum = num match {
+      case I32C(x) => I32C("clz".reflectCtrlWith[Num](x))
+      case I64C(x) => I64C("clz".reflectCtrlWith[Num](x))
     }
 
-    def ctz(): StagedNum = num match {
-      case I32(x_c, x_s) => I32("ctz".reflectCtrlWith[Num](x_c), "sym-ctz".reflectCtrlWith[SymVal](x_s))
-      case I64(x_c, x_s) => I64("ctz".reflectCtrlWith[Num](x_c), "sym-ctz".reflectCtrlWith[SymVal](x_s))
+    def ctz(): StagedConcreteNum = num match {
+      case I32C(x) => I32C("ctz".reflectCtrlWith[Num](x))
+      case I64C(x) => I64C("ctz".reflectCtrlWith[Num](x))
     }
 
-    def popcnt(): StagedNum = num match {
-      case I32(x_c, x_s) => I32("popcnt".reflectCtrlWith[Num](x_c), "sym-popcnt".reflectCtrlWith[SymVal](x_s))
-      case I64(x_c, x_s) => I64("popcnt".reflectCtrlWith[Num](x_c), "sym-popcnt".reflectCtrlWith[SymVal](x_s))
+    def popcnt(): StagedConcreteNum = num match {
+      case I32C(x) => I32C("popcnt".reflectCtrlWith[Num](x))
+      case I64C(x) => I64C("popcnt".reflectCtrlWith[Num](x))
     }
 
-    def makeSymbolic(): Rep[SymVal] = {
-      "make-symbolic".reflectCtrlWith[SymVal](num.s)
-    }
-
-    def +(rhs: StagedNum): StagedNum = {
+    def +(rhs: StagedConcreteNum): StagedConcreteNum = {
       (num, rhs) match {
-        case (I32(x_c, x_s), I32(y_c, y_s)) => I32("binary-add".reflectCtrlWith[Num](x_c, y_c), "sym-binary-add".reflectCtrlWith[SymVal](x_s, y_s))
-        case (I64(x_c, x_s), I64(y_c, y_s)) => I64("binary-add".reflectCtrlWith[Num](x_c, y_c), "sym-binary-add".reflectCtrlWith[SymVal](x_s, y_s))
-        case (F32(x_c, x_s), F32(y_c, y_s)) => F32("binary-add".reflectCtrlWith[Num](x_c, y_c), "sym-binary-add".reflectCtrlWith[SymVal](x_s, y_s))
-        case (F64(x_c, x_s), F64(y_c, y_s)) => F64("binary-add".reflectCtrlWith[Num](x_c, y_c), "sym-binary-add".reflectCtrlWith[SymVal](x_s, y_s))
+        case (I32C(x), I32C(y)) => I32C("binary-add".reflectCtrlWith[Num](x, y))
+        case (I64C(x), I64C(y)) => I64C("binary-add".reflectCtrlWith[Num](x, y))
+        case (F32C(x), F32C(y)) => F32C("binary-add".reflectCtrlWith[Num](x, y))
+        case (F64C(x), F64C(y)) => F64C("binary-add".reflectCtrlWith[Num](x, y))
       }
     }
 
-
-    def -(rhs: StagedNum): StagedNum = {
+    def -(rhs: StagedConcreteNum): StagedConcreteNum = {
       (num, rhs) match {
-        case (I32(x_c, x_s), I32(y_c, y_s)) => I32("binary-sub".reflectCtrlWith[Num](x_c, y_c), "sym-binary-sub".reflectCtrlWith[SymVal](x_s, y_s))
-        case (I64(x_c, x_s), I64(y_c, y_s)) => I64("binary-sub".reflectCtrlWith[Num](x_c, y_c), "sym-binary-sub".reflectCtrlWith[SymVal](x_s, y_s))
-        case (F32(x_c, x_s), F32(y_c, y_s)) => F32("binary-sub".reflectCtrlWith[Num](x_c, y_c), "sym-binary-sub".reflectCtrlWith[SymVal](x_s, y_s))
-        case (F64(x_c, x_s), F64(y_c, y_s)) => F64("binary-sub".reflectCtrlWith[Num](x_c, y_c), "sym-binary-sub".reflectCtrlWith[SymVal](x_s, y_s))
+        case (I32C(x), I32C(y)) => I32C("binary-sub".reflectCtrlWith[Num](x, y))
+        case (I64C(x), I64C(y)) => I64C("binary-sub".reflectCtrlWith[Num](x, y))
+        case (F32C(x), F32C(y)) => F32C("binary-sub".reflectCtrlWith[Num](x, y))
+        case (F64C(x), F64C(y)) => F64C("binary-sub".reflectCtrlWith[Num](x, y))
       }
     }
 
-    def *(rhs: StagedNum): StagedNum = {
+    def *(rhs: StagedConcreteNum): StagedConcreteNum = {
       (num, rhs) match {
-        case (I32(x_c, x_s), I32(y_c, y_s)) => I32("binary-mul".reflectCtrlWith[Num](x_c, y_c), "sym-binary-mul".reflectCtrlWith[SymVal](x_s, y_s))
-        case (I64(x_c, x_s), I64(y_c, y_s)) => I64("binary-mul".reflectCtrlWith[Num](x_c, y_c), "sym-binary-mul".reflectCtrlWith[SymVal](x_s, y_s))
-        case (F32(x_c, x_s), F32(y_c, y_s)) => F32("binary-mul".reflectCtrlWith[Num](x_c, y_c), "sym-binary-mul".reflectCtrlWith[SymVal](x_s, y_s))
-        case (F64(x_c, x_s), F64(y_c, y_s)) => F64("binary-mul".reflectCtrlWith[Num](x_c, y_c), "sym-binary-mul".reflectCtrlWith[SymVal](x_s, y_s))
+        case (I32C(x), I32C(y)) => I32C("binary-mul".reflectCtrlWith[Num](x, y))
+        case (I64C(x), I64C(y)) => I64C("binary-mul".reflectCtrlWith[Num](x, y))
+        case (F32C(x), F32C(y)) => F32C("binary-mul".reflectCtrlWith[Num](x, y))
+        case (F64C(x), F64C(y)) => F64C("binary-mul".reflectCtrlWith[Num](x, y))
       }
     }
 
-    def /(rhs: StagedNum): StagedNum = {
+    def /(rhs: StagedConcreteNum): StagedConcreteNum = {
       (num, rhs) match {
-        case (I32(x_c, x_s), I32(y_c, y_s)) => I32("binary-div".reflectCtrlWith[Num](x_c, y_c), "sym-binary-div".reflectCtrlWith[SymVal](x_s, y_s))
-        case (I64(x_c, x_s), I64(y_c, y_s)) => I64("binary-div".reflectCtrlWith[Num](x_c, y_c), "sym-binary-div".reflectCtrlWith[SymVal](x_s, y_s))
-        case (F32(x_c, x_s), F32(y_c, y_s)) => F32("binary-div".reflectCtrlWith[Num](x_c, y_c), "sym-binary-div".reflectCtrlWith[SymVal](x_s, y_s))
-        case (F64(x_c, x_s), F64(y_c, y_s)) => F64("binary-div".reflectCtrlWith[Num](x_c, y_c), "sym-binary-div".reflectCtrlWith[SymVal](x_s, y_s))
+        case (I32C(x), I32C(y)) => I32C("binary-div".reflectCtrlWith[Num](x, y))
+        case (I64C(x), I64C(y)) => I64C("binary-div".reflectCtrlWith[Num](x, y))
+        case (F32C(x), F32C(y)) => F32C("binary-div".reflectCtrlWith[Num](x, y))
+        case (F64C(x), F64C(y)) => F64C("binary-div".reflectCtrlWith[Num](x, y))
       }
     }
 
-    def <<(rhs: StagedNum): StagedNum = {
+    def <<(rhs: StagedConcreteNum): StagedConcreteNum = {
       (num, rhs) match {
-        case (I32(x_c, x_s), I32(y_c, y_s)) => I32("binary-shl".reflectCtrlWith[Num](x_c, y_c), "sym-binary-shl".reflectCtrlWith[SymVal](x_s, y_s))
-        case (I64(x_c, x_s), I64(y_c, y_s)) => I64("binary-shl".reflectCtrlWith[Num](x_c, y_c), "sym-binary-shl".reflectCtrlWith[SymVal](x_s, y_s))
-        case (F32(x_c, x_s), F32(y_c, y_s)) => F32("binary-shl".reflectCtrlWith[Num](x_c, y_c), "sym-binary-shl".reflectCtrlWith[SymVal](x_s, y_s))
-        case (F64(x_c, x_s), F64(y_c, y_s)) => F64("binary-shl".reflectCtrlWith[Num](x_c, y_c), "sym-binary-shl".reflectCtrlWith[SymVal](x_s, y_s))
+        case (I32C(x), I32C(y)) => I32C("binary-shl".reflectCtrlWith[Num](x, y))
+        case (I64C(x), I64C(y)) => I64C("binary-shl".reflectCtrlWith[Num](x, y))
+        case (F32C(x), F32C(y)) => F32C("binary-shl".reflectCtrlWith[Num](x, y))
+        case (F64C(x), F64C(y)) => F64C("binary-shl".reflectCtrlWith[Num](x, y))
       }
     }
 
-    def >>(rhs: StagedNum): StagedNum = {
+    def >>(rhs: StagedConcreteNum): StagedConcreteNum = {
       (num, rhs) match {
-        case (I32(x_c, x_s), I32(y_c, y_s)) => I32("binary-shr".reflectCtrlWith[Num](x_c, y_c), "sym-binary-shr".reflectCtrlWith[SymVal](x_s, y_s))
-        case (I64(x_c, x_s), I64(y_c, y_s)) => I64("binary-shr".reflectCtrlWith[Num](x_c, y_c), "sym-binary-shr".reflectCtrlWith[SymVal](x_s, y_s))
-        case (F32(x_c, x_s), F32(y_c, y_s)) => F32("binary-shr".reflectCtrlWith[Num](x_c, y_c), "sym-binary-shr".reflectCtrlWith[SymVal](x_s, y_s))
-        case (F64(x_c, x_s), F64(y_c, y_s)) => F64("binary-shr".reflectCtrlWith[Num](x_c, y_c), "sym-binary-shr".reflectCtrlWith[SymVal](x_s, y_s))
+        case (I32C(x), I32C(y)) => I32C("binary-shr".reflectCtrlWith[Num](x, y))
+        case (I64C(x), I64C(y)) => I64C("binary-shr".reflectCtrlWith[Num](x, y))
+        case (F32C(x), F32C(y)) => F32C("binary-shr".reflectCtrlWith[Num](x, y))
+        case (F64C(x), F64C(y)) => F64C("binary-shr".reflectCtrlWith[Num](x, y))
       }
     }
 
-    def &(rhs: StagedNum): StagedNum = {
+    def &(rhs: StagedConcreteNum): StagedConcreteNum = {
       (num, rhs) match {
-        case (I32(x_c, x_s), I32(y_c, y_s)) => I32("binary-and".reflectCtrlWith[Num](x_c, y_c), "sym-binary-and".reflectCtrlWith[SymVal](x_s, y_s))
-        case (I64(x_c, x_s), I64(y_c, y_s)) => I64("binary-and".reflectCtrlWith[Num](x_c, y_c), "sym-binary-and".reflectCtrlWith[SymVal](x_s, y_s))
-        case (F32(x_c, x_s), F32(y_c, y_s)) => F32("binary-and".reflectCtrlWith[Num](x_c, y_c), "sym-binary-and".reflectCtrlWith[SymVal](x_s, y_s))
-        case (F64(x_c, x_s), F64(y_c, y_s)) => F64("binary-and".reflectCtrlWith[Num](x_c, y_c), "sym-binary-and".reflectCtrlWith[SymVal](x_s, y_s))
+        case (I32C(x), I32C(y)) => I32C("binary-and".reflectCtrlWith[Num](x, y))
+        case (I64C(x), I64C(y)) => I64C("binary-and".reflectCtrlWith[Num](x, y))
+        case (F32C(x), F32C(y)) => F32C("binary-and".reflectCtrlWith[Num](x, y))
+        case (F64C(x), F64C(y)) => F64C("binary-and".reflectCtrlWith[Num](x, y))
       }
     }
 
-    def numEq(rhs: StagedNum): StagedNum = {
+    def numEq(rhs: StagedConcreteNum): StagedConcreteNum = {
       (num, rhs) match {
-        case (I32(x_c, x_s), I32(y_c, y_s)) => I32("relation-eq".reflectCtrlWith[Num](x_c, y_c), "sym-relation-eq".reflectCtrlWith[SymVal](x_s, y_s))
-        case (I64(x_c, x_s), I64(y_c, y_s)) => I32("relation-eq".reflectCtrlWith[Num](x_c, y_c), "sym-relation-eq".reflectCtrlWith[SymVal](x_s, y_s))
+        case (I32C(x), I32C(y)) => I32C("relation-eq".reflectCtrlWith[Num](x, y))
+        case (I64C(x), I64C(y)) => I32C("relation-eq".reflectCtrlWith[Num](x, y))
       }
     }
 
-    def numNe(rhs: StagedNum): StagedNum = {
+    def numNe(rhs: StagedConcreteNum): StagedConcreteNum = {
       (num, rhs) match {
-        case (I32(x_c, x_s), I32(y_c, y_s)) => I32("relation-ne".reflectCtrlWith[Num](x_c, y_c), "sym-relation-ne".reflectCtrlWith[SymVal](x_s, y_s))
-        case (I64(x_c, x_s), I64(y_c, y_s)) => I32("relation-ne".reflectCtrlWith[Num](x_c, y_c), "sym-relation-ne".reflectCtrlWith[SymVal](x_s, y_s))
+        case (I32C(x), I32C(y)) => I32C("relation-ne".reflectCtrlWith[Num](x, y))
+        case (I64C(x), I64C(y)) => I32C("relation-ne".reflectCtrlWith[Num](x, y))
       }
     }
 
-    def <(rhs: StagedNum): StagedNum = {
+    def <(rhs: StagedConcreteNum): StagedConcreteNum = {
       (num, rhs) match {
-        case (I32(x_c, x_s), I32(y_c, y_s)) => I32("relation-lt".reflectCtrlWith[Num](x_c, y_c), "sym-relation-lt".reflectCtrlWith[SymVal](x_s, y_s))
-        case (I64(x_c, x_s), I64(y_c, y_s)) => I32("relation-lt".reflectCtrlWith[Num](x_c, y_c), "sym-relation-lt".reflectCtrlWith[SymVal](x_s, y_s))
+        case (I32C(x), I32C(y)) => I32C("relation-lt".reflectCtrlWith[Num](x, y))
+        case (I64C(x), I64C(y)) => I32C("relation-lt".reflectCtrlWith[Num](x, y))
       }
     }
 
-    def ltu(rhs: StagedNum): StagedNum = {
+    def ltu(rhs: StagedConcreteNum): StagedConcreteNum = {
       (num, rhs) match {
-        case (I32(x_c, x_s), I32(y_c, y_s)) => I32("relation-ltu".reflectCtrlWith[Num](x_c, y_c), "sym-relation-ltu".reflectCtrlWith[SymVal](x_s, y_s))
-        case (I64(x_c, x_s), I64(y_c, y_s)) => I32("relation-ltu".reflectCtrlWith[Num](x_c, y_c), "sym-relation-ltu".reflectCtrlWith[SymVal](x_s, y_s))
+        case (I32C(x), I32C(y)) => I32C("relation-ltu".reflectCtrlWith[Num](x, y))
+        case (I64C(x), I64C(y)) => I32C("relation-ltu".reflectCtrlWith[Num](x, y))
       }
     }
 
-    def >(rhs: StagedNum): StagedNum = {
+    def >(rhs: StagedConcreteNum): StagedConcreteNum = {
       (num, rhs) match {
-        case (I32(x_c, x_s), I32(y_c, y_s)) => I32("relation-gt".reflectCtrlWith[Num](x_c, y_c), "sym-relation-gt".reflectCtrlWith[SymVal](x_s, y_s))
-        case (I64(x_c, x_s), I64(y_c, y_s)) => I32("relation-gt".reflectCtrlWith[Num](x_c, y_c), "sym-relation-gt".reflectCtrlWith[SymVal](x_s, y_s))
+        case (I32C(x), I32C(y)) => I32C("relation-gt".reflectCtrlWith[Num](x, y))
+        case (I64C(x), I64C(y)) => I32C("relation-gt".reflectCtrlWith[Num](x, y))
       }
     }
 
-    def gtu(rhs: StagedNum): StagedNum = {
+    def gtu(rhs: StagedConcreteNum): StagedConcreteNum = {
       (num, rhs) match {
-        case (I32(x_c, x_s), I32(y_c, y_s)) => I32("relation-gtu".reflectCtrlWith[Num](x_c, y_c), "sym-relation-gtu".reflectCtrlWith[SymVal](x_s, y_s))
-        case (I64(x_c, x_s), I64(y_c, y_s)) => I32("relation-gtu".reflectCtrlWith[Num](x_c, y_c), "sym-relation-gtu".reflectCtrlWith[SymVal](x_s, y_s))
+        case (I32C(x), I32C(y)) => I32C("relation-gtu".reflectCtrlWith[Num](x, y))
+        case (I64C(x), I64C(y)) => I32C("relation-gtu".reflectCtrlWith[Num](x, y))
       }
     }
 
-    def <=(rhs: StagedNum): StagedNum = {
+    def <=(rhs: StagedConcreteNum): StagedConcreteNum = {
       (num, rhs) match {
-        case (I32(x_c, x_s), I32(y_c, y_s)) => I32("relation-le".reflectCtrlWith[Num](x_c, y_c), "sym-relation-le".reflectCtrlWith[SymVal](x_s, y_s))
-        case (I64(x_c, x_s), I64(y_c, y_s)) => I32("relation-le".reflectCtrlWith[Num](x_c, y_c), "sym-relation-le".reflectCtrlWith[SymVal](x_s, y_s))
+        case (I32C(x), I32C(y)) => I32C("relation-le".reflectCtrlWith[Num](x, y))
+        case (I64C(x), I64C(y)) => I32C("relation-le".reflectCtrlWith[Num](x, y))
       }
     }
 
-    def leu(rhs: StagedNum): StagedNum = {
+    def leu(rhs: StagedConcreteNum): StagedConcreteNum = {
       (num, rhs) match {
-        case (I32(x_c, x_s), I32(y_c, y_s)) => I32("relation-leu".reflectCtrlWith[Num](x_c, y_c), "sym-relation-leu".reflectCtrlWith[SymVal](x_s, y_s))
-        case (I64(x_c, x_s), I64(y_c, y_s)) => I32("relation-leu".reflectCtrlWith[Num](x_c, y_c), "sym-relation-leu".reflectCtrlWith[SymVal](x_s, y_s))
+        case (I32C(x), I32C(y)) => I32C("relation-leu".reflectCtrlWith[Num](x, y))
+        case (I64C(x), I64C(y)) => I32C("relation-leu".reflectCtrlWith[Num](x, y))
       }
     }
 
-    def >=(rhs: StagedNum): StagedNum = {
+    def >=(rhs: StagedConcreteNum): StagedConcreteNum = {
       (num, rhs) match {
-        case (I32(x_c, x_s), I32(y_c, y_s)) => I32("relation-ge".reflectCtrlWith[Num](x_c, y_c), "sym-relation-ge".reflectCtrlWith[SymVal](x_s, y_s))
-        case (I64(x_c, x_s), I64(y_c, y_s)) => I32("relation-ge".reflectCtrlWith[Num](x_c, y_c), "sym-relation-ge".reflectCtrlWith[SymVal](x_s, y_s))
+        case (I32C(x), I32C(y)) => I32C("relation-ge".reflectCtrlWith[Num](x, y))
+        case (I64C(x), I64C(y)) => I32C("relation-ge".reflectCtrlWith[Num](x, y))
       }
     }
 
-    def geu(rhs: StagedNum): StagedNum = {
+    def geu(rhs: StagedConcreteNum): StagedConcreteNum = {
       (num, rhs) match {
-        case (I32(x_c, x_s), I32(y_c, y_s)) => I32("relation-geu".reflectCtrlWith[Num](x_c, y_c), "sym-relation-geu".reflectCtrlWith[SymVal](x_s, y_s))
-        case (I64(x_c, x_s), I64(y_c, y_s)) => I32("relation-geu".reflectCtrlWith[Num](x_c, y_c), "sym-relation-geu".reflectCtrlWith[SymVal](x_s, y_s))
+        case (I32C(x), I32C(y)) => I32C("relation-geu".reflectCtrlWith[Num](x, y))
+        case (I64C(x), I64C(y)) => I32C("relation-geu".reflectCtrlWith[Num](x, y))
+      }
+    }
+  }
+
+  implicit class StagedSymbolicNumOps(num: StagedSymbolicNum) {
+    def makeSymbolic(): StagedSymbolicNum = num match {
+      case I32S(x) => I32S("make-symbolic".reflectCtrlWith[SymVal](x))
+      case I64S(x) => I64S("make-symbolic".reflectCtrlWith[SymVal](x))
+      case F32S(x) => F32S("make-symbolic".reflectCtrlWith[SymVal](x))
+      case F64S(x) => F64S("make-symbolic".reflectCtrlWith[SymVal](x))
+    }
+
+    def isZero(): StagedSymbolicNum = num match {
+      case I32S(x) => I32S("sym-is-zero".reflectCtrlWith[SymVal](x))
+    }
+
+    def clz(): StagedSymbolicNum = num match {
+      case I32S(x) => I32S("sym-clz".reflectCtrlWith[SymVal](x))
+      case I64S(x) => I64S("sym-clz".reflectCtrlWith[SymVal](x))
+    }
+
+    def ctz(): StagedSymbolicNum = num match {
+      case I32S(x) => I32S("sym-ctz".reflectCtrlWith[SymVal](x))
+      case I64S(x) => I64S("sym-ctz".reflectCtrlWith[SymVal](x))
+    }
+
+    def popcnt(): StagedSymbolicNum = num match {
+      case I32S(x) => I32S("sym-popcnt".reflectCtrlWith[SymVal](x))
+      case I64S(x) => I64S("sym-popcnt".reflectCtrlWith[SymVal](x))
+    }
+
+    def +(rhs: StagedSymbolicNum): StagedSymbolicNum = {
+      (num, rhs) match {
+        case (I32S(x), I32S(y)) => I32S("sym-binary-add".reflectCtrlWith[SymVal](x, y))
+        case (I64S(x), I64S(y)) => I64S("sym-binary-add".reflectCtrlWith[SymVal](x, y))
+        case (F32S(x), F32S(y)) => F32S("sym-binary-add".reflectCtrlWith[SymVal](x, y))
+        case (F64S(x), F64S(y)) => F64S("sym-binary-add".reflectCtrlWith[SymVal](x, y))
+      }
+    }
+
+    def -(rhs: StagedSymbolicNum): StagedSymbolicNum = {
+      (num, rhs) match {
+        case (I32S(x), I32S(y)) => I32S("sym-binary-sub".reflectCtrlWith[SymVal](x, y))
+        case (I64S(x), I64S(y)) => I64S("sym-binary-sub".reflectCtrlWith[SymVal](x, y))
+        case (F32S(x), F32S(y)) => F32S("sym-binary-sub".reflectCtrlWith[SymVal](x, y))
+        case (F64S(x), F64S(y)) => F64S("sym-binary-sub".reflectCtrlWith[SymVal](x, y))
+      }
+    }
+
+    def *(rhs: StagedSymbolicNum): StagedSymbolicNum = {
+      (num, rhs) match {
+        case (I32S(x), I32S(y)) => I32S("sym-binary-mul".reflectCtrlWith[SymVal](x, y))
+        case (I64S(x), I64S(y)) => I64S("sym-binary-mul".reflectCtrlWith[SymVal](x, y))
+        case (F32S(x), F32S(y)) => F32S("sym-binary-mul".reflectCtrlWith[SymVal](x, y))
+        case (F64S(x), F64S(y)) => F64S("sym-binary-mul".reflectCtrlWith[SymVal](x, y))
+      }
+    }
+
+    def /(rhs: StagedSymbolicNum): StagedSymbolicNum = {
+      (num, rhs) match {
+        case (I32S(x), I32S(y)) => I32S("sym-binary-div".reflectCtrlWith[SymVal](x, y))
+        case (I64S(x), I64S(y)) => I64S("sym-binary-div".reflectCtrlWith[SymVal](x, y))
+        case (F32S(x), F32S(y)) => F32S("sym-binary-div".reflectCtrlWith[SymVal](x, y))
+        case (F64S(x), F64S(y)) => F64S("sym-binary-div".reflectCtrlWith[SymVal](x, y))
+      }
+    }
+
+    def <<(rhs: StagedSymbolicNum): StagedSymbolicNum = {
+      (num, rhs) match {
+        case (I32S(x), I32S(y)) => I32S("sym-binary-shl".reflectCtrlWith[SymVal](x, y))
+        case (I64S(x), I64S(y)) => I64S("sym-binary-shl".reflectCtrlWith[SymVal](x, y))
+        case (F32S(x), F32S(y)) => F32S("sym-binary-shl".reflectCtrlWith[SymVal](x, y))
+        case (F64S(x), F64S(y)) => F64S("sym-binary-shl".reflectCtrlWith[SymVal](x, y))
+      }
+    }
+
+    def >>(rhs: StagedSymbolicNum): StagedSymbolicNum = {
+      (num, rhs) match {
+        case (I32S(x), I32S(y)) => I32S("sym-binary-shr".reflectCtrlWith[SymVal](x, y))
+        case (I64S(x), I64S(y)) => I64S("sym-binary-shr".reflectCtrlWith[SymVal](x, y))
+        case (F32S(x), F32S(y)) => F32S("sym-binary-shr".reflectCtrlWith[SymVal](x, y))
+        case (F64S(x), F64S(y)) => F64S("sym-binary-shr".reflectCtrlWith[SymVal](x, y))
+      }
+    }
+
+    def &(rhs: StagedSymbolicNum): StagedSymbolicNum = {
+      (num, rhs) match {
+        case (I32S(x), I32S(y)) => I32S("sym-binary-and".reflectCtrlWith[SymVal](x, y))
+        case (I64S(x), I64S(y)) => I64S("sym-binary-and".reflectCtrlWith[SymVal](x, y))
+        case (F32S(x), F32S(y)) => F32S("sym-binary-and".reflectCtrlWith[SymVal](x, y))
+        case (F64S(x), F64S(y)) => F64S("sym-binary-and".reflectCtrlWith[SymVal](x, y))
+      }
+    }
+
+    def numEq(rhs: StagedSymbolicNum): StagedSymbolicNum = {
+      (num, rhs) match {
+        case (I32S(x), I32S(y)) => I32S("sym-relation-eq".reflectCtrlWith[SymVal](x, y))
+        case (I64S(x), I64S(y)) => I32S("sym-relation-eq".reflectCtrlWith[SymVal](x, y))
+      }
+    }
+
+    def numNe(rhs: StagedSymbolicNum): StagedSymbolicNum = {
+      (num, rhs) match {
+        case (I32S(x), I32S(y)) => I32S("sym-relation-ne".reflectCtrlWith[SymVal](x, y))
+        case (I64S(x), I64S(y)) => I32S("sym-relation-ne".reflectCtrlWith[SymVal](x, y))
+      }
+    }
+
+    def <(rhs: StagedSymbolicNum): StagedSymbolicNum = {
+      (num, rhs) match {
+        case (I32S(x), I32S(y)) => I32S("sym-relation-lt".reflectCtrlWith[SymVal](x, y))
+        case (I64S(x), I64S(y)) => I32S("sym-relation-lt".reflectCtrlWith[SymVal](x, y))
+      }
+    }
+
+    def ltu(rhs: StagedSymbolicNum): StagedSymbolicNum = {
+      (num, rhs) match {
+        case (I32S(x), I32S(y)) => I32S("relation-ltu".reflectCtrlWith[SymVal](x, y))
+        case (I64S(x), I64S(y)) => I32S("relation-ltu".reflectCtrlWith[SymVal](x, y))
+      }
+    }
+
+    def >(rhs: StagedSymbolicNum): StagedSymbolicNum = {
+      (num, rhs) match {
+        case (I32S(x), I32S(y)) => I32S("sym-relation-gt".reflectCtrlWith[SymVal](x, y))
+        case (I64S(x), I64S(y)) => I32S("sym-relation-gt".reflectCtrlWith[SymVal](x, y))
+      }
+    }
+
+    def gtu(rhs: StagedSymbolicNum): StagedSymbolicNum = {
+      (num, rhs) match {
+        case (I32S(x), I32S(y)) => I32S("sym-relation-gtu".reflectCtrlWith[SymVal](x, y))
+        case (I64S(x), I64S(y)) => I32S("sym-relation-gtu".reflectCtrlWith[SymVal](x, y))
+      }
+    }
+
+    def <=(rhs: StagedSymbolicNum): StagedSymbolicNum = {
+      (num, rhs) match {
+        case (I32S(x), I32S(y)) => I32S("sym-relation-le".reflectCtrlWith[SymVal](x, y))
+        case (I64S(x), I64S(y)) => I32S("sym-relation-le".reflectCtrlWith[SymVal](x, y))
+      }
+    }
+
+    def leu(rhs: StagedSymbolicNum): StagedSymbolicNum = {
+      (num, rhs) match {
+        case (I32S(x), I32S(y)) => I32S("sym-relation-leu".reflectCtrlWith[SymVal](x, y))
+        case (I64S(x), I64S(y)) => I32S("sym-relation-leu".reflectCtrlWith[SymVal](x, y))
+      }
+    }
+
+    def >=(rhs: StagedSymbolicNum): StagedSymbolicNum = {
+      (num, rhs) match {
+        case (I32S(x), I32S(y)) => I32S("sym-relation-ge".reflectCtrlWith[SymVal](x, y))
+        case (I64S(x), I64S(y)) => I32S("sym-relation-ge".reflectCtrlWith[SymVal](x, y))
+      }
+    }
+
+    def geu(rhs: StagedSymbolicNum): StagedSymbolicNum = {
+      (num, rhs) match {
+        case (I32S(x), I32S(y)) => I32S("sym-relation-geu".reflectCtrlWith[SymVal](x, y))
+        case (I64S(x), I64S(y)) => I32S("sym-relation-geu".reflectCtrlWith[SymVal](x, y))
       }
     }
   }
@@ -935,7 +1323,8 @@ trait StagedWasmCppGen extends CGenBase with CppSAICodeGenBase {
     case Node(_, "binary-add", List(lhs, rhs), _) =>
       shallow(lhs); emit(" + "); shallow(rhs)
     case Node(_, "binary-sub", List(lhs, rhs), _) =>
-      shallow(lhs); emit(" - "); shallow(rhs)
+      // todo: avoid using c++ operator, use explicit method call so operator's precedence issues won't exist
+      emit("("); shallow(lhs); emit(" - "); shallow(rhs); emit(")")
     case Node(_, "binary-mul", List(lhs, rhs), _) =>
       shallow(lhs); emit(" * "); shallow(rhs)
     case Node(_, "binary-div", List(lhs, rhs), _) =>
