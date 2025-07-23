@@ -1080,7 +1080,7 @@ object WasmToCppCompiler {
     }
 
     import sys.process._
-    val command = s"g++ -std=c++17 $outputCpp -o $outputExe -O3 -g " + generated.headerFolders.map(f => s"-I$f").mkString(" ")
+    val command = s"g++ -std=c++20 $outputCpp -o $outputExe -O3 -g " + generated.headerFolders.map(f => s"-I$f").mkString(" ")
     if (command.! != 0) {
       throw new RuntimeException(s"Compilation failed for $outputCpp")
     }
