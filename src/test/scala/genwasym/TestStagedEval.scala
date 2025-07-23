@@ -6,6 +6,7 @@ import lms.core.stub.Adapter
 
 import gensym.wasm.parser._
 import gensym.wasm.miniwasm._
+import gensym.wasm.stagedminiwasm._
 
 class TestStagedEval extends FunSuite {
   def testFileToScala(filename: String, main: Option[String] = None, printRes: Boolean = false) = {
