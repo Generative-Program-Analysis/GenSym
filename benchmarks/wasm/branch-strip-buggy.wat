@@ -29,6 +29,7 @@
       else
         i32.const 0
         call 2
+        i32.const 1 ;; to satisfy the type checker, this line will never be reached
       end
     end
   )
