@@ -1047,7 +1047,7 @@ trait StagedWasmCppGen extends CGenBase with CppSAICodeGenBase {
     |End of Generated Code
     |*******************************************/
     |int main(int argc, char *argv[]) {
-    |  Snippet(std::monostate{});
+    |  start_concolic_execution_with(Snippet);
     |  return 0;
     |}""".stripMargin)
   }
@@ -1091,7 +1091,7 @@ object WasmToCppCompiler {
     }
 
     import sys.process._
-    val command = s"g++ -std=c++20 $outputCpp -o $outputExe -O3 -g " + generated.headerFolders.map(f => s"-I$f").mkString(" ")
+    val command = s"g++ -std=c++20 $outputCpp -o $outputExe -O3 -g -l z3 " + generated.headerFolders.map(f => s"-I$f").mkString(" ")
     if (command.! != 0) {
       throw new RuntimeException(s"Compilation failed for $outputCpp")
     }

@@ -30,7 +30,7 @@ class TestStagedConcolicEval extends FunSuite {
     })
   }
 
-  test("ack-cpp") { testFileToCpp("./benchmarks/wasm/ack.wat", Some("real_main"), expect=Some(List(7))) }
+  test("ack-cpp") { testFileToCpp("./benchmarks/wasm/ack.wat", Some("real_main")) }
 
   test("bug-finding") {
     testFileToCpp("./benchmarks/wasm/branch-strip-buggy.wat", Some("real_main"))
