@@ -1,4 +1,4 @@
-package gensym.wasm.miniwasm
+package gensym.wasm.stagedminiwasm
 
 import scala.collection.mutable.{ArrayBuffer, HashMap}
 
@@ -12,6 +12,7 @@ import lms.core.Graph
 
 import gensym.wasm.ast._
 import gensym.wasm.ast.{Const => WasmConst, Block => WasmBlock}
+import gensym.wasm.miniwasm.ModuleInstance
 import gensym.lmsx.{SAIDriver, StringOps, SAIOps, SAICodeGenBase, CppSAIDriver, CppSAICodeGenBase}
 
 @virtualize
