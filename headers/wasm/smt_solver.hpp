@@ -46,7 +46,7 @@ public:
           if (id >= result.size()) {
             result.resize(id + 1);
           }
-          result[id] = Num(value.get_numeral_int());
+          result[id] = Num(value.get_numeral_int64());
         } else {
           std::cout << "Find a variable that is not created by GenSym: " << name
                     << std::endl;

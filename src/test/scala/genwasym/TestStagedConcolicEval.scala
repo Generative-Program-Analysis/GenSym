@@ -35,4 +35,8 @@ class TestStagedConcolicEval extends FunSuite {
   test("bug-finding") {
     testFileToCpp("./benchmarks/wasm/branch-strip-buggy.wat", Some("real_main"))
   }
+
+  test("brtable-bug-finding") {
+    testFileToCpp("./benchmarks/wasm/staged/brtable_concolic.wat")
+  }
 }

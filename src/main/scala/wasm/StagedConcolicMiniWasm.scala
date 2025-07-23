@@ -17,6 +17,7 @@ import gensym.wasm.symbolic.{SymVal}
 import gensym.lmsx.{SAIDriver, StringOps, SAIOps, SAICodeGenBase, CppSAIDriver, CppSAICodeGenBase}
 import gensym.wasm.symbolic.Concrete
 import gensym.wasm.symbolic.ExploreTree
+import gensym.structure.freer.Explore
 
 @virtualize
 trait StagedWasmEvaluator extends SAIOps {
@@ -270,12 +271,20 @@ trait StagedWasmEvaluator extends SAIOps {
         }
         ()
       case BrTable(labels, default) =>
-        val (cond, newCtx) = Stack.pop()
+        val (label, newCtx) = Stack.pop()
         def aux(choices: List[Int], idx: Int): Rep[Unit] = {
           if (choices.isEmpty) trail(default)(newCtx)(mkont)
           else {
-            if (cond.toInt == idx) trail(choices.head)(newCtx)(mkont)
-            else aux(choices.tail, idx + 1)
+            val cond = (label - toStagedNum(I32V(idx))).isZero()
+            ExploreTree.fillWithIfElse(cond.s)
+            if (cond.toInt != 0) {
+              ExploreTree.moveCursor(true)
+              trail(choices.head)(newCtx)(mkont)
+            }
+            else {
+              ExploreTree.moveCursor(false)
+              aux(choices.tail, idx + 1)
+            }
           }
         }
         aux(labels, 0)
@@ -959,6 +968,8 @@ trait StagedWasmCppGen extends CGenBase with CppSAICodeGenBase {
       shallow(lhs); emit(" >= "); shallow(rhs)
     case Node(_, "sym-binary-add", List(lhs, rhs), _) =>
       shallow(lhs); emit(".add("); shallow(rhs); emit(")")
+    case Node(_, "sym-binary-sub", List(lhs, rhs), _) =>
+      shallow(lhs); emit(".minus("); shallow(rhs); emit(")")
     case Node(_, "sym-binary-mul", List(lhs, rhs), _) =>
       shallow(lhs); emit(".mul("); shallow(rhs); emit(")")
     case Node(_, "sym-binary-div", List(lhs, rhs), _) =>
