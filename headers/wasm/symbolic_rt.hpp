@@ -531,9 +531,7 @@ public:
     return map[symbol->get_id()];
   }
 
-  void update(std::vector<Num> new_env) {
-    map = std::move(new_env);
-  }
+  void update(std::vector<Num> new_env) { map = std::move(new_env); }
 
   std::string to_string() const {
     std::string result;
@@ -548,9 +546,16 @@ public:
   }
 
 private:
-  std::vector<Num> map;    // The symbolic environment, a vector of Num
+  std::vector<Num> map; // The symbolic environment, a vector of Num
 };
 
 static SymEnv_t SymEnv;
+
+class Reuse_t {
+public:
+  bool is_reusing() { return false; }
+};
+
+static Reuse_t Reuse;
 
 #endif // WASM_SYMBOLIC_RT_HPP
