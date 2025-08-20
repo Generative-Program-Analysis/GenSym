@@ -49,8 +49,6 @@ inline void ConcolicDriver::run() {
     auto cond = unexplored->collect_path_conds();
     auto result = solver.solve(cond);
     if (!result.has_value()) {
-      // TODO: current implementation is buggy, there could be other reachable
-      // unexplored paths
       std::cout << "Found an unreachable path, marking it as unreachable..."
                 << std::endl;
       unexplored->fillUnreachableNode();
@@ -59,6 +57,9 @@ inline void ConcolicDriver::run() {
     auto new_env = result.value();
     SymEnv.update(std::move(new_env));
     try {
+      std::cout << "Now execute the program with symbolic environment: "
+                << std::endl
+                << SymEnv.to_string() << std::endl;
       entrypoint();
       std::cout << "Execution finished successfully with symbolic environment:"
                 << std::endl;

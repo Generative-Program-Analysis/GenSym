@@ -65,6 +65,10 @@ struct SymVal {
   SymVal negate() const;
 };
 
+static SymVal make_symbolic(int index) {
+  return SymVal(std::make_shared<Symbol>(index));
+}
+
 inline SymVal Concrete(Num num) {
   return SymVal(std::make_shared<SymConcrete>(num));
 }
@@ -142,6 +146,11 @@ public:
 
   SymVal pop() {
     // Pop a symbolic value from the stack
+
+#ifdef DEBUG
+    printf("[Debug] poping from stack, size of symbolic stack is: %zu\n",
+           stack.size());
+#endif
     auto ret = stack.back();
     stack.pop_back();
     return ret;
@@ -368,12 +377,13 @@ inline NodeBox::NodeBox(NodeBox *parent)
       parent(parent) {}
 
 inline std::monostate NodeBox::fillIfElseNode(SymVal cond) {
-  // fill the current NodeBox with an ifelse branch node it's unexplored
+  // fill the current NodeBox with an ifelse branch node when it's unexplored
   if (dynamic_cast<UnExploredNode *>(node.get())) {
     node = std::make_unique<IfElseNode>(cond, this);
   }
-  assert(dynamic_cast<IfElseNode *>(node.get()) != nullptr &&
-         "Current node is not an IfElseNode, cannot fill it!");
+  assert(
+      dynamic_cast<IfElseNode *>(node.get()) != nullptr &&
+      "Current node is not an Unexplored nor an IfElseNode, cannot fill it!");
   return std::monostate();
 }
 
