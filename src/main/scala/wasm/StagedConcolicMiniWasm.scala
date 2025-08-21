@@ -425,7 +425,6 @@ trait StagedWasmEvaluator extends SAIOps {
       case BrTable(labels, default) =>
         val (ty, ct1) = ct.pop()
         val label = Stack.popC(ty)
-        val labelSym = Stack.popS(ty)
         val (oldCtx, history, ct2) = ct1.clearHistory
         if (!ReuseManager.isReusing) {
           evalSym(history)(oldCtx)
@@ -435,6 +434,7 @@ trait StagedWasmEvaluator extends SAIOps {
           else {
             val cond = (label - toStagedNum(I32V(idx))).isZero()
             if (!ReuseManager.isReusing) {
+              val labelSym = Stack.peekS(ty)
               val condSym = (labelSym - toStagedSymbolicNum(I32V(idx))).isZero()
               ExploreTree.fillWithIfElse(condSym.s)
             }
@@ -449,6 +449,10 @@ trait StagedWasmEvaluator extends SAIOps {
           }
         }
         aux(labels, 0)
+        if (!ReuseManager.isReusing) {
+          Stack.popS(ty)
+        }
+        ()
       case Return        => trail.last(ct)(mkont)
       case Call(f)       => evalCall(rest, kont, mkont, trail, f, false)
       case ReturnCall(f) => evalCall(rest, kont, mkont, trail, f, true)
@@ -639,17 +643,17 @@ trait StagedWasmEvaluator extends SAIOps {
       case Import("console", "log", _)
          | Import("spectest", "print_i32", _) =>
         //println(s"[DEBUG] current stack: $stack")
-        val (ty, ct1) = ct.pop()
+        val (ty, ct2) = ct1.pop()
         val v = Stack.popC(ty)
         Stack.popS(ty)
         println(v.toInt)
-        eval(rest, kont, mkont, trail)(ct1)
+        eval(rest, kont, mkont, trail)(ct2)
       case Import("console", "assert", _) =>
-        val (ty, ct1) = ct.pop()
+        val (ty, ct2) = ct1.pop()
         val v = Stack.popC(ty)
         Stack.popS(ty)
         runtimeAssert(v.toInt != 0)
-        eval(rest, kont, mkont, trail)(ct1)
+        eval(rest, kont, mkont, trail)(ct2)
       case Import(_, _, _) => throw new Exception(s"Unknown import at $funcIndex")
       case _               => throw new Exception(s"Definition at $funcIndex is not callable")
     }
