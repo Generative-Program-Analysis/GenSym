@@ -204,7 +204,7 @@ trait StagedWasmEvaluator extends SAIOps {
            kont: ContextTransition => Rep[Cont[Unit]],
            mkont: Rep[MCont[Unit]],
            trail: Trail[Unit])
-          (implicit oldCT: ContextTransition): Rep[Unit] = {
+          (oldCT: ContextTransition): Rep[Unit] = {
     if (insts.isEmpty) {
       val (oldCtx, history, ct) = oldCT.clearHistory
       if (!ReuseManager.isReusing) {
@@ -215,7 +215,6 @@ trait StagedWasmEvaluator extends SAIOps {
 
     // Predef.println(s"[DEBUG] Evaluating instructions: ${insts.mkString(", ")}")
     // Predef.println(s"[DEBUG] Current context: $ctx")
-    implicit val ctx = oldCT.endCtx
     val (inst, rest) = (insts.head, insts.tail)
     val ct = oldCT.log(inst)
     inst match {
@@ -235,8 +234,8 @@ trait StagedWasmEvaluator extends SAIOps {
         val ct1 = ct.pop()._2.push(ty)
         eval(rest, kont, mkont, trail)(ct1)
       case LocalGet(i) =>
-        Stack.pushC(Frames.getC(i))
-        val ct1 = ct.push(ctx.frameTypes(i))
+        Stack.pushC(Frames.getC(i)(ct.endCtx))
+        val ct1 = ct.push(ct.endCtx.frameTypes(i))
         eval(rest, kont, mkont, trail)(ct1)
       case LocalSet(i) =>
         val (ty, ct1) = ct.pop()
@@ -269,7 +268,7 @@ trait StagedWasmEvaluator extends SAIOps {
         val addr = Stack.popC(ty2)
         Memory.storeInt(addr.toInt, offset, value.toInt)
         eval(rest, kont, mkont, trail)(ct2)
-      case Nop => eval(rest, kont, mkont, trail)
+      case Nop => eval(rest, kont, mkont, trail)(ct)
       case Load(LoadOp(align, offset, ty, None, None)) =>
         val (ty1, ct1) = ct.pop()
         val addr = Stack.popC(ty1)
@@ -325,7 +324,7 @@ trait StagedWasmEvaluator extends SAIOps {
         // no need to modify the stack when entering a block
         // the type system guarantees that we will never take more than the input size from the stack
         val funcTy = ty.funcType
-        val exitSize = ctx.stackTypes.size - funcTy.inps.size + funcTy.out.size
+        val exitSize = ct.endCtx.stackTypes.size - funcTy.inps.size + funcTy.out.size
         val dummy = makeDummy
         def restK(ct: ContextTransition): Rep[Cont[Unit]] = topFun((mk: Rep[MCont[Unit]]) => {
           info(s"Exiting the block, stackSize =", Stack.size)
@@ -343,7 +342,7 @@ trait StagedWasmEvaluator extends SAIOps {
         eval(inner, restK _, mkont, restK _ :: trail)(ct1)
       case Loop(ty, inner) =>
         val funcTy = ty.funcType
-        val exitSize = ctx.stackTypes.size - funcTy.inps.size + funcTy.out.size
+        val exitSize = ct.endCtx.stackTypes.size - funcTy.inps.size + funcTy.out.size
         val dummy = makeDummy
         def restK(ct: ContextTransition): Rep[Cont[Unit]] = topFun((mk: Rep[MCont[Unit]]) => {
           info(s"Exiting the loop, stackSize =", Stack.size)
@@ -353,7 +352,7 @@ trait StagedWasmEvaluator extends SAIOps {
           val ct1 = ct.shift(offset, funcTy.out.size)
           eval(rest, kont, mk, trail)(ct1)
         })
-        val enterSize = ctx.stackTypes.size
+        val enterSize = ct.endCtx.stackTypes.size
         def loop(ct: ContextTransition): Rep[Cont[Unit]] = topFun((mk: Rep[MCont[Unit]]) => {
           info(s"Entered the loop, stackSize =", Stack.size)
           val offset = ct.endCtx.stackTypes.size - enterSize
@@ -454,25 +453,25 @@ trait StagedWasmEvaluator extends SAIOps {
         }
         ()
       case Return        => trail.last(ct)(mkont)
-      case Call(f)       => evalCall(rest, kont, mkont, trail, f, false)
-      case ReturnCall(f) => evalCall(rest, kont, mkont, trail, f, true)
+      case Call(f)       => evalCall(rest, kont, mkont, trail, f, false)(ct)
+      case ReturnCall(f) => evalCall(rest, kont, mkont, trail, f, true)(ct)
       case _ =>
         val todo = "todo-op".reflectCtrlWith[Unit]()
-        eval(rest, kont, mkont, trail)
+        eval(rest, kont, mkont, trail)(ct)
     }
   }
 
   // call the symbolic interpreter to evaluate the history that just executed by
   // concrete interpreter
   def evalSym(history: List[Instr])
-             (implicit ctx: Context): Rep[Unit] = {
+             (ctx: Context): Rep[Unit] = {
     // val func = topFun((_: Rep[Unit]) => evalS(history.reverse))
     // func(())
-    evalS(history.reverse)
+    evalS(history.reverse)(ctx)
   }
 
   def evalS(insts: List[Instr])
-           (implicit ctx: Context): Rep[Unit] = {
+           (ctx: Context): Rep[Unit] = {
     if (insts.isEmpty) return ()
 
     // Predef.println(s"[DEBUG] Evaluating instructions: ${insts.mkString(", ")}")
@@ -494,7 +493,7 @@ trait StagedWasmEvaluator extends SAIOps {
         val newCtx = ctx.pop()._2.push(ty)
         evalS(rest)(newCtx)
       case LocalGet(i) =>
-        Stack.pushS(Frames.getS(i))
+        Stack.pushS(Frames.getS(i)(ctx))
         val newCtx = ctx.push(ctx.frameTypes(i))
         evalS(rest)(newCtx)
       case LocalSet(i) =>
@@ -570,7 +569,7 @@ trait StagedWasmEvaluator extends SAIOps {
       case ReturnCall(f) => ()
       case _ =>
         val todo = "todo-op".reflectCtrlWith[Unit]()
-        evalS(rest)
+        evalS(rest)(ctx)
     }
   }
 
