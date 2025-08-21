@@ -330,7 +330,9 @@ trait StagedWasmEvaluator extends SAIOps {
           info(s"Exiting the block, stackSize =", Stack.size)
           val offset = ct.endCtx.stackTypes.size - exitSize
           Stack.shiftC(offset, funcTy.out.size)
-          Stack.shiftS(offset, funcTy.out.size)
+          if (!ReuseManager.isReusing) {
+            Stack.shiftS(offset, funcTy.out.size)
+          }
           val ct1 = ct.shift(offset, funcTy.out.size)
           eval(rest, kont, mk, trail)(ct1)
         })
@@ -348,7 +350,9 @@ trait StagedWasmEvaluator extends SAIOps {
           info(s"Exiting the loop, stackSize =", Stack.size)
           val offset = ct.endCtx.stackTypes.size - exitSize
           Stack.shiftC(offset, funcTy.out.size)
-          Stack.shiftS(offset, funcTy.out.size)
+          if (!ReuseManager.isReusing) {
+            Stack.shiftS(offset, funcTy.out.size)
+          }
           val ct1 = ct.shift(offset, funcTy.out.size)
           eval(rest, kont, mk, trail)(ct1)
         })
@@ -357,7 +361,9 @@ trait StagedWasmEvaluator extends SAIOps {
           info(s"Entered the loop, stackSize =", Stack.size)
           val offset = ct.endCtx.stackTypes.size - enterSize
           Stack.shiftC(offset, funcTy.inps.size)
-          Stack.shiftS(offset, funcTy.inps.size)
+          if (!ReuseManager.isReusing) {
+            Stack.shiftS(offset, funcTy.inps.size)
+          }
           val ct1 = ct.shift(offset, funcTy.inps.size)
           eval(inner, restK _, mk, loop _ :: trail)(ct1)
         })
@@ -375,7 +381,9 @@ trait StagedWasmEvaluator extends SAIOps {
           info(s"Exiting the if, stackSize =", Stack.size)
           val offset = ct.endCtx.stackTypes.size - exitSize
           Stack.shiftC(offset, funcTy.out.size)
-          Stack.shiftS(offset, funcTy.out.size)
+          if (!ReuseManager.isReusing) {
+            Stack.shiftS(offset, funcTy.out.size)
+          }
           val ct1 = ct.shift(offset, funcTy.out.size)
           eval(rest, kont, mk, trail)(ct1)
         })
