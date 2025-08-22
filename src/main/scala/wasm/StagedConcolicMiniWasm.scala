@@ -395,7 +395,7 @@ trait StagedWasmEvaluator extends SAIOps {
         }
         if (cond.toInt != 0) {
           ExploreTree.moveCursor(true)
-          eval(thn, kont, mkont, trail)(ct2)
+          eval(thn, restK _, mkont, restK _ :: trail)(ct2)
         } else {
           ExploreTree.moveCursor(false)
           eval(els, restK _, mkont, restK _ :: trail)(ct2)
