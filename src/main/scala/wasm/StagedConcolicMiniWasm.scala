@@ -149,8 +149,8 @@ trait StagedWasmEvaluator extends SAIOps {
       this.copy(history = instr :: history)
     }
 
-    def clearHistory: (Context, List[Instr], ContextTransition) = {
-      (startCtx, history, this.copy(startCtx = endCtx, history = Nil))
+    def clearHistory: (Context, List[Instr], CleanCT) = {
+      (startCtx, history, CleanCT(endCtx))
     }
 
     def push(ty: ValueType): ContextTransition = {
@@ -175,17 +175,20 @@ trait StagedWasmEvaluator extends SAIOps {
     }
   }
 
-  object ContextTransition {
+  case class CleanCT(ctx: Context) {
+    def startCtx: Context = ctx
+    def history: List[Instr] = Nil
+    def endCtx: Context = ctx
+  }
 
-    def apply(startCtx: Context) = {
-      new ContextTransition(startCtx, Nil, startCtx)
-    }
-
+  // we can treat every CleanCT as a ContextTransition
+  implicit def toContextCT(ct: CleanCT): ContextTransition = {
+    ContextTransition(ct.ctx, Nil, ct.ctx)
   }
 
   type MCont[A] = Unit => A
   type Cont[A] = (MCont[A]) => A
-  type Trail[A] = List[ContextTransition => Rep[Cont[A]]]
+  type Trail[A] = List[CleanCT => Rep[Cont[A]]]
 
   // a cache storing the compiled code for each function, to reduce re-compilation
   val compileCache = new HashMap[Int, Rep[(MCont[Unit]) => Unit]]
@@ -201,7 +204,7 @@ trait StagedWasmEvaluator extends SAIOps {
   }
 
   def eval(insts: List[Instr],
-           kont: ContextTransition => Rep[Cont[Unit]],
+           kont: CleanCT => Rep[Cont[Unit]],
            mkont: Rep[MCont[Unit]],
            trail: Trail[Unit])
           (oldCT: ContextTransition): Rep[Unit] = {
@@ -326,7 +329,7 @@ trait StagedWasmEvaluator extends SAIOps {
         val funcTy = ty.funcType
         val exitSize = ct.endCtx.stackTypes.size - funcTy.inps.size + funcTy.out.size
         val dummy = makeDummy
-        def restK(ct: ContextTransition): Rep[Cont[Unit]] = topFun((mk: Rep[MCont[Unit]]) => {
+        def restK(ct: CleanCT): Rep[Cont[Unit]] = topFun((mk: Rep[MCont[Unit]]) => {
           info(s"Exiting the block, stackSize =", Stack.size)
           val offset = ct.endCtx.stackTypes.size - exitSize
           Stack.shiftC(offset, funcTy.out.size)
@@ -346,7 +349,7 @@ trait StagedWasmEvaluator extends SAIOps {
         val funcTy = ty.funcType
         val exitSize = ct.endCtx.stackTypes.size - funcTy.inps.size + funcTy.out.size
         val dummy = makeDummy
-        def restK(ct: ContextTransition): Rep[Cont[Unit]] = topFun((mk: Rep[MCont[Unit]]) => {
+        def restK(ct: CleanCT): Rep[Cont[Unit]] = topFun((mk: Rep[MCont[Unit]]) => {
           info(s"Exiting the loop, stackSize =", Stack.size)
           val offset = ct.endCtx.stackTypes.size - exitSize
           Stack.shiftC(offset, funcTy.out.size)
@@ -357,7 +360,7 @@ trait StagedWasmEvaluator extends SAIOps {
           eval(rest, kont, mk, trail)(ct1)
         })
         val enterSize = ct.endCtx.stackTypes.size
-        def loop(ct: ContextTransition): Rep[Cont[Unit]] = topFun((mk: Rep[MCont[Unit]]) => {
+        def loop(ct: CleanCT): Rep[Cont[Unit]] = topFun((mk: Rep[MCont[Unit]]) => {
           info(s"Entered the loop, stackSize =", Stack.size)
           val offset = ct.endCtx.stackTypes.size - enterSize
           Stack.shiftC(offset, funcTy.inps.size)
@@ -377,7 +380,7 @@ trait StagedWasmEvaluator extends SAIOps {
         val (condTy, ct1) = ct.pop()
         val cond = Stack.popC(condTy)
         val exitSize = ct1.endCtx.stackTypes.size - funcTy.inps.size + funcTy.out.size
-        def restK(ct: ContextTransition): Rep[Cont[Unit]] = topFun((mk: Rep[MCont[Unit]]) => {
+        def restK(ct: CleanCT): Rep[Cont[Unit]] = topFun((mk: Rep[MCont[Unit]]) => {
           info(s"Exiting the if, stackSize =", Stack.size)
           val offset = ct.endCtx.stackTypes.size - exitSize
           Stack.shiftC(offset, funcTy.out.size)
@@ -460,13 +463,27 @@ trait StagedWasmEvaluator extends SAIOps {
           Stack.popS(ty)
         }
         ()
-      case Return        => trail.last(ct)(mkont)
+      case Return        =>
+        // return instruction is also stack-polymorphic
+        val (oldCtx, history, ct2) = ct.clearHistory
+        if (!ReuseManager.isReusing) {
+          evalSym(history)(oldCtx)
+        }
+        trail.last(ct2)(mkont)
       case Call(f)       => evalCall(rest, kont, mkont, trail, f, false)(ct)
       case ReturnCall(f) => evalCall(rest, kont, mkont, trail, f, true)(ct)
       case _ =>
         val todo = "todo-op".reflectCtrlWith[Unit]()
         eval(rest, kont, mkont, trail)(ct)
     }
+  }
+
+  def replayAndClearHistory(ct: ContextTransition): ContextTransition = {
+    val (oldCtx, history, ct1) = ct.clearHistory
+    if (!ReuseManager.isReusing) {
+      evalSym(history)(oldCtx)
+    }
+    ct1
   }
 
   // call the symbolic interpreter to evaluate the history that just executed by
@@ -585,7 +602,7 @@ trait StagedWasmEvaluator extends SAIOps {
 
 
   def evalCall(rest: List[Instr],
-               kont: ContextTransition => Rep[Cont[Unit]],
+               kont: CleanCT => Rep[Cont[Unit]],
                mkont: Rep[MCont[Unit]],
                trail: Trail[Unit],
                funcIndex: Int,
@@ -605,7 +622,7 @@ trait StagedWasmEvaluator extends SAIOps {
             val callee = topFun((mk: Rep[MCont[Unit]]) => {
               info(s"Entered the function at $funcIndex, stackSize =", Stack.size)
               // we can do some check here to ensure the function returns correct size of stack
-              eval(body, (_: ContextTransition) => forwardKont, mk, ((_: ContextTransition) => forwardKont)::Nil)(ContextTransition(Context(Nil, locals)))
+              eval(body, (_: CleanCT) => forwardKont, mk, ((_: CleanCT) => forwardKont)::Nil)(CleanCT(Context(Nil, locals)))
             })
             compileCache(funcIndex) = callee
             callee
@@ -633,7 +650,7 @@ trait StagedWasmEvaluator extends SAIOps {
             Frames.popFrameC(locals.size)
             Frames.popFrameS(locals.size)
             val newCtx = ct2.endCtx.copy(stackTypes = ty.out.reverse ++ ct2.endCtx.stackTypes)
-            eval(rest, kont, mk, trail)(ContextTransition(newCtx))
+            eval(rest, kont, mk, trail)(CleanCT(newCtx))
           })
           val dummy = makeDummy
           val newMKont: Rep[MCont[Unit]] = funHere((_u: Rep[Unit]) => {
@@ -658,7 +675,8 @@ trait StagedWasmEvaluator extends SAIOps {
       case Import("console", "assert", _) =>
         val (ty, ct2) = ct1.pop()
         val v = Stack.popC(ty)
-        Stack.popS(ty)
+        // TODO: We should also add s into exploration tree
+        val s = Stack.popS(ty)
         runtimeAssert(v.toInt != 0)
         eval(rest, kont, mkont, trail)(ct2)
       case Import(_, _, _) => throw new Exception(s"Unknown import at $funcIndex")
@@ -772,12 +790,12 @@ trait StagedWasmEvaluator extends SAIOps {
     resetStacks()
     Frames.pushFrameC(locals)
     Frames.pushFrameS(locals)
-    eval(instrs, _ => forwardKont, mkont, ((_: ContextTransition) => forwardKont)::Nil)(ContextTransition(Context(Nil, locals)))
+    eval(instrs, _ => forwardKont, mkont, ((_: CleanCT) => forwardKont)::Nil)(CleanCT(Context(Nil, locals)))
     Frames.popFrameC(locals.size)
     Frames.popFrameS(locals.size)
   }
 
-  def evalTop(main: Option[String], printRes: Boolean, dumpTree: Option[String]): Rep[Unit] = {
+  def evalTop(main: Option[String], printRes: Boolean): Rep[Unit] = {
     val haltK: Rep[Unit] => Rep[Unit] = (_) => {
       info("Exiting the program...")
       if (printRes) {
@@ -1486,6 +1504,8 @@ trait StagedWasmCppGen extends CGenBase with CppSAICodeGenBase {
       emit("Stack.push("); shallow(value); emit(")")
     case Node(_, "stack-shift", List(offset, size), _) =>
       emit("Stack.shift("); shallow(offset); emit(", "); shallow(size); emit(")")
+    case Node(_, "sym-stack-shift", List(offset, size), _) =>
+      emit("SymStack.shift("); shallow(offset); emit(", "); shallow(size); emit(")")
     case Node(_, "stack-pop", _, _) =>
       emit("Stack.pop()")
     case Node(_, "sym-stack-pop", _, _) =>
@@ -1652,12 +1672,12 @@ trait WasmToCppCompilerDriver[A, B] extends CppSAIDriver[A, B] with StagedWasmEv
 object WasmToCppCompiler {
   case class GeneratedCpp(source: String, headerFolders: List[String])
 
-  def compile(moduleInst: ModuleInstance, main: Option[String], printRes: Boolean, dumpTree: Option[String]): GeneratedCpp = {
+  def compile(moduleInst: ModuleInstance, main: Option[String], printRes: Boolean): GeneratedCpp = {
     println(s"Now compiling wasm module with entry function $main")
     val driver = new WasmToCppCompilerDriver[Unit, Unit] {
       def module: ModuleInstance = moduleInst
       def snippet(x: Rep[Unit]): Rep[Unit] = {
-        evalTop(main, printRes, dumpTree)
+        evalTop(main, printRes)
       }
     }
     GeneratedCpp(driver.code, driver.codegen.includePaths.toList)
@@ -1668,8 +1688,8 @@ object WasmToCppCompiler {
                    outputCpp: String,
                    outputExe: String,
                    printRes: Boolean,
-                   dumpTree: Option[String]): Unit = {
-    val generated = compile(moduleInst, main, printRes, dumpTree)
+                   macros: String*): Unit = {
+    val generated = compile(moduleInst, main, printRes)
     val code = generated.source
 
     val writer = new java.io.PrintWriter(new java.io.File(outputCpp))
@@ -1680,7 +1700,9 @@ object WasmToCppCompiler {
     }
 
     import sys.process._
-    val command = s"g++ -std=c++20 $outputCpp -o $outputExe -O3 -g -l z3 " + generated.headerFolders.map(f => s"-I$f").mkString(" ")
+    val includeFlags = generated.headerFolders.map(f => s"-I$f").mkString(" ")
+    val macroFlags = macros.map(m => s"-D$m").mkString(" ")
+    val command = s"g++ -std=c++20 $outputCpp -o $outputExe -O3 -g -l z3 " + includeFlags + " " + macroFlags
     if (command.! != 0) {
       throw new RuntimeException(s"Compilation failed for $outputCpp")
     }
