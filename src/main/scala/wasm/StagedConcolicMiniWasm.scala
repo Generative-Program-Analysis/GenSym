@@ -175,11 +175,7 @@ trait StagedWasmEvaluator extends SAIOps {
     }
   }
 
-  case class CleanCT(ctx: Context) {
-    def startCtx: Context = ctx
-    def history: List[Instr] = Nil
-    def endCtx: Context = ctx
-  }
+  case class CleanCT(ctx: Context)
 
   // we can treat every CleanCT as a ContextTransition
   implicit def toContextCT(ct: CleanCT): ContextTransition = {
@@ -621,8 +617,15 @@ trait StagedWasmEvaluator extends SAIOps {
           } else {
             val callee = topFun((mk: Rep[MCont[Unit]]) => {
               info(s"Entered the function at $funcIndex, stackSize =", Stack.size)
-              // we can do some check here to ensure the function returns correct size of stack
-              eval(body, (_: CleanCT) => forwardKont, mk, ((_: CleanCT) => forwardKont)::Nil)(CleanCT(Context(Nil, locals)))
+              // the return instruction is also stack polymorphic
+              def retK(ct: CleanCT): Rep[Cont[Unit]] = topFun((mk: Rep[MCont[Unit]]) => {
+                info(s"Exiting the function at $funcIndex, stackSize =", Stack.size)
+                val offset = ct.ctx.stackTypes.size - ty.out.size
+                Stack.shiftC(offset, ty.out.size)
+                Stack.shiftS(offset, ty.out.size)
+                mk(())
+              })
+              eval(body, retK _, mk, retK _::Nil)(CleanCT(Context(Nil, locals)))
             })
             compileCache(funcIndex) = callee
             callee
@@ -631,6 +634,7 @@ trait StagedWasmEvaluator extends SAIOps {
         val ct2 = ct1.take(ty.inps.size)
         val argsC = Stack.takeC(ty.inps)
         val argsS = Stack.takeS(ty.inps)
+        val exitSize = ty.out.size + ct2.endCtx.stackTypes.size
         if (isTail) {
           // when tail call, return to the caller's return continuation
           Frames.popFrameC(ct2.endCtx.frameTypes.size)

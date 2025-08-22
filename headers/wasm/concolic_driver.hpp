@@ -4,6 +4,7 @@
 #include "concrete_rt.hpp"
 #include "smt_solver.hpp"
 #include "symbolic_rt.hpp"
+#include "utils.hpp"
 #include <functional>
 #include <ostream>
 #include <string>
@@ -43,34 +44,33 @@ inline void ConcolicDriver::run() {
 
     auto unexplored = ExploreTree.pick_unexplored();
     if (!unexplored) {
-      std::cout << "No unexplored nodes found, exiting..." << std::endl;
+      GENSYM_INFO("No unexplored nodes found, exiting...");
       return;
     }
     auto cond = unexplored->collect_path_conds();
     auto result = solver.solve(cond);
     if (!result.has_value()) {
-      std::cout << "Found an unreachable path, marking it as unreachable..."
-                << std::endl;
+      GENSYM_INFO("Found an unreachable path, marking it as unreachable...");
       unexplored->fillUnreachableNode();
       continue;
     }
     auto new_env = result.value();
     SymEnv.update(std::move(new_env));
     try {
-      std::cout << "Now execute the program with symbolic environment: "
-                << std::endl
-                << SymEnv.to_string() << std::endl;
+      GENSYM_INFO("Now execute the program with symbolic environment: ");
+      GENSYM_INFO(SymEnv.to_string());
       entrypoint();
-      std::cout << "Execution finished successfully with symbolic environment:"
-                << std::endl;
-      std::cout << SymEnv.to_string() << std::endl;
+      GENSYM_INFO("Execution finished successfully with symbolic environment:");
+      GENSYM_INFO(SymEnv.to_string());
     } catch (...) {
       ExploreTree.fillFailedNode();
-      std::cout << "Caught runtime error with symbolic environment:"
-                << std::endl;
-      std::cout << SymEnv.to_string() << std::endl;
+      GENSYM_INFO("Caught runtime error with symbolic environment:");
+      GENSYM_INFO(SymEnv.to_string());
       return;
     }
+#if defined(RUN_ONCE)
+    return;
+#endif
   }
 }
 

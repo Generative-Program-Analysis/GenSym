@@ -3,6 +3,7 @@
 
 #include "concrete_rt.hpp"
 #include "symbolic_rt.hpp"
+#include "utils.hpp"
 #include "z3++.h"
 #include <array>
 #include <set>
@@ -35,8 +36,8 @@ public:
       std::vector<Num> result;
       // Reference:
       // https://github.com/Z3Prover/z3/blob/master/examples/c%2B%2B/example.cpp#L59
-
-      std::cout << "Solved Z3 model" << std::endl << model << std::endl;
+      GENSYM_INFO("Solved Z3 model");
+      GENSYM_INFO(model);
       for (unsigned i = 0; i < model.size(); ++i) {
         z3::func_decl var = model[i];
         z3::expr value = model.get_const_interp(var);
@@ -48,8 +49,7 @@ public:
           }
           result[id] = Num(value.get_numeral_int64());
         } else {
-          std::cout << "Find a variable that is not created by GenSym: " << name
-                    << std::endl;
+          GENSYM_INFO("Find a variable that is not created by GenSym: " + name);
         }
       }
       return result;

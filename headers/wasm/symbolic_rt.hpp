@@ -3,6 +3,7 @@
 
 #include "concrete_rt.hpp"
 #include <cassert>
+#include <cstddef>
 #include <cstdio>
 #include <fstream>
 #include <iterator>
@@ -157,6 +158,15 @@ public:
   }
 
   SymVal peek() { return stack.back(); }
+
+  std::monostate shift(int32_t offset, int32_t size) {
+    auto n = stack.size();
+    for (size_t i = n - size; i < n; ++i) {
+      stack[i - offset] = stack[i];
+    }
+    stack.resize(n - offset);
+    return std::monostate();
+  }
 
   void reset() {
     // Reset the symbolic stack
