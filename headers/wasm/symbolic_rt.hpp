@@ -2,6 +2,7 @@
 #define WASM_SYMBOLIC_RT_HPP
 
 #include "concrete_rt.hpp"
+#include "controls.hpp"
 #include <cassert>
 #include <cstddef>
 #include <cstdio>
@@ -138,6 +139,8 @@ inline SymVal SymVal::makeSymbolic() const {
   }
 }
 
+class Snapshot_t;
+
 class SymStack_t {
 public:
   void push(SymVal val) {
@@ -173,6 +176,11 @@ public:
     stack.clear();
   }
 
+  void reuse(Snapshot_t snapshot);
+
+  size_t size() const { return stack.size(); }
+
+private:
   std::vector<SymVal> stack;
 };
 
@@ -206,8 +214,45 @@ public:
     stack.clear();
   }
 
+  void reuse(Snapshot_t snapshot);
+
   std::vector<SymVal> stack;
 };
+
+// A snapshot of the symbolic state and execution context (control)
+class Snapshot_t {
+public:
+  explicit Snapshot_t();
+
+  SymStack_t get_stack() const { return stack; }
+  SymFrames_t get_frames() const { return frames; }
+
+private:
+  SymStack_t stack;
+  SymFrames_t frames;
+};
+
+inline void SymStack_t::reuse(Snapshot_t snapshot) {
+// Reusing the symbolic stack from the snapshot
+#ifdef DEBUG
+  std::cout << "Reusing symbolic state from snapshot" << std::endl;
+  std::cout << "Old stack size = " << stack.size() << std::endl;
+  std::cout << "New stack size = " << snapshot.get_stack().stack.size()
+            << std::endl;
+#endif
+  stack = snapshot.get_stack().stack;
+}
+
+inline void SymFrames_t::reuse(Snapshot_t snapshot) {
+// Reusing the symbolic frames from the snapshot
+#ifdef DEBUG
+  std::cout << "Reusing symbolic state from snapshot" << std::endl;
+  std::cout << "Old frame size = " << stack.size() << std::endl;
+  std::cout << "New frame size = " << snapshot.get_frames().stack.size()
+            << std::endl;
+#endif
+  stack = snapshot.get_frames().stack;
+}
 
 static SymFrames_t SymFrames;
 
@@ -218,7 +263,7 @@ struct NodeBox {
   std::unique_ptr<Node> node;
   NodeBox *parent;
 
-  std::monostate fillIfElseNode(SymVal cond);
+  std::monostate fillIfElseNode(SymVal cond, const Snapshot_t &snapshot);
   std::monostate fillFinishedNode();
   std::monostate fillFailedNode();
   std::monostate fillUnreachableNode();
@@ -270,8 +315,9 @@ struct IfElseNode : Node {
   SymVal cond;
   std::unique_ptr<NodeBox> true_branch;
   std::unique_ptr<NodeBox> false_branch;
+  Snapshot_t snapshot;
 
-  IfElseNode(SymVal cond, NodeBox *parent)
+  IfElseNode(SymVal cond, NodeBox *parent, Snapshot_t snapshot)
       : cond(cond), true_branch(std::make_unique<NodeBox>(parent)),
         false_branch(std::make_unique<NodeBox>(parent)) {}
 
@@ -386,10 +432,11 @@ inline NodeBox::NodeBox(NodeBox *parent)
       /* TODO: avoid allocation of unexplored node */
       parent(parent) {}
 
-inline std::monostate NodeBox::fillIfElseNode(SymVal cond) {
+inline std::monostate NodeBox::fillIfElseNode(SymVal cond,
+                                              const Snapshot_t &snapshot) {
   // fill the current NodeBox with an ifelse branch node when it's unexplored
   if (dynamic_cast<UnExploredNode *>(node.get())) {
-    node = std::make_unique<IfElseNode>(cond, this);
+    node = std::make_unique<IfElseNode>(cond, this, snapshot);
   }
   assert(
       dynamic_cast<IfElseNode *>(node.get()) != nullptr &&
@@ -447,6 +494,34 @@ inline std::vector<SymVal> NodeBox::collect_path_conds() {
   return result;
 }
 
+class Reuse_t {
+public:
+  Reuse_t() : reuse_flag(false) {}
+  bool is_reusing() {
+#ifdef NO_REUSE
+    return false;
+#endif
+    return reuse_flag;
+  }
+
+  void turn_on_reusing() { reuse_flag = true; }
+
+  void turn_off_reusing() { reuse_flag = false; }
+
+private:
+  bool reuse_flag;
+};
+
+static Reuse_t Reuse;
+
+inline Snapshot_t::Snapshot_t() : stack(SymStack), frames(SymFrames) {
+#ifdef DEBUG
+  std::cout << "Creating snapshot of size " << stack.size() << std::endl;
+#endif
+  assert(!Reuse.is_reusing() &&
+         "Creating snapshot while reusing the symbolic stack");
+}
+
 class ExploreTree_t {
 public:
   explicit ExploreTree_t()
@@ -455,14 +530,19 @@ public:
   void reset_cursor() {
     // Reset the cursor to the root of the tree
     cursor = root.get();
+    Reuse.turn_off_reusing();
+    // if root cursor is a branch node, then we can reuse the snapshot inside it
+    if (auto ite = dynamic_cast<IfElseNode *>(cursor->node.get())) {
+      Reuse.turn_on_reusing();
+    }
   }
 
   std::monostate fillFinishedNode() { return cursor->fillFinishedNode(); }
 
   std::monostate fillFailedNode() { return cursor->fillFailedNode(); }
 
-  std::monostate fillIfElseNode(SymVal cond) {
-    return cursor->fillIfElseNode(cond);
+  std::monostate fillIfElseNode(SymVal cond, const Snapshot_t &snapshot) {
+    return cursor->fillIfElseNode(cond, snapshot);
   }
 
   std::monostate moveCursor(bool branch) {
@@ -475,6 +555,19 @@ public:
       cursor = if_else_node->true_branch.get();
     } else {
       cursor = if_else_node->false_branch.get();
+    }
+
+    if (dynamic_cast<UnExploredNode *>(cursor->node.get())) {
+      // If we meet an unexplored node, resume the snapshot before and keep
+      // going
+
+#ifdef DEBUG
+      std::cout << "Resuming snapshot for unexplored node" << std::endl;
+#endif
+      if (Reuse.is_reusing()) {
+        Reuse.turn_off_reusing();
+        SymStack.reuse(if_else_node->snapshot);
+      }
     }
     return std::monostate();
   }
@@ -570,12 +663,5 @@ private:
 };
 
 static SymEnv_t SymEnv;
-
-class Reuse_t {
-public:
-  bool is_reusing() { return false; }
-};
-
-static Reuse_t Reuse;
 
 #endif // WASM_SYMBOLIC_RT_HPP

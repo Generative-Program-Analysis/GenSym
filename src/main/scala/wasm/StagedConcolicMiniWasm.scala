@@ -199,7 +199,17 @@ trait StagedWasmEvaluator extends SAIOps {
     })
   }
 
-  def isSymStackInUse: Rep[Boolean] = !ReuseManager.isReusing
+
+  // TODO: maybe we don't need concern snapshot at compile time at all
+  trait Snapshot
+
+  // Create a snapshot of the symbolic execution, we should ensure that current symstack is in use
+  // We don't need to store the control information, since the control is totally decided by concrete states
+  def makeSnapshot(): Rep[Snapshot] = {
+    "snapshot-make".reflectCtrlWith[Snapshot]()
+  }
+
+  def isSymStateInUse: Rep[Boolean] = !ReuseManager.isReusing
 
   def eval(insts: List[Instr],
            kont: CleanCT => Rep[Cont[Unit]],
@@ -208,7 +218,7 @@ trait StagedWasmEvaluator extends SAIOps {
           (oldCT: ContextTransition): Rep[Unit] = {
     if (insts.isEmpty) {
       val (oldCtx, history, ct) = oldCT.clearHistory
-      if (isSymStackInUse) {
+      if (isSymStateInUse) {
         evalSym(history)(oldCtx)
       }
       return kont(ct)(mkont)
@@ -331,7 +341,7 @@ trait StagedWasmEvaluator extends SAIOps {
           info(s"Exiting the block, stackSize =", Stack.size)
           val offset = ct.endCtx.stackTypes.size - exitSize
           Stack.shiftC(offset, funcTy.out.size)
-          if (isSymStackInUse) {
+          if (isSymStateInUse) {
             Stack.shiftS(offset, funcTy.out.size)
           }
           val ct1 = ct.shift(offset, funcTy.out.size)
@@ -339,7 +349,7 @@ trait StagedWasmEvaluator extends SAIOps {
         })
         // TODO: extract this into a function
         val (oldCtx, history, ct1) = ct.clearHistory
-        if (isSymStackInUse) {
+        if (isSymStateInUse) {
           evalSym(history)(oldCtx)
         }
         eval(inner, restK _, mkont, restK _ :: trail)(ct1)
@@ -351,7 +361,7 @@ trait StagedWasmEvaluator extends SAIOps {
           info(s"Exiting the loop, stackSize =", Stack.size)
           val offset = ct.endCtx.stackTypes.size - exitSize
           Stack.shiftC(offset, funcTy.out.size)
-          if (isSymStackInUse) {
+          if (isSymStateInUse) {
             Stack.shiftS(offset, funcTy.out.size)
           }
           val ct1 = ct.shift(offset, funcTy.out.size)
@@ -362,14 +372,14 @@ trait StagedWasmEvaluator extends SAIOps {
           info(s"Entered the loop, stackSize =", Stack.size)
           val offset = ct.endCtx.stackTypes.size - enterSize
           Stack.shiftC(offset, funcTy.inps.size)
-          if (isSymStackInUse) {
+          if (isSymStateInUse) {
             Stack.shiftS(offset, funcTy.inps.size)
           }
           val ct1 = ct.shift(offset, funcTy.inps.size)
           eval(inner, restK _, mk, loop _ :: trail)(ct1)
         })
         val (oldCtx, history, ct1) = ct.clearHistory
-        if (isSymStackInUse) {
+        if (isSymStateInUse) {
           evalSym(history)(oldCtx)
         }
         loop(ct1)(mkont)
@@ -382,18 +392,19 @@ trait StagedWasmEvaluator extends SAIOps {
           info(s"Exiting the if, stackSize =", Stack.size)
           val offset = ct.endCtx.stackTypes.size - exitSize
           Stack.shiftC(offset, funcTy.out.size)
-          if (isSymStackInUse) {
+          if (isSymStateInUse) {
             Stack.shiftS(offset, funcTy.out.size)
           }
           val ct1 = ct.shift(offset, funcTy.out.size)
           eval(rest, kont, mk, trail)(ct1)
         })
         val (oldCtx, history, ct2) = ct1.clearHistory
-        if (isSymStackInUse) {
+        if (isSymStateInUse) {
           // when we are not reusing
           evalSym(history)(oldCtx)
+          val snapshot = makeSnapshot()
           val symCond = Stack.popS(condTy)
-          ExploreTree.fillWithIfElse(symCond.s)
+          ExploreTree.fillWithIfElse(symCond.s, snapshot)
         }
         if (cond.toInt != 0) {
           ExploreTree.moveCursor(true)
@@ -406,7 +417,7 @@ trait StagedWasmEvaluator extends SAIOps {
       case Br(label) =>
         info(s"Jump to $label")
         val (oldCtx, history, ct1) = ct.clearHistory
-        if (isSymStackInUse) {
+        if (isSymStateInUse) {
           evalSym(history)(oldCtx)
         }
         trail(label)(ct1)(mkont)
@@ -415,10 +426,11 @@ trait StagedWasmEvaluator extends SAIOps {
         val cond = Stack.popC(ty)
         val (oldCtx, history, ct2) = ct1.clearHistory
         info(s"The br_if(${label})'s condition is ", cond.toInt)
-        if (isSymStackInUse) {
+        if (isSymStateInUse) {
           evalSym(history)(oldCtx)
           val symCond = Stack.popS(ty)
-          ExploreTree.fillWithIfElse(symCond.s)
+          val snapshot = makeSnapshot()
+          ExploreTree.fillWithIfElse(symCond.s, snapshot)
         }
         if (cond.toInt != 0) {
           info(s"Jump to $label")
@@ -434,17 +446,18 @@ trait StagedWasmEvaluator extends SAIOps {
         val (ty, ct1) = ct.pop()
         val label = Stack.popC(ty)
         val (oldCtx, history, ct2) = ct1.clearHistory
-        if (isSymStackInUse) {
+        if (isSymStateInUse) {
           evalSym(history)(oldCtx)
         }
         def aux(choices: List[Int], idx: Int): Rep[Unit] = {
           if (choices.isEmpty) trail(default)(ct2)(mkont)
           else {
             val cond = (label - toStagedNum(I32V(idx))).isZero()
-            if (isSymStackInUse) {
+            if (isSymStateInUse) {
               val labelSym = Stack.peekS(ty)
               val condSym = (labelSym - toStagedSymbolicNum(I32V(idx))).isZero()
-              ExploreTree.fillWithIfElse(condSym.s)
+              val snapshot = makeSnapshot()
+              ExploreTree.fillWithIfElse(condSym.s, snapshot)
             }
             if (cond.toInt != 0) {
               ExploreTree.moveCursor(true)
@@ -457,14 +470,14 @@ trait StagedWasmEvaluator extends SAIOps {
           }
         }
         aux(labels, 0)
-        if (isSymStackInUse) {
+        if (isSymStateInUse) {
           Stack.popS(ty)
         }
         ()
       case Return        =>
         // return instruction is also stack-polymorphic
         val (oldCtx, history, ct2) = ct.clearHistory
-        if (isSymStackInUse) {
+        if (isSymStateInUse) {
           evalSym(history)(oldCtx)
         }
         trail.last(ct2)(mkont)
@@ -478,7 +491,7 @@ trait StagedWasmEvaluator extends SAIOps {
 
   def replayAndClearHistory(ct: ContextTransition): ContextTransition = {
     val (oldCtx, history, ct1) = ct.clearHistory
-    if (isSymStackInUse) {
+    if (isSymStateInUse) {
       evalSym(history)(oldCtx)
     }
     ct1
@@ -607,7 +620,7 @@ trait StagedWasmEvaluator extends SAIOps {
                isTail: Boolean)
               (implicit ct: ContextTransition): Rep[Unit] = {
     val (oldCtx, history, ct1) = ct.clearHistory
-    if (isSymStackInUse) {
+    if (isSymStateInUse) {
       evalSym(history)(oldCtx)
     }
     module.funcs(funcIndex) match {
@@ -634,15 +647,15 @@ trait StagedWasmEvaluator extends SAIOps {
           }
         // Predef.println(s"[DEBUG] locals size: ${locals.size}")
         val ct2 = ct1.take(ty.inps.size)
-        val argsC = Stack.takeC(ty.inps)
-        val argsS = Stack.takeS(ty.inps)
         val exitSize = ty.out.size + ct2.endCtx.stackTypes.size
         if (isTail) {
           // when tail call, return to the caller's return continuation
+          val argsC = Stack.takeC(ty.inps)
           Frames.popFrameC(ct2.endCtx.frameTypes.size)
           Frames.pushFrameC(locals)
           Frames.putAllC(argsC)
-          if (isSymStackInUse) {
+          if (isSymStateInUse) {
+            val argsS = Stack.takeS(ty.inps)
             Frames.popFrameS(ct2.endCtx.frameTypes.size)
             Frames.pushFrameS(locals)
             Frames.putAllS(argsS)
@@ -662,9 +675,11 @@ trait StagedWasmEvaluator extends SAIOps {
           val newMKont: Rep[MCont[Unit]] = funHere((_u: Rep[Unit]) => {
             restK(mkont)
           }, dummy)
+          val argsC = Stack.takeC(ty.inps)
           Frames.pushFrameC(locals)
           Frames.putAllC(argsC)
-          if (isSymStackInUse) {
+          if (isSymStateInUse) {
+            val argsS = Stack.takeS(ty.inps)
             Frames.pushFrameS(locals)
             Frames.putAllS(argsS)
           }
@@ -1059,8 +1074,8 @@ trait StagedWasmEvaluator extends SAIOps {
 
   // Exploration tree, 
   object ExploreTree {
-    def fillWithIfElse(s: Rep[SymVal]): Rep[Unit] = {
-      "tree-fill-if-else".reflectCtrlWith[Unit](s)
+    def fillWithIfElse(sym: Rep[SymVal], snapshot: Rep[Snapshot]): Rep[Unit] = {
+      "tree-fill-if-else".reflectCtrlWith[Unit](sym, snapshot)
     }
 
     def fillWithFinished(): Rep[Unit] = {
@@ -1456,7 +1471,7 @@ trait StagedWasmCppGen extends CGenBase with CppSAICodeGenBase {
     else if (m.toString.endsWith("I32V")) "I32V"
     else if (m.toString.endsWith("I64V")) "I64V"
     else if (m.toString.endsWith("SymVal")) "SymVal"
-    
+    else if (m.toString.endsWith("Snapshot")) "Snapshot_t"
     else super.remap(m)
   }
 
@@ -1516,6 +1531,8 @@ trait StagedWasmCppGen extends CGenBase with CppSAICodeGenBase {
       emit("Stack.pop()")
     case Node(_, "sym-stack-pop", _, _) =>
       emit("SymStack.pop()")
+    case Node(_, "snapshot-make", _, _) => 
+      emit("Snapshot_t()")
     case Node(_, "frame-pop", List(i), _) =>
       emit("Frames.popFrame("); shallow(i); emit(")")
     case Node(_, "sym-frame-pop", List(i), _) =>
@@ -1607,8 +1624,8 @@ trait StagedWasmCppGen extends CGenBase with CppSAICodeGenBase {
       emit("SymEnv.read("); shallow(sym); emit(")")
     case Node(_, "assert-true", List(cond), _) =>
       emit("GENSYM_ASSERT("); shallow(cond); emit(")")
-    case Node(_, "tree-fill-if-else", List(s), _) => 
-      emit("ExploreTree.fillIfElseNode("); shallow(s); emit(")")
+    case Node(_, "tree-fill-if-else", List(sym, snapshot), _) =>
+      emit("ExploreTree.fillIfElseNode("); shallow(sym); emit(", "); shallow(snapshot); emit(")")
     case Node(_, "tree-fill-finished", List(), _) =>
       emit("ExploreTree.fillFinishedNode()")
     case Node(_, "tree-move-cursor", List(b), _) =>
