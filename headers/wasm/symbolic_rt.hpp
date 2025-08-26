@@ -24,6 +24,12 @@ public:
 
 static int max_id = 0;
 
+#ifdef NO_REUSE
+static bool REUSE_MODE = false;
+#else
+static bool REUSE_MODE = true;
+#endif
+
 class Symbol : public Symbolic {
 public:
   // TODO: add type information to determine the size of bitvector
@@ -498,10 +504,8 @@ class Reuse_t {
 public:
   Reuse_t() : reuse_flag(false) {}
   bool is_reusing() {
-#ifdef NO_REUSE
-    return false;
-#endif
-    return reuse_flag;
+    // we are in reuse mode and the flag is set
+    return REUSE_MODE && reuse_flag;
   }
 
   void turn_on_reusing() { reuse_flag = true; }
@@ -568,6 +572,11 @@ public:
         Reuse.turn_off_reusing();
         SymStack.reuse(if_else_node->snapshot);
       }
+    } else if (dynamic_cast<IfElseNode *>(cursor->node.get())) {
+      // if we are moving to a branch node, we must have reused the symbolic
+      // states
+      assert((!REUSE_MODE || Reuse.is_reusing()) &&
+             "Moving to a branch node without reusing symbolic states");
     }
     return std::monostate();
   }
