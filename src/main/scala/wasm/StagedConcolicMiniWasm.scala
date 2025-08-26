@@ -199,6 +199,8 @@ trait StagedWasmEvaluator extends SAIOps {
     })
   }
 
+  def isSymStackInUse: Rep[Boolean] = !ReuseManager.isReusing
+
   def eval(insts: List[Instr],
            kont: CleanCT => Rep[Cont[Unit]],
            mkont: Rep[MCont[Unit]],
@@ -206,7 +208,7 @@ trait StagedWasmEvaluator extends SAIOps {
           (oldCT: ContextTransition): Rep[Unit] = {
     if (insts.isEmpty) {
       val (oldCtx, history, ct) = oldCT.clearHistory
-      if (!ReuseManager.isReusing) {
+      if (isSymStackInUse) {
         evalSym(history)(oldCtx)
       }
       return kont(ct)(mkont)
@@ -329,7 +331,7 @@ trait StagedWasmEvaluator extends SAIOps {
           info(s"Exiting the block, stackSize =", Stack.size)
           val offset = ct.endCtx.stackTypes.size - exitSize
           Stack.shiftC(offset, funcTy.out.size)
-          if (!ReuseManager.isReusing) {
+          if (isSymStackInUse) {
             Stack.shiftS(offset, funcTy.out.size)
           }
           val ct1 = ct.shift(offset, funcTy.out.size)
@@ -337,7 +339,7 @@ trait StagedWasmEvaluator extends SAIOps {
         })
         // TODO: extract this into a function
         val (oldCtx, history, ct1) = ct.clearHistory
-        if (!ReuseManager.isReusing) {
+        if (isSymStackInUse) {
           evalSym(history)(oldCtx)
         }
         eval(inner, restK _, mkont, restK _ :: trail)(ct1)
@@ -349,7 +351,7 @@ trait StagedWasmEvaluator extends SAIOps {
           info(s"Exiting the loop, stackSize =", Stack.size)
           val offset = ct.endCtx.stackTypes.size - exitSize
           Stack.shiftC(offset, funcTy.out.size)
-          if (!ReuseManager.isReusing) {
+          if (isSymStackInUse) {
             Stack.shiftS(offset, funcTy.out.size)
           }
           val ct1 = ct.shift(offset, funcTy.out.size)
@@ -360,14 +362,14 @@ trait StagedWasmEvaluator extends SAIOps {
           info(s"Entered the loop, stackSize =", Stack.size)
           val offset = ct.endCtx.stackTypes.size - enterSize
           Stack.shiftC(offset, funcTy.inps.size)
-          if (!ReuseManager.isReusing) {
+          if (isSymStackInUse) {
             Stack.shiftS(offset, funcTy.inps.size)
           }
           val ct1 = ct.shift(offset, funcTy.inps.size)
           eval(inner, restK _, mk, loop _ :: trail)(ct1)
         })
         val (oldCtx, history, ct1) = ct.clearHistory
-        if (!ReuseManager.isReusing) {
+        if (isSymStackInUse) {
           evalSym(history)(oldCtx)
         }
         loop(ct1)(mkont)
@@ -380,14 +382,14 @@ trait StagedWasmEvaluator extends SAIOps {
           info(s"Exiting the if, stackSize =", Stack.size)
           val offset = ct.endCtx.stackTypes.size - exitSize
           Stack.shiftC(offset, funcTy.out.size)
-          if (!ReuseManager.isReusing) {
+          if (isSymStackInUse) {
             Stack.shiftS(offset, funcTy.out.size)
           }
           val ct1 = ct.shift(offset, funcTy.out.size)
           eval(rest, kont, mk, trail)(ct1)
         })
         val (oldCtx, history, ct2) = ct1.clearHistory
-        if (!ReuseManager.isReusing) {
+        if (isSymStackInUse) {
           // when we are not reusing
           evalSym(history)(oldCtx)
           val symCond = Stack.popS(condTy)
@@ -404,7 +406,7 @@ trait StagedWasmEvaluator extends SAIOps {
       case Br(label) =>
         info(s"Jump to $label")
         val (oldCtx, history, ct1) = ct.clearHistory
-        if (!ReuseManager.isReusing) {
+        if (isSymStackInUse) {
           evalSym(history)(oldCtx)
         }
         trail(label)(ct1)(mkont)
@@ -413,7 +415,7 @@ trait StagedWasmEvaluator extends SAIOps {
         val cond = Stack.popC(ty)
         val (oldCtx, history, ct2) = ct1.clearHistory
         info(s"The br_if(${label})'s condition is ", cond.toInt)
-        if (!ReuseManager.isReusing) {
+        if (isSymStackInUse) {
           evalSym(history)(oldCtx)
           val symCond = Stack.popS(ty)
           ExploreTree.fillWithIfElse(symCond.s)
@@ -432,14 +434,14 @@ trait StagedWasmEvaluator extends SAIOps {
         val (ty, ct1) = ct.pop()
         val label = Stack.popC(ty)
         val (oldCtx, history, ct2) = ct1.clearHistory
-        if (!ReuseManager.isReusing) {
+        if (isSymStackInUse) {
           evalSym(history)(oldCtx)
         }
         def aux(choices: List[Int], idx: Int): Rep[Unit] = {
           if (choices.isEmpty) trail(default)(ct2)(mkont)
           else {
             val cond = (label - toStagedNum(I32V(idx))).isZero()
-            if (!ReuseManager.isReusing) {
+            if (isSymStackInUse) {
               val labelSym = Stack.peekS(ty)
               val condSym = (labelSym - toStagedSymbolicNum(I32V(idx))).isZero()
               ExploreTree.fillWithIfElse(condSym.s)
@@ -455,14 +457,14 @@ trait StagedWasmEvaluator extends SAIOps {
           }
         }
         aux(labels, 0)
-        if (!ReuseManager.isReusing) {
+        if (isSymStackInUse) {
           Stack.popS(ty)
         }
         ()
       case Return        =>
         // return instruction is also stack-polymorphic
         val (oldCtx, history, ct2) = ct.clearHistory
-        if (!ReuseManager.isReusing) {
+        if (isSymStackInUse) {
           evalSym(history)(oldCtx)
         }
         trail.last(ct2)(mkont)
@@ -476,7 +478,7 @@ trait StagedWasmEvaluator extends SAIOps {
 
   def replayAndClearHistory(ct: ContextTransition): ContextTransition = {
     val (oldCtx, history, ct1) = ct.clearHistory
-    if (!ReuseManager.isReusing) {
+    if (isSymStackInUse) {
       evalSym(history)(oldCtx)
     }
     ct1
@@ -605,7 +607,7 @@ trait StagedWasmEvaluator extends SAIOps {
                isTail: Boolean)
               (implicit ct: ContextTransition): Rep[Unit] = {
     val (oldCtx, history, ct1) = ct.clearHistory
-    if (!ReuseManager.isReusing) {
+    if (isSymStackInUse) {
       evalSym(history)(oldCtx)
     }
     module.funcs(funcIndex) match {
@@ -640,7 +642,7 @@ trait StagedWasmEvaluator extends SAIOps {
           Frames.popFrameC(ct2.endCtx.frameTypes.size)
           Frames.pushFrameC(locals)
           Frames.putAllC(argsC)
-          if (!ReuseManager.isReusing) {
+          if (isSymStackInUse) {
             Frames.popFrameS(ct2.endCtx.frameTypes.size)
             Frames.pushFrameS(locals)
             Frames.putAllS(argsS)
@@ -662,7 +664,7 @@ trait StagedWasmEvaluator extends SAIOps {
           }, dummy)
           Frames.pushFrameC(locals)
           Frames.putAllC(argsC)
-          if (!ReuseManager.isReusing) {
+          if (isSymStackInUse) {
             Frames.pushFrameS(locals)
             Frames.putAllS(argsS)
           }
