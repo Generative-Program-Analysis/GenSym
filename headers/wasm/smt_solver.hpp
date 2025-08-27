@@ -42,7 +42,7 @@ public:
         z3::func_decl var = model[i];
         z3::expr value = model.get_const_interp(var);
         std::string name = var.name().str();
-        if (name.starts_with("s_")) {
+        if (starts_with(name, "s_")) {
           int id = std::stoi(name.substr(2));
           if (id >= result.size()) {
             result.resize(id + 1);

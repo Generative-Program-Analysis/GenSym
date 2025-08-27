@@ -36,4 +36,18 @@
 
 #endif
 
+#if __cplusplus < 202002L
+#include <string>
+
+inline bool starts_with(const std::string& str, const std::string& prefix) {
+  return str.size() >= prefix.size() &&
+       std::equal(prefix.begin(), prefix.end(), str.begin());
+}
+#else
+#include <string>
+inline bool starts_with(const std::string& str, const std::string& prefix) {
+  return str.starts_with(prefix);
+}
+#endif
+
 #endif // UTILS_HPP
