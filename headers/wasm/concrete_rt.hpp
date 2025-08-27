@@ -72,9 +72,7 @@ public:
 
   Num pop() {
 #ifdef DEBUG
-    if (count == 0) {
-      throw std::runtime_error("Stack underflow");
-    }
+    assert(count > 0 && "Stack underflow");
 #endif
     Num num = stack_ptr[count - 1];
     count--;
@@ -117,7 +115,7 @@ public:
 
   void initialize() {
     // todo: remove this method
-   reset();
+    reset();
   }
 
   void reset() { count = 0; }
