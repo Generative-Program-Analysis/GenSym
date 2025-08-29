@@ -325,7 +325,7 @@ struct IfElseNode : Node {
 
   IfElseNode(SymVal cond, NodeBox *parent, Snapshot_t snapshot)
       : cond(cond), true_branch(std::make_unique<NodeBox>(parent)),
-        false_branch(std::make_unique<NodeBox>(parent)) {}
+        false_branch(std::make_unique<NodeBox>(parent)), snapshot(snapshot) {}
 
   std::string to_string() override {
     std::string result = "IfElseNode {\n";
