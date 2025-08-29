@@ -269,7 +269,7 @@ struct NodeBox {
   std::unique_ptr<Node> node;
   NodeBox *parent;
 
-  std::monostate fillIfElseNode(SymVal cond, const Snapshot_t &snapshot);
+  std::monostate fillIfElseNode(SymVal cond);
   std::monostate fillFinishedNode();
   std::monostate fillFailedNode();
   std::monostate fillUnreachableNode();
@@ -321,11 +321,10 @@ struct IfElseNode : Node {
   SymVal cond;
   std::unique_ptr<NodeBox> true_branch;
   std::unique_ptr<NodeBox> false_branch;
-  Snapshot_t snapshot;
 
-  IfElseNode(SymVal cond, NodeBox *parent, Snapshot_t snapshot)
+  IfElseNode(SymVal cond, NodeBox *parent)
       : cond(cond), true_branch(std::make_unique<NodeBox>(parent)),
-        false_branch(std::make_unique<NodeBox>(parent)), snapshot(snapshot) {}
+        false_branch(std::make_unique<NodeBox>(parent)) {}
 
   std::string to_string() override {
     std::string result = "IfElseNode {\n";
@@ -438,11 +437,10 @@ inline NodeBox::NodeBox(NodeBox *parent)
       /* TODO: avoid allocation of unexplored node */
       parent(parent) {}
 
-inline std::monostate NodeBox::fillIfElseNode(SymVal cond,
-                                              const Snapshot_t &snapshot) {
+inline std::monostate NodeBox::fillIfElseNode(SymVal cond) {
   // fill the current NodeBox with an ifelse branch node when it's unexplored
   if (dynamic_cast<UnExploredNode *>(node.get())) {
-    node = std::make_unique<IfElseNode>(cond, this, snapshot);
+    node = std::make_unique<IfElseNode>(cond, this);
   }
   assert(
       dynamic_cast<IfElseNode *>(node.get()) != nullptr &&
@@ -545,8 +543,8 @@ public:
 
   std::monostate fillFailedNode() { return cursor->fillFailedNode(); }
 
-  std::monostate fillIfElseNode(SymVal cond, const Snapshot_t &snapshot) {
-    return cursor->fillIfElseNode(cond, snapshot);
+  std::monostate fillIfElseNode(SymVal cond) {
+    return cursor->fillIfElseNode(cond);
   }
 
   std::monostate moveCursor(bool branch) {
@@ -561,23 +559,6 @@ public:
       cursor = if_else_node->false_branch.get();
     }
 
-    if (dynamic_cast<UnExploredNode *>(cursor->node.get())) {
-      // If we meet an unexplored node, resume the snapshot before and keep
-      // going
-
-#ifdef DEBUG
-      std::cout << "Resuming snapshot for unexplored node" << std::endl;
-#endif
-      if (Reuse.is_reusing()) {
-        Reuse.turn_off_reusing();
-        SymStack.reuse(if_else_node->snapshot);
-      }
-    } else if (dynamic_cast<IfElseNode *>(cursor->node.get())) {
-      // if we are moving to a branch node, we must have reused the symbolic
-      // states
-      assert((!REUSE_MODE || Reuse.is_reusing()) &&
-             "Moving to a branch node without reusing symbolic states");
-    }
     return std::monostate();
   }
 
