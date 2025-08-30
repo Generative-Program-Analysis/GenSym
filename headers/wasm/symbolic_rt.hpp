@@ -273,7 +273,8 @@ struct NodeBox {
   std::monostate fillFinishedNode();
   std::monostate fillFailedNode();
   std::monostate fillUnreachableNode();
-
+  std::monostate fillSnapshotNode();
+  bool isUnexplored() const;
   std::vector<SymVal> collect_path_conds();
 };
 
@@ -384,6 +385,22 @@ protected:
   }
 };
 
+struct SnapshotNode : Node {
+  SnapshotNode() {}
+  std::string to_string() override { return "SnapshotNode"; }
+
+protected:
+  void generate_dot(std::ostream &os, int parent_dot_id,
+                    const std::string &edge_label) override {
+    int current_node_dot_id = current_id++;
+    graphviz_node(os, current_node_dot_id, "Snapshot", "box", "lightblue");
+
+    if (parent_dot_id != -1) {
+      graphviz_edge(os, parent_dot_id, current_node_dot_id, edge_label);
+    }
+  }
+};
+
 struct Finished : Node {
   Finished() {}
   std::string to_string() override { return "FinishedNode"; }
@@ -439,7 +456,7 @@ inline NodeBox::NodeBox(NodeBox *parent)
 
 inline std::monostate NodeBox::fillIfElseNode(SymVal cond) {
   // fill the current NodeBox with an ifelse branch node when it's unexplored
-  if (dynamic_cast<UnExploredNode *>(node.get())) {
+  if (this->isUnexplored()) {
     node = std::make_unique<IfElseNode>(cond, this);
   }
   assert(
@@ -448,8 +465,15 @@ inline std::monostate NodeBox::fillIfElseNode(SymVal cond) {
   return std::monostate();
 }
 
+inline std::monostate NodeBox::fillSnapshotNode() {
+  if (this->isUnexplored()) {
+    node = std::make_unique<SnapshotNode>();
+  }
+  return std::monostate();
+}
+
 inline std::monostate NodeBox::fillFinishedNode() {
-  if (dynamic_cast<UnExploredNode *>(node.get())) {
+  if (this->isUnexplored()) {
     node = std::make_unique<Finished>();
   } else {
     assert(dynamic_cast<Finished *>(node.get()) != nullptr);
@@ -458,7 +482,7 @@ inline std::monostate NodeBox::fillFinishedNode() {
 }
 
 inline std::monostate NodeBox::fillFailedNode() {
-  if (dynamic_cast<UnExploredNode *>(node.get())) {
+  if (this->isUnexplored()) {
     node = std::make_unique<Failed>();
   } else {
     assert(dynamic_cast<Failed *>(node.get()) != nullptr);
@@ -467,12 +491,17 @@ inline std::monostate NodeBox::fillFailedNode() {
 }
 
 inline std::monostate NodeBox::fillUnreachableNode() {
-  if (dynamic_cast<UnExploredNode *>(node.get())) {
+  if (this->isUnexplored()) {
     node = std::make_unique<Unreachable>();
   } else {
     assert(dynamic_cast<Unreachable *>(node.get()) != nullptr);
   }
   return std::monostate();
+}
+
+inline bool NodeBox::isUnexplored() const {
+  return dynamic_cast<UnExploredNode *>(node.get()) != nullptr ||
+         dynamic_cast<SnapshotNode *>(node.get()) != nullptr;
 }
 
 inline std::vector<SymVal> NodeBox::collect_path_conds() {
@@ -554,8 +583,10 @@ public:
         if_else_node != nullptr &&
         "Can't move cursor when the branch node is not initialized correctly!");
     if (branch) {
+      if_else_node->false_branch->fillSnapshotNode();
       cursor = if_else_node->true_branch.get();
     } else {
+      if_else_node->true_branch->fillSnapshotNode();
       cursor = if_else_node->false_branch.get();
     }
 
@@ -599,7 +630,7 @@ public:
 
 private:
   NodeBox *pick_unexplored_of(NodeBox *node) {
-    if (dynamic_cast<UnExploredNode *>(node->node.get()) != nullptr) {
+    if (node->isUnexplored()) {
       return node;
     }
     auto if_else_node = dynamic_cast<IfElseNode *>(node->node.get());

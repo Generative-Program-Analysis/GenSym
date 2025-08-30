@@ -38,8 +38,8 @@ public:
 };
 
 inline void ConcolicDriver::run() {
-  ManagedConcolicCleanup cleanup{*this};
   while (true) {
+    ManagedConcolicCleanup cleanup{*this};
     ExploreTree.reset_cursor();
 
     auto unexplored = ExploreTree.pick_unexplored();

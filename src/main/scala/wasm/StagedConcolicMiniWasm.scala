@@ -404,6 +404,9 @@ trait StagedWasmEvaluator extends SAIOps {
             val cond = (label - toStagedNum(I32V(idx))).isZero()
             val condSym = (labelSym - toStagedSymbolicNum(I32V(idx))).isZero()
             ExploreTree.fillWithIfElse(condSym.s)
+            // When moving the cursor to a branch, we mark another branch as
+            // snapshotNode (this is done by moveCursor's runtime implementation)
+            // TODO: store snapshot into this snapshot node
             if (cond.toInt != 0) {
               ExploreTree.moveCursor(true)
               trail(choices.head)(newCtx)(mkont)
