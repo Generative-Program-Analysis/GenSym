@@ -228,7 +228,7 @@ public:
 // A snapshot of the symbolic state and execution context (control)
 class Snapshot_t {
 public:
-  explicit Snapshot_t();
+  explicit Snapshot_t(Cont_t cont, MCont_t mcont);
 
   SymStack_t get_stack() const { return stack; }
   SymFrames_t get_frames() const { return frames; }
@@ -236,6 +236,9 @@ public:
 private:
   SymStack_t stack;
   SymFrames_t frames;
+  // The continuation at the snapshot point
+  Cont_t cont;
+  MCont_t mcont;
 };
 
 inline void SymStack_t::reuse(Snapshot_t snapshot) {
@@ -273,7 +276,7 @@ struct NodeBox {
   std::monostate fillFinishedNode();
   std::monostate fillFailedNode();
   std::monostate fillUnreachableNode();
-  std::monostate fillSnapshotNode();
+  std::monostate fillSnapshotNode(Snapshot_t snapshot);
   bool isUnexplored() const;
   std::vector<SymVal> collect_path_conds();
 };
@@ -386,7 +389,7 @@ protected:
 };
 
 struct SnapshotNode : Node {
-  SnapshotNode() {}
+  SnapshotNode(Snapshot_t snapshot) : snapshot(snapshot) {}
   std::string to_string() override { return "SnapshotNode"; }
 
 protected:
@@ -399,6 +402,9 @@ protected:
       graphviz_edge(os, parent_dot_id, current_node_dot_id, edge_label);
     }
   }
+
+private:
+  Snapshot_t snapshot;
 };
 
 struct Finished : Node {
@@ -465,9 +471,9 @@ inline std::monostate NodeBox::fillIfElseNode(SymVal cond) {
   return std::monostate();
 }
 
-inline std::monostate NodeBox::fillSnapshotNode() {
+inline std::monostate NodeBox::fillSnapshotNode(Snapshot_t snapshot) {
   if (this->isUnexplored()) {
-    node = std::make_unique<SnapshotNode>();
+    node = std::make_unique<SnapshotNode>(snapshot);
   }
   return std::monostate();
 }
@@ -545,12 +551,11 @@ private:
 
 static Reuse_t Reuse;
 
-inline Snapshot_t::Snapshot_t() : stack(SymStack), frames(SymFrames) {
+inline Snapshot_t::Snapshot_t(Cont_t cont, MCont_t mcont)
+    : stack(SymStack), frames(SymFrames), cont(cont), mcont(mcont) {
 #ifdef DEBUG
   std::cout << "Creating snapshot of size " << stack.size() << std::endl;
 #endif
-  assert(!Reuse.is_reusing() &&
-         "Creating snapshot while reusing the symbolic stack");
 }
 
 class ExploreTree_t {
@@ -576,17 +581,17 @@ public:
     return cursor->fillIfElseNode(cond);
   }
 
-  std::monostate moveCursor(bool branch) {
+  std::monostate moveCursor(bool branch, Snapshot_t snapshot) {
     assert(cursor != nullptr);
     auto if_else_node = dynamic_cast<IfElseNode *>(cursor->node.get());
     assert(
         if_else_node != nullptr &&
         "Can't move cursor when the branch node is not initialized correctly!");
     if (branch) {
-      if_else_node->false_branch->fillSnapshotNode();
+      if_else_node->false_branch->fillSnapshotNode(snapshot);
       cursor = if_else_node->true_branch.get();
     } else {
-      if_else_node->true_branch->fillSnapshotNode();
+      if_else_node->true_branch->fillSnapshotNode(snapshot);
       cursor = if_else_node->false_branch.get();
     }
 

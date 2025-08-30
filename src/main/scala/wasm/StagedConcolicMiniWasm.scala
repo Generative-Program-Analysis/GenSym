@@ -165,9 +165,9 @@ trait StagedWasmEvaluator extends SAIOps {
   trait Snapshot
 
   // Create a snapshot of the symbolic execution, we should ensure that current symstack is in use
-  // We don't need to store the control information, since the control is totally decided by concrete states
-  def makeSnapshot(): Rep[Snapshot] = {
-    "snapshot-make".reflectCtrlWith[Snapshot]()
+  // We need to store the control information, so we can resume the execution later
+  def makeSnapshot(kont: Rep[Cont[Unit]], mkont: Rep[MCont[Unit]]): Rep[Snapshot] = {
+    "snapshot-make".reflectCtrlWith[Snapshot](kont, mkont)
   }
 
   def eval(insts: List[Instr],
@@ -365,14 +365,23 @@ trait StagedWasmEvaluator extends SAIOps {
           val newRestCtx = restCtx.shift(offset, funcTy.out.size)
           eval(rest, kont, mk, trail)(newRestCtx)
         })
-        // TODO: put the cond.s to path condition
         ExploreTree.fillWithIfElse(symCond.s)
+        def thnK: Rep[Cont[Unit]] = topFun((mk: Rep[MCont[Unit]]) => {
+          info("Entering the true branch of the if")
+          eval(thn, restK _, mk, restK _ :: trail)(newCtx)
+        })
+        def elsK: Rep[Cont[Unit]] = topFun((mk: Rep[MCont[Unit]]) => {
+          info("Entering the false branch of the if")
+          eval(els, restK _, mk, restK _ :: trail)(newCtx)
+        })
         if (cond.toInt != 0) {
-          ExploreTree.moveCursor(true)
-          eval(thn, restK _, mkont, restK _ :: trail)(newCtx)
+          val snapshot = makeSnapshot(elsK, mkont)
+          ExploreTree.moveCursor(true, snapshot)
+          thnK(mkont)
         } else {
-          ExploreTree.moveCursor(false)
-          eval(els, restK _, mkont, restK _ :: trail)(newCtx)
+          val snapshot = makeSnapshot(thnK, mkont)
+          ExploreTree.moveCursor(false, snapshot)
+          elsK(mkont)
         }
         ()
       case Br(label) =>
@@ -384,40 +393,63 @@ trait StagedWasmEvaluator extends SAIOps {
         val symCond = Stack.popS(ty)
         info(s"The br_if(${label})'s condition is ", cond.toInt)
         ExploreTree.fillWithIfElse(symCond.s)
+        def thnK: Rep[Cont[Unit]] = topFun((mk: Rep[MCont[Unit]]) => {
+          trail(label)(newCtx)(mk)
+        })
+        def elsK: Rep[Cont[Unit]] = topFun((mk: Rep[MCont[Unit]]) => {
+          eval(rest, kont, mk, trail)(newCtx)
+        })
         if (cond.toInt != 0) {
           info(s"Jump to $label")
-          ExploreTree.moveCursor(true)
-          trail(label)(newCtx)(mkont)
+          val snapshot = makeSnapshot(elsK, mkont)
+          ExploreTree.moveCursor(true, snapshot)
+          thnK(mkont)
         } else {
           info(s"Continue")
-          ExploreTree.moveCursor(false)
-          eval(rest, kont, mkont, trail)(newCtx)
+          val snapshot = makeSnapshot(thnK, mkont)
+          ExploreTree.moveCursor(false, snapshot)
+          elsK(mkont)
         }
         ()
       case BrTable(labels, default) =>
         val (ty, newCtx) = ctx.pop()
-        val label = Stack.popC(ty)
-        val labelSym = Stack.popS(ty)
-        def aux(choices: List[Int], idx: Int): Rep[Unit] = {
-          if (choices.isEmpty) trail(default)(newCtx)(mkont)
-          else {
+        def aux(choices: List[Int], idx: Int, mkont: Rep[MCont[Unit]]): Rep[Unit] = {
+          if (choices.isEmpty) {
+            Stack.popC(ty)
+            Stack.popS(ty)
+            trail(default)(newCtx)(mkont)
+          } else {
+            val label = Stack.peekC(ty)
+            val labelSym = Stack.peekS(ty)
             val cond = (label - toStagedNum(I32V(idx))).isZero()
             val condSym = (labelSym - toStagedSymbolicNum(I32V(idx))).isZero()
             ExploreTree.fillWithIfElse(condSym.s)
             // When moving the cursor to a branch, we mark another branch as
             // snapshotNode (this is done by moveCursor's runtime implementation)
             // TODO: store snapshot into this snapshot node
+            def thnK: Rep[Cont[Unit]] = topFun((mk: Rep[MCont[Unit]]) => {
+              info("Entering the true branch of the br_table")
+              Stack.popC(ty)
+              Stack.popS(ty)
+              trail(choices.head)(newCtx)(mk)
+            })
+            def elsK: Rep[Cont[Unit]] = topFun((mk: Rep[MCont[Unit]]) => {
+              info("Entering the false branch of the br_table")
+              aux(choices.tail, idx + 1, mk)
+            })
             if (cond.toInt != 0) {
-              ExploreTree.moveCursor(true)
-              trail(choices.head)(newCtx)(mkont)
+              val snapshot = makeSnapshot(elsK, mkont)
+              ExploreTree.moveCursor(true, snapshot)
+              thnK(mkont)
             }
             else {
-              ExploreTree.moveCursor(false)
-              aux(choices.tail, idx + 1)
+              val snapshot = makeSnapshot(thnK, mkont)
+              ExploreTree.moveCursor(false, snapshot)
+              elsK(mkont)
             }
           }
         }
-        aux(labels, 0)
+        aux(labels, 0, mkont)
       case Return        => trail.last(ctx)(mkont)
       case Call(f)       => evalCall(rest, kont, mkont, trail, f, false)
       case ReturnCall(f) => evalCall(rest, kont, mkont, trail, f, true)
@@ -888,9 +920,9 @@ trait StagedWasmEvaluator extends SAIOps {
       "tree-fill-finished".reflectCtrlWith[Unit]()
     }
 
-    def moveCursor(branch: Boolean): Rep[Unit] = {
+    def moveCursor(branch: Boolean, snapshot: Rep[Snapshot]): Rep[Unit] = {
       // when moving cursor from to an unexplored node, we need to change the reuse state
-      "tree-move-cursor".reflectCtrlWith[Unit](branch)
+      "tree-move-cursor".reflectCtrlWith[Unit](branch, snapshot)
     }
 
     def print(): Rep[Unit] = {
@@ -1323,8 +1355,8 @@ trait StagedWasmCppGen extends CGenBase with CppSAICodeGenBase {
       emit("Stack.pop()")
     case Node(_, "sym-stack-pop", _, _) =>
       emit("SymStack.pop()")
-    case Node(_, "snapshot-make", _, _) => 
-      emit("Snapshot_t()")
+    case Node(_, "snapshot-make", List(k, mk), _) =>
+      emit("Snapshot_t("); shallow(k); emit(", "); shallow(mk); emit(")")
     case Node(_, "frame-pop", List(i), _) =>
       emit("Frames.popFrame("); shallow(i); emit(")")
     case Node(_, "sym-frame-pop", List(i), _) =>
@@ -1420,8 +1452,8 @@ trait StagedWasmCppGen extends CGenBase with CppSAICodeGenBase {
       emit("ExploreTree.fillIfElseNode("); shallow(sym); emit(")")
     case Node(_, "tree-fill-finished", List(), _) =>
       emit("ExploreTree.fillFinishedNode()")
-    case Node(_, "tree-move-cursor", List(b), _) =>
-      emit("ExploreTree.moveCursor("); shallow(b); emit(")")
+    case Node(_, "tree-move-cursor", List(b, snapshot), _) =>
+      emit("ExploreTree.moveCursor("); shallow(b); emit(", "); shallow(snapshot); emit(")")
     case Node(_, "tree-print", List(), _) =>
       emit("ExploreTree.print()")
     case Node(_, "tree-dump-graphviz", List(f), _) =>
