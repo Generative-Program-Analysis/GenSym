@@ -38,9 +38,9 @@ public:
 };
 
 inline void ConcolicDriver::run() {
+  ExploreTree.reset_cursor();
   while (true) {
     ManagedConcolicCleanup cleanup{*this};
-    ExploreTree.reset_cursor();
 
     auto unexplored = ExploreTree.pick_unexplored();
     if (!unexplored) {
@@ -55,11 +55,19 @@ inline void ConcolicDriver::run() {
       continue;
     }
     auto new_env = result.value();
+
+    // update global symbolic environment from SMT solved model
     SymEnv.update(std::move(new_env));
     try {
       GENSYM_INFO("Now execute the program with symbolic environment: ");
       GENSYM_INFO(SymEnv.to_string());
-      entrypoint();
+      if (auto snapshot_node =
+              dynamic_cast<SnapshotNode *>(unexplored->node.get())) {
+        snapshot_node->get_snapshot().resume_execution(SymEnv, unexplored);
+      } else {
+        entrypoint();
+      }
+
       GENSYM_INFO("Execution finished successfully with symbolic environment:");
       GENSYM_INFO(SymEnv.to_string());
     } catch (...) {

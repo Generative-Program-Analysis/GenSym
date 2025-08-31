@@ -42,13 +42,13 @@ class TestStagedConcolicEval extends FunSuite {
     })
   }
 
-  test("ack-cpp") { testFileConcolicCpp("./benchmarks/wasm/ack.wat", Some("real_main")) }
+  test("ack-cpp-concolic") { testFileConcolicCpp("./benchmarks/wasm/ack.wat", Some("real_main")) }
 
-  test("bug-finding") {
+  test("bug-finding-concolic") {
     testFileConcolicCpp("./benchmarks/wasm/branch-strip-buggy.wat", Some("real_main"))
   }
 
-  test("brtable-bug-finding") {
+  test("brtable-bug-finding-concolic") {
     testFileConcolicCpp("./benchmarks/wasm/staged/brtable_concolic.wat")
   }
 

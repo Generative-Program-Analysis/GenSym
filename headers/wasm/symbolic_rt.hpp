@@ -3,6 +3,7 @@
 
 #include "concrete_rt.hpp"
 #include "controls.hpp"
+#include "utils.hpp"
 #include <cassert>
 #include <cstddef>
 #include <cstdio>
@@ -71,6 +72,8 @@ struct SymVal {
   SymVal gt(const SymVal &other) const;
   SymVal geq(const SymVal &other) const;
   SymVal negate() const;
+
+  bool is_concrete() const;
 };
 
 static SymVal make_symbolic(int index) {
@@ -145,6 +148,10 @@ inline SymVal SymVal::makeSymbolic() const {
   }
 }
 
+inline bool SymVal::is_concrete() const {
+  return dynamic_cast<SymConcrete *>(symptr.get()) != nullptr;
+}
+
 class Snapshot_t;
 
 class SymStack_t {
@@ -186,6 +193,8 @@ public:
 
   size_t size() const { return stack.size(); }
 
+  SymVal operator[](size_t index) const { return stack[index]; }
+
 private:
   std::vector<SymVal> stack;
 };
@@ -222,8 +231,16 @@ public:
 
   void reuse(Snapshot_t snapshot);
 
+  size_t size() const { return stack.size(); }
+
+  SymVal operator[](size_t index) const { return stack[index]; }
+
+private:
   std::vector<SymVal> stack;
 };
+
+struct NodeBox;
+struct SymEnv_t;
 
 // A snapshot of the symbolic state and execution context (control)
 class Snapshot_t {
@@ -232,6 +249,8 @@ public:
 
   SymStack_t get_stack() const { return stack; }
   SymFrames_t get_frames() const { return frames; }
+
+  std::monostate resume_execution(SymEnv_t &sym_env, NodeBox *node) const;
 
 private:
   SymStack_t stack;
@@ -391,6 +410,7 @@ protected:
 struct SnapshotNode : Node {
   SnapshotNode(Snapshot_t snapshot) : snapshot(snapshot) {}
   std::string to_string() override { return "SnapshotNode"; }
+  const Snapshot_t &get_snapshot() const { return snapshot; }
 
 protected:
   void generate_dot(std::ostream &os, int parent_dot_id,
@@ -479,6 +499,7 @@ inline std::monostate NodeBox::fillSnapshotNode(Snapshot_t snapshot) {
 }
 
 inline std::monostate NodeBox::fillFinishedNode() {
+  GENSYM_DBG("Filling with a Finished Node");
   if (this->isUnexplored()) {
     node = std::make_unique<Finished>();
   } else {
@@ -491,6 +512,11 @@ inline std::monostate NodeBox::fillFailedNode() {
   if (this->isUnexplored()) {
     node = std::make_unique<Failed>();
   } else {
+    if (auto if_else_node = dynamic_cast<IfElseNode *>(node.get())) {
+      GENSYM_DBG(typeid(*if_else_node).name());
+    } else if (auto finished_node = dynamic_cast<Finished *>(node.get())) {
+      GENSYM_DBG(typeid(*finished_node).name());
+    }
     assert(dynamic_cast<Failed *>(node.get()) != nullptr);
   }
   return std::monostate();
@@ -533,24 +559,6 @@ inline std::vector<SymVal> NodeBox::collect_path_conds() {
   return result;
 }
 
-class Reuse_t {
-public:
-  Reuse_t() : reuse_flag(false) {}
-  bool is_reusing() {
-    // we are in reuse mode and the flag is set
-    return REUSE_MODE && reuse_flag;
-  }
-
-  void turn_on_reusing() { reuse_flag = true; }
-
-  void turn_off_reusing() { reuse_flag = false; }
-
-private:
-  bool reuse_flag;
-};
-
-static Reuse_t Reuse;
-
 inline Snapshot_t::Snapshot_t(Cont_t cont, MCont_t mcont)
     : stack(SymStack), frames(SymFrames), cont(cont), mcont(mcont) {
 #ifdef DEBUG
@@ -564,13 +572,15 @@ public:
       : root(std::make_unique<NodeBox>(nullptr)), cursor(root.get()) {}
 
   void reset_cursor() {
+    GENSYM_INFO("Resetting cursor to root");
     // Reset the cursor to the root of the tree
     cursor = root.get();
-    Reuse.turn_off_reusing();
-    // if root cursor is a branch node, then we can reuse the snapshot inside it
-    if (auto ite = dynamic_cast<IfElseNode *>(cursor->node.get())) {
-      Reuse.turn_on_reusing();
-    }
+  }
+
+  void set_cursor(NodeBox *new_cursor) {
+    GENSYM_INFO("Setting cursor to a new node");
+    cursor = new_cursor;
+    assert(dynamic_cast<SnapshotNode *>(cursor->node.get()) != nullptr);
   }
 
   std::monostate fillFinishedNode() { return cursor->fillFinishedNode(); }
@@ -656,18 +666,23 @@ static ExploreTree_t ExploreTree;
 
 class SymEnv_t {
 public:
-  Num read(SymVal sym) {
-    auto symbol = dynamic_cast<Symbol *>(sym.symptr.get());
-    assert(symbol);
-    if (symbol->get_id() >= map.size()) {
-      map.resize(symbol->get_id() + 1);
+  Num read(const Symbol &symbol) {
+    if (symbol.get_id() >= map.size()) {
+      map.resize(symbol.get_id() + 1);
     }
 #if DEBUG
-    std::cout << "Read symbol: " << symbol->get_id()
+    std::cout << "Read symbol: " << symbol.get_id()
               << " from symbolic environment" << std::endl;
     std::cout << "Current symbolic environment: " << to_string() << std::endl;
 #endif
-    return map[symbol->get_id()];
+
+    return map[symbol.get_id()];
+  }
+
+  Num read(SymVal sym) {
+    auto symbol = dynamic_cast<Symbol *>(sym.symptr.get());
+    assert(symbol);
+    return read(*symbol);
   }
 
   void update(std::vector<Num> new_env) { map = std::move(new_env); }
@@ -684,10 +699,92 @@ public:
     return result;
   }
 
+  size_t size() const { return map.size(); }
+
 private:
   std::vector<Num> map; // The symbolic environment, a vector of Num
 };
 
 static SymEnv_t SymEnv;
+
+// TODO: reduce the re-computation of the same symbolic expression, it's better
+// if it can be done by the smt solver
+static Num eval_sym_expr(const SymVal &sym, SymEnv_t &sym_env) {
+  if (auto concrete = dynamic_cast<SymConcrete *>(sym.symptr.get())) {
+    return concrete->value;
+  } else if (auto operation = dynamic_cast<SymBinary *>(sym.symptr.get())) {
+    // If it's a operation, we need to evaluate it
+    auto lhs = eval_sym_expr(operation->lhs, sym_env);
+    auto rhs = eval_sym_expr(operation->rhs, sym_env);
+    switch (operation->op) {
+    case ADD:
+      return lhs + rhs;
+    case SUB:
+      return lhs - rhs;
+    case MUL:
+      return lhs * rhs;
+    case DIV:
+      return lhs / rhs;
+    case LT:
+      return lhs < rhs;
+    case LEQ:
+      return lhs <= rhs;
+    case GT:
+      return lhs > rhs;
+    case GEQ:
+      return lhs >= rhs;
+    default:
+      throw std::runtime_error("Operation not supported: " +
+                               std::to_string(operation->op));
+    }
+  } else if (auto symbol = dynamic_cast<Symbol *>(sym.symptr.get())) {
+    auto sym_id = symbol->get_id();
+    GENSYM_INFO("Reading symbol: " + std::to_string(sym_id));
+    return sym_env.read(sym);
+  }
+  throw std::runtime_error("Not supported symbolic expression");
+}
+
+static void resume_conc_stack(const SymStack_t &sym_stack, Stack_t &stack,
+                              SymEnv_t &sym_env) {
+  stack.resize(sym_stack.size());
+  for (size_t i = 0; i < sym_stack.size(); ++i) {
+    auto sym = sym_stack[i];
+    auto conc = eval_sym_expr(sym, sym_env);
+    stack.set_from_front(i, conc);
+  }
+}
+
+static void resume_conc_frames(const SymFrames_t &sym_frame, Frames_t &frames,
+                               SymEnv_t &sym_env) {
+  frames.resize(sym_frame.size());
+  for (size_t i = 0; i < sym_frame.size(); ++i) {
+    auto sym = sym_frame[i];
+    auto conc = eval_sym_expr(sym, sym_env);
+    frames.set_from_front(i, conc);
+  }
+}
+
+static void resume_conc_states(const SymStack_t &sym_stack,
+                               const SymFrames_t &sym_frame, Stack_t &stack,
+                               Frames_t &frames, SymEnv_t &sym_env) {
+  resume_conc_stack(sym_stack, stack, sym_env);
+  resume_conc_frames(sym_frame, frames, sym_env);
+}
+
+inline std::monostate Snapshot_t::resume_execution(SymEnv_t &sym_env,
+                                                   NodeBox *node) const {
+  // Reset explore tree's cursor
+  ExploreTree.set_cursor(node);
+
+  // Restore the symbolic state from the snapshot
+  GENSYM_INFO("Reusing symbolic state from snapshot");
+  SymStack = stack;
+  SymFrames = frames;
+  // Restore the concrete states from the symbolic states
+  resume_conc_states(stack, frames, Stack, Frames, sym_env);
+  // Resume execution from the continuation
+  return cont(mcont);
+}
 
 #endif // WASM_SYMBOLIC_RT_HPP

@@ -1,6 +1,7 @@
 #ifndef WASM_CONCRETE_RT_HPP
 #define WASM_CONCRETE_RT_HPP
 
+#include "wasm/utils.hpp"
 #include <cassert>
 #include <cstdint>
 #include <cstdio>
@@ -120,6 +121,16 @@ public:
 
   void reset() { count = 0; }
 
+  void resize(int32_t new_size) {
+    assert(new_size >= 0);
+    count = new_size;
+  }
+
+  void set_from_front(int32_t index, const Num &num) {
+    assert(index >= 0 && index < count);
+    stack_ptr[index] = num;
+  }
+
 private:
   int32_t count;
   Num *stack_ptr;
@@ -151,6 +162,19 @@ public:
   }
 
   void reset() { count = 0; }
+
+  size_t size() const { return count; }
+
+  void set_from_front(int32_t index, const Num &num) {
+    GENSYM_DBG(index);
+    assert(index >= 0 && index < count && "Index out of bounds");
+    stack_ptr[index] = num;
+  }
+
+  void resize(int32_t new_size) {
+    assert(new_size >= 0);
+    count = new_size;
+  }
 
 private:
   int32_t count;
