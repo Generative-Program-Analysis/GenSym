@@ -166,7 +166,6 @@ public:
   size_t size() const { return count; }
 
   void set_from_front(int32_t index, const Num &num) {
-    GENSYM_DBG(index);
     assert(index >= 0 && index < count && "Index out of bounds");
     stack_ptr[index] = num;
   }

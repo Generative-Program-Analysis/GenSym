@@ -499,7 +499,6 @@ inline std::monostate NodeBox::fillSnapshotNode(Snapshot_t snapshot) {
 }
 
 inline std::monostate NodeBox::fillFinishedNode() {
-  GENSYM_DBG("Filling with a Finished Node");
   if (this->isUnexplored()) {
     node = std::make_unique<Finished>();
   } else {
@@ -512,11 +511,6 @@ inline std::monostate NodeBox::fillFailedNode() {
   if (this->isUnexplored()) {
     node = std::make_unique<Failed>();
   } else {
-    if (auto if_else_node = dynamic_cast<IfElseNode *>(node.get())) {
-      GENSYM_DBG(typeid(*if_else_node).name());
-    } else if (auto finished_node = dynamic_cast<Finished *>(node.get())) {
-      GENSYM_DBG(typeid(*finished_node).name());
-    }
     assert(dynamic_cast<Failed *>(node.get()) != nullptr);
   }
   return std::monostate();
