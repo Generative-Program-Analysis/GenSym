@@ -100,7 +100,7 @@ static void start_concolic_execution_with(
 }
 
 static void start_concolic_execution_with(
-    std::function<std::monostate(std::monostate)> entrypoint) {
+    std::function<std::monostate(std::monostate)> entrypoint, int branchCount) {
 
   const char *env_tree_file = std::getenv("TREE_FILE");
 

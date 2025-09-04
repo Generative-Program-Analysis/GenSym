@@ -291,7 +291,7 @@ struct NodeBox {
   std::unique_ptr<Node> node;
   NodeBox *parent;
 
-  std::monostate fillIfElseNode(SymVal cond);
+  std::monostate fillIfElseNode(SymVal cond, int id);
   std::monostate fillFinishedNode();
   std::monostate fillFailedNode();
   std::monostate fillUnreachableNode();
@@ -344,10 +344,11 @@ struct IfElseNode : Node {
   SymVal cond;
   std::unique_ptr<NodeBox> true_branch;
   std::unique_ptr<NodeBox> false_branch;
+  int id;
 
-  IfElseNode(SymVal cond, NodeBox *parent)
+  IfElseNode(SymVal cond, NodeBox *parent, int id)
       : cond(cond), true_branch(std::make_unique<NodeBox>(parent)),
-        false_branch(std::make_unique<NodeBox>(parent)) {}
+        false_branch(std::make_unique<NodeBox>(parent)), id(id) {}
 
   std::string to_string() override {
     std::string result = "IfElseNode {\n";
@@ -480,10 +481,10 @@ inline NodeBox::NodeBox(NodeBox *parent)
       /* TODO: avoid allocation of unexplored node */
       parent(parent) {}
 
-inline std::monostate NodeBox::fillIfElseNode(SymVal cond) {
+inline std::monostate NodeBox::fillIfElseNode(SymVal cond, int id) {
   // fill the current NodeBox with an ifelse branch node when it's unexplored
   if (this->isUnexplored()) {
-    node = std::make_unique<IfElseNode>(cond, this);
+    node = std::make_unique<IfElseNode>(cond, this, id);
   }
   assert(
       dynamic_cast<IfElseNode *>(node.get()) != nullptr &&
@@ -581,8 +582,8 @@ public:
 
   std::monostate fillFailedNode() { return cursor->fillFailedNode(); }
 
-  std::monostate fillIfElseNode(SymVal cond) {
-    return cursor->fillIfElseNode(cond);
+  std::monostate fillIfElseNode(SymVal cond, int id) {
+    return cursor->fillIfElseNode(cond, id);
   }
 
   std::monostate moveCursor(bool branch, Snapshot_t snapshot) {

@@ -19,6 +19,26 @@ import gensym.wasm.symbolic.Concrete
 import gensym.wasm.symbolic.ExploreTree
 import gensym.structure.freer.Explore
 
+object Counter {
+  var currentId: Int = 0
+  private val dict = new HashMap[WIR, Int]()
+
+  def reset(): Unit = {
+    currentId = 0
+    dict.clear()
+  }
+
+  def getId(wir: WIR): Int = {
+    if (dict.contains(wir)) {
+      dict(wir)
+    } else {
+      val id = currentId
+      currentId += 1
+      dict(wir) = id
+      id
+    }
+  }
+}
 @virtualize
 trait StagedWasmEvaluator extends SAIOps {
   def module: ModuleInstance
@@ -365,7 +385,8 @@ trait StagedWasmEvaluator extends SAIOps {
           val newRestCtx = restCtx.shift(offset, funcTy.out.size)
           eval(rest, kont, mk, trail)(newRestCtx)
         })
-        ExploreTree.fillWithIfElse(symCond.s)
+        val id = Counter.getId(inst)
+        ExploreTree.fillWithIfElse(symCond.s, id)
         def thnK: Rep[Cont[Unit]] = topFun((mk: Rep[MCont[Unit]]) => {
           info("Entering the true branch of the if")
           eval(thn, restK _, mk, restK _ :: trail)(newCtx)
@@ -392,7 +413,8 @@ trait StagedWasmEvaluator extends SAIOps {
         val cond = Stack.popC(ty)
         val symCond = Stack.popS(ty)
         info(s"The br_if(${label})'s condition is ", cond.toInt)
-        ExploreTree.fillWithIfElse(symCond.s)
+        val id = Counter.getId(inst)
+        ExploreTree.fillWithIfElse(symCond.s, id)
         def thnK: Rep[Cont[Unit]] = topFun((mk: Rep[MCont[Unit]]) => {
           trail(label)(newCtx)(mk)
         })
@@ -423,7 +445,8 @@ trait StagedWasmEvaluator extends SAIOps {
             val labelSym = Stack.peekS(ty)
             val cond = (label - toStagedNum(I32V(idx))).isZero()
             val condSym = (labelSym - toStagedSymbolicNum(I32V(idx))).isZero()
-            ExploreTree.fillWithIfElse(condSym.s)
+            val id = Counter.getId(inst)
+            ExploreTree.fillWithIfElse(condSym.s, id)
             // When moving the cursor to a branch, we mark another branch as
             // snapshotNode (this is done by moveCursor's runtime implementation)
             // TODO: store snapshot into this snapshot node
@@ -622,6 +645,7 @@ trait StagedWasmEvaluator extends SAIOps {
   }
 
   def evalTop(mkont: Rep[MCont[Unit]], main: Option[String]): Rep[Unit] = {
+    Counter.reset()
     val funBody: FuncBodyDef = main match {
       case Some(func_name) =>
         module.defs.flatMap({
@@ -912,8 +936,8 @@ trait StagedWasmEvaluator extends SAIOps {
 
   // Exploration tree, 
   object ExploreTree {
-    def fillWithIfElse(s: Rep[SymVal]): Rep[Unit] = {
-      "tree-fill-if-else".reflectCtrlWith[Unit](s)
+    def fillWithIfElse(s: Rep[SymVal], id: Int): Rep[Unit] = {
+      "tree-fill-if-else".reflectCtrlWith[Unit](s, id)
     }
 
     def fillWithFinished(): Rep[Unit] = {
@@ -1448,8 +1472,8 @@ trait StagedWasmCppGen extends CGenBase with CppSAICodeGenBase {
       emit("SymEnv.read("); shallow(sym); emit(")")
     case Node(_, "assert-true", List(cond), _) =>
       emit("GENSYM_ASSERT("); shallow(cond); emit(")")
-    case Node(_, "tree-fill-if-else", List(sym), _) =>
-      emit("ExploreTree.fillIfElseNode("); shallow(sym); emit(")")
+    case Node(_, "tree-fill-if-else", List(sym, id), _) =>
+      emit("ExploreTree.fillIfElseNode("); shallow(sym); emit(", "); emit(id.toString); emit(")")
     case Node(_, "tree-fill-finished", List(), _) =>
       emit("ExploreTree.fillFinishedNode()")
     case Node(_, "tree-move-cursor", List(b, snapshot), _) =>
@@ -1496,12 +1520,12 @@ trait StagedWasmCppGen extends CGenBase with CppSAICodeGenBase {
     emitDatastructures(stream)
     emitFunctions(stream)
     emit(src)
-    emitln("""
+    emitln(s"""
     |/*****************************************
     |End of Generated Code
     |*******************************************/
     |int main(int argc, char *argv[]) {
-    |  start_concolic_execution_with(Snippet);
+    |  start_concolic_execution_with(Snippet, ${Counter.currentId});
     |  return 0;
     |}""".stripMargin)
   }
