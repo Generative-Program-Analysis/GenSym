@@ -6,6 +6,7 @@
 #include "symbolic_rt.hpp"
 #include "utils.hpp"
 #include <functional>
+#include <optional>
 #include <ostream>
 #include <string>
 #include <vector>
@@ -14,10 +15,11 @@ class ConcolicDriver {
   friend class ManagedConcolicCleanup;
 
 public:
-  ConcolicDriver(std::function<void()> entrypoint, std::string tree_file)
-      : entrypoint(entrypoint), tree_file(tree_file) {}
-  ConcolicDriver(std::function<void()> entrypoint)
-      : entrypoint(entrypoint), tree_file(std::nullopt) {}
+  ConcolicDriver(std::function<void()> entrypoint,
+                 std::optional<std::string> tree_file, int branchCount)
+      : entrypoint(entrypoint), tree_file(tree_file) {
+    ExploreTree.branch_cov_map.assign(branchCount, false);
+  }
   void run();
 
 private:
@@ -93,21 +95,15 @@ static std::monostate reset_stacks() {
 }
 
 static void start_concolic_execution_with(
-    std::function<std::monostate(std::monostate)> entrypoint,
-    std::string tree_file) {
-  ConcolicDriver driver([=]() { entrypoint(std::monostate{}); }, tree_file);
-  driver.run();
-}
-
-static void start_concolic_execution_with(
     std::function<std::monostate(std::monostate)> entrypoint, int branchCount) {
 
   const char *env_tree_file = std::getenv("TREE_FILE");
 
-  ConcolicDriver driver =
-      env_tree_file ? ConcolicDriver([=]() { entrypoint(std::monostate{}); },
-                                     env_tree_file)
-                    : ConcolicDriver([=]() { entrypoint(std::monostate{}); });
+  auto tree_file =
+      env_tree_file ? std::make_optional(env_tree_file) : std::nullopt;
+
+  ConcolicDriver driver = ConcolicDriver(
+      [=]() { entrypoint(std::monostate{}); }, tree_file, branchCount);
   driver.run();
 }
 

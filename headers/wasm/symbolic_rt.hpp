@@ -291,7 +291,7 @@ struct NodeBox {
   std::unique_ptr<Node> node;
   NodeBox *parent;
 
-  std::monostate fillIfElseNode(SymVal cond, int id);
+  std::monostate fillIfElseNode(SymVal cond);
   std::monostate fillFinishedNode();
   std::monostate fillFailedNode();
   std::monostate fillUnreachableNode();
@@ -344,11 +344,10 @@ struct IfElseNode : Node {
   SymVal cond;
   std::unique_ptr<NodeBox> true_branch;
   std::unique_ptr<NodeBox> false_branch;
-  int id;
 
-  IfElseNode(SymVal cond, NodeBox *parent, int id)
+  IfElseNode(SymVal cond, NodeBox *parent)
       : cond(cond), true_branch(std::make_unique<NodeBox>(parent)),
-        false_branch(std::make_unique<NodeBox>(parent)), id(id) {}
+        false_branch(std::make_unique<NodeBox>(parent)) {}
 
   std::string to_string() override {
     std::string result = "IfElseNode {\n";
@@ -481,10 +480,10 @@ inline NodeBox::NodeBox(NodeBox *parent)
       /* TODO: avoid allocation of unexplored node */
       parent(parent) {}
 
-inline std::monostate NodeBox::fillIfElseNode(SymVal cond, int id) {
+inline std::monostate NodeBox::fillIfElseNode(SymVal cond) {
   // fill the current NodeBox with an ifelse branch node when it's unexplored
   if (this->isUnexplored()) {
-    node = std::make_unique<IfElseNode>(cond, this, id);
+    node = std::make_unique<IfElseNode>(cond, this);
   }
   assert(
       dynamic_cast<IfElseNode *>(node.get()) != nullptr &&
@@ -583,7 +582,8 @@ public:
   std::monostate fillFailedNode() { return cursor->fillFailedNode(); }
 
   std::monostate fillIfElseNode(SymVal cond, int id) {
-    return cursor->fillIfElseNode(cond, id);
+    branch_cov_map[id] = true;
+    return cursor->fillIfElseNode(cond);
   }
 
   std::monostate moveCursor(bool branch, Snapshot_t snapshot) {
@@ -636,6 +636,14 @@ public:
     // Pick an unexplored node from the tree
     // For now, we just iterate through the tree and return the first unexplored
     return pick_unexplored_of(root.get());
+  }
+  std::vector<bool> branch_cov_map;
+  bool all_branch_covered() const {
+    for (bool covered : branch_cov_map) {
+      if (!covered)
+        return false;
+    }
+    return true;
   }
 
 private:
