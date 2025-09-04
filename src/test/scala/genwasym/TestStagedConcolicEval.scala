@@ -9,12 +9,14 @@ import gensym.wasm.parser._
 import gensym.wasm.stagedconcolicminiwasm._
 
 class TestStagedConcolicEval extends FunSuite {
-  def testFileConcolicCpp(filename: String, main: Option[String] = None) = {
+  def testFileConcolicCpp(filename: String,
+                          main: Option[String] = None,
+                          exitByCoverage: Boolean = false) = {
     val moduleInst = ModuleInstance(Parser.parseFile(filename))
     val cppFile = s"$filename.cpp"
     val exe = s"$cppFile.exe"
     val exploreTreeFile = s"$filename.tree.dot"
-    WasmToCppCompiler.compileToExe(moduleInst, main, cppFile, exe, true)
+    WasmToCppCompiler.compileToExe(moduleInst, main, cppFile, exe, true, if (exitByCoverage) "BY_COVERAGE" else "EARLY_EXIT")
 
     import sys.process._
     val result = Process(s"./$exe", None, "TREE_FILE" -> exploreTreeFile).!!
@@ -50,6 +52,14 @@ class TestStagedConcolicEval extends FunSuite {
 
   test("brtable-bug-finding-concolic") {
     testFileConcolicCpp("./benchmarks/wasm/staged/brtable_concolic.wat")
+  }
+
+  test("bug-finding-cov-concolic") {
+    testFileConcolicCpp("./benchmarks/wasm/branch-strip-buggy.wat", Some("real_main"), exitByCoverage=true)
+  }
+
+  test("brtable-bug-finding-cov-concolic") {
+    testFileConcolicCpp("./benchmarks/wasm/staged/brtable_concolic.wat", exitByCoverage=true)
   }
 
   test("return-poly - concrete") {

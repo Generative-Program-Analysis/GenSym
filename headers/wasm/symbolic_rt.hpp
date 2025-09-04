@@ -291,7 +291,7 @@ struct NodeBox {
   std::unique_ptr<Node> node;
   NodeBox *parent;
 
-  std::monostate fillIfElseNode(SymVal cond);
+  std::monostate fillIfElseNode(SymVal cond, int id);
   std::monostate fillFinishedNode();
   std::monostate fillFailedNode();
   std::monostate fillUnreachableNode();
@@ -344,10 +344,11 @@ struct IfElseNode : Node {
   SymVal cond;
   std::unique_ptr<NodeBox> true_branch;
   std::unique_ptr<NodeBox> false_branch;
+  int id;
 
-  IfElseNode(SymVal cond, NodeBox *parent)
+  IfElseNode(SymVal cond, NodeBox *parent, int id)
       : cond(cond), true_branch(std::make_unique<NodeBox>(parent)),
-        false_branch(std::make_unique<NodeBox>(parent)) {}
+        false_branch(std::make_unique<NodeBox>(parent)), id(id) {}
 
   std::string to_string() override {
     std::string result = "IfElseNode {\n";
@@ -480,10 +481,10 @@ inline NodeBox::NodeBox(NodeBox *parent)
       /* TODO: avoid allocation of unexplored node */
       parent(parent) {}
 
-inline std::monostate NodeBox::fillIfElseNode(SymVal cond) {
+inline std::monostate NodeBox::fillIfElseNode(SymVal cond, int id) {
   // fill the current NodeBox with an ifelse branch node when it's unexplored
   if (this->isUnexplored()) {
-    node = std::make_unique<IfElseNode>(cond, this);
+    node = std::make_unique<IfElseNode>(cond, this, id);
   }
   assert(
       dynamic_cast<IfElseNode *>(node.get()) != nullptr &&
@@ -582,8 +583,7 @@ public:
   std::monostate fillFailedNode() { return cursor->fillFailedNode(); }
 
   std::monostate fillIfElseNode(SymVal cond, int id) {
-    branch_cov_map[id] = true;
-    return cursor->fillIfElseNode(cond);
+    return cursor->fillIfElseNode(cond, id);
   }
 
   std::monostate moveCursor(bool branch, Snapshot_t snapshot) {
@@ -593,9 +593,11 @@ public:
         if_else_node != nullptr &&
         "Can't move cursor when the branch node is not initialized correctly!");
     if (branch) {
+      true_branch_cov_map[if_else_node->id] = true;
       if_else_node->false_branch->fillSnapshotNode(snapshot);
       cursor = if_else_node->true_branch.get();
     } else {
+      false_branch_cov_map[if_else_node->id] = true;
       if_else_node->true_branch->fillSnapshotNode(snapshot);
       cursor = if_else_node->false_branch.get();
     }
@@ -637,9 +639,14 @@ public:
     // For now, we just iterate through the tree and return the first unexplored
     return pick_unexplored_of(root.get());
   }
-  std::vector<bool> branch_cov_map;
+  std::vector<bool> true_branch_cov_map;
+  std::vector<bool> false_branch_cov_map;
   bool all_branch_covered() const {
-    for (bool covered : branch_cov_map) {
+    for (bool covered : true_branch_cov_map) {
+      if (!covered)
+        return false;
+    }
+    for (bool covered : false_branch_cov_map) {
       if (!covered)
         return false;
     }

@@ -21,22 +21,30 @@ import gensym.structure.freer.Explore
 
 object Counter {
   var currentId: Int = 0
-  private val dict = new HashMap[WIR, Int]()
+
+  // WIR is the branch's corresponding ast, while the Int stands for the nth
+  // branch of the AST(a WIR may contain multiple branches, e.g., br_table)
+  private val dict = new HashMap[(WIR, Int), Int]()
 
   def reset(): Unit = {
     currentId = 0
     dict.clear()
   }
 
-  def getId(wir: WIR): Int = {
-    if (dict.contains(wir)) {
-      dict(wir)
+  def getId(wir: WIR, nth: Int = 0): Int = {
+    if (dict.contains((wir, nth))) {
+      dict((wir, nth))
     } else {
       val id = currentId
       currentId += 1
-      dict(wir) = id
+      dict((wir, nth)) = id
       id
     }
+
+  }
+
+  def getId(wir: WIR): Int = {
+    getId(wir, 0)
   }
 }
 @virtualize
@@ -445,7 +453,7 @@ trait StagedWasmEvaluator extends SAIOps {
             val labelSym = Stack.peekS(ty)
             val cond = (label - toStagedNum(I32V(idx))).isZero()
             val condSym = (labelSym - toStagedSymbolicNum(I32V(idx))).isZero()
-            val id = Counter.getId(inst)
+            val id = Counter.getId(inst, idx)
             ExploreTree.fillWithIfElse(condSym.s, id)
             // When moving the cursor to a branch, we mark another branch as
             // snapshotNode (this is done by moveCursor's runtime implementation)

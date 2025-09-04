@@ -11,6 +11,16 @@
 #include <string>
 #include <vector>
 
+enum class ExploreMode { EarlyExit, ExitByCoverage };
+
+#ifdef EARLY_EXIT
+static const ExploreMode EXPLORE_MODE = ExploreMode::EarlyExit;
+#elif defined(BY_COVERAGE)
+static const ExploreMode EXPLORE_MODE = ExploreMode::ExitByCoverage;
+#else
+static const ExploreMode EXPLORE_MODE = ExploreMode::EarlyExit;
+#endif
+
 class ConcolicDriver {
   friend class ManagedConcolicCleanup;
 
@@ -18,7 +28,8 @@ public:
   ConcolicDriver(std::function<void()> entrypoint,
                  std::optional<std::string> tree_file, int branchCount)
       : entrypoint(entrypoint), tree_file(tree_file) {
-    ExploreTree.branch_cov_map.assign(branchCount, false);
+    ExploreTree.true_branch_cov_map.assign(branchCount, false);
+    ExploreTree.false_branch_cov_map.assign(branchCount, false);
   }
   void run();
 
@@ -76,7 +87,15 @@ inline void ConcolicDriver::run() {
       ExploreTree.fillFailedNode();
       GENSYM_INFO("Caught runtime error with symbolic environment:");
       GENSYM_INFO(SymEnv.to_string());
-      return;
+      switch (EXPLORE_MODE) {
+      case ExploreMode::EarlyExit:
+        return;
+      case ExploreMode::ExitByCoverage:
+        if (ExploreTree.all_branch_covered()) {
+          GENSYM_INFO("All branches covered, exiting...");
+          return;
+        }
+      }
     }
 #if defined(RUN_ONCE)
     return;
