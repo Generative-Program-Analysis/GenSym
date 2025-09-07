@@ -283,6 +283,7 @@ inline void SymFrames_t::reuse(Snapshot_t snapshot) {
 }
 
 static SymFrames_t SymFrames;
+static SymFrames_t SymGlobals;
 
 struct Node;
 

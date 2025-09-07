@@ -679,6 +679,7 @@ trait StagedWasmEvaluator extends SAIOps {
     }
     val (instrs, locals) = (funBody.body, funBody.locals)
     resetStacks()
+    initGlobals(module.globals)
     Frames.pushFrameC(locals)
     Frames.pushFrameS(locals)
     eval(instrs, (_: Context) => forwardKont, mkont, ((_: Context) => forwardKont)::Nil)(Context(Nil, locals))
@@ -883,6 +884,18 @@ trait StagedWasmEvaluator extends SAIOps {
     "reset-stacks".reflectCtrlWith[Unit]()
   }
 
+  def initGlobals(globals: List[RTGlobal]): Rep[Unit] = {
+    Globals.reserveSpace(globals.size)
+    for ((g, i) <- globals.view.zipWithIndex) {
+      val initValue = g.value match {
+        case n: Num => n
+        case _ => throw new RuntimeException("Non-numeric global value is not supported yet")
+      }
+      Globals.setC(i, toStagedNum(initValue))
+      Globals.setS(i, toStagedSymbolicNum(initValue))
+    }
+  }
+
   // call unreachable
   def unreachable(): Rep[Unit] = {
     "unreachable".reflectCtrlWith[Unit]()
@@ -905,6 +918,11 @@ trait StagedWasmEvaluator extends SAIOps {
 
   // global read/write
   object Globals {
+    def reserveSpace(size: Int): Rep[Unit] = {
+      "global-reserve".reflectCtrlWith[Unit](size)
+      "sym-global-reserve".reflectCtrlWith[Unit](size)
+    }
+
     def getC(i: Int): StagedConcreteNum = {
       module.globals(i).ty match {
         case GlobalType(NumType(I32Type), _) => I32C("global-get".reflectCtrlWith[Num](i))
@@ -1352,8 +1370,6 @@ trait StagedWasmCppGen extends CGenBase with CppSAICodeGenBase {
       emit("Frames.set("); shallow(i); emit(", "); shallow(value); emit(");\n")
     case Node(_, "sym-frame-set", List(i, s_value), _) =>
       emit("SymFrames.set("); shallow(i); emit(", "); shallow(s_value); emit(");\n")
-    case Node(_, "global-set", List(i, value), _) =>
-      emit("Global.globalSet("); shallow(i); emit(", "); shallow(value); emit(");\n")
     // Note: The following code is copied from the traverse of CppBackend.scala, try to avoid duplicated code
     case n @ Node(f, "λ", (b: LMSBlock)::LMSConst(0)::rest, _) =>
       // TODO: Is a leading block followed by 0 a hint for top function?
@@ -1410,7 +1426,17 @@ trait StagedWasmCppGen extends CGenBase with CppSAICodeGenBase {
     case Node(_, "stack-size", _, _) =>
       emit("Stack.size()")
     case Node(_, "global-get", List(i), _) =>
-      emit("Global.globalGet("); shallow(i); emit(")")
+      emit("Globals.get("); shallow(i); emit(")")
+    case Node(_, "sym-global-get", List(i), _) =>
+      emit("SymGlobal.get("); shallow(i); emit(")")
+    case Node(_, "global-set", List(i, value), _) =>
+      emit("Globals.set("); shallow(i); emit(", "); shallow(value); emit(")")
+    case Node(_, "sym-global-set", List(i, s_value), _) =>
+      emit("SymGlobals.set("); shallow(i); emit(", "); shallow(s_value); emit(")")
+    case Node(_, "global-reserve", List(i), _) =>
+      emit("Globals.pushFrame("); shallow(i); emit(")")
+    case Node(_, "sym-global-reserve", List(i), _) =>
+      emit("SymGlobals.pushFrame("); shallow(i); emit(")")
     case Node(_, "is-zero", List(num), _) =>
       emit("(0 == "); shallow(num); emit(")")
     case Node(_, "sym-is-zero", List(s_num), _) =>

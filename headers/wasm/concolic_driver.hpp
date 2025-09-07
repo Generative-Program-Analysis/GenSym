@@ -94,6 +94,8 @@ inline void ConcolicDriver::run() {
         if (ExploreTree.all_branch_covered()) {
           GENSYM_INFO("All branches covered, exiting...");
           return;
+        } else {
+          GENSYM_INFO("Found a bug, but not all branches covered, continuing...");
         }
       }
     }

@@ -181,6 +181,7 @@ private:
 };
 
 static Frames_t Frames;
+static Frames_t Globals;
 
 static void initRand() {
   // for now, just do nothing

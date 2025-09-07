@@ -62,6 +62,10 @@ class TestStagedConcolicEval extends FunSuite {
     testFileConcolicCpp("./benchmarks/wasm/staged/brtable_concolic.wat", exitByCoverage=true)
   }
 
+  test("simple-global-bug-finding-cov-concolic") {
+    testFileConcolicCpp("./benchmarks/wasm/staged/simple_global.wat", Some("real_main"), exitByCoverage=true)
+  }
+
   test("return-poly - concrete") {
     testFileConcreteCpp("./benchmarks/wasm/staged/return_poly.wat", Some("$real_main"), expect=Some(List(42)))
   }
