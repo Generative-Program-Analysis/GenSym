@@ -51,60 +51,26 @@ object Counter {
 trait StagedWasmEvaluator extends SAIOps {
   def module: ModuleInstance
 
-  trait ReturnSite
-
-  trait StagedNum {
-    def tipe: ValueType
-  }
-
-  trait StagedConcreteNum {
-    def tipe: ValueType = this match {
-      case I32C(_) => NumType(I32Type)
-      case I64C(_) => NumType(I64Type)
-      case F32C(_) => NumType(F32Type)
-      case F64C(_) => NumType(F64Type)
-    }
-
-    def i: Rep[Num]
-  }
-
-  case class I32C(i: Rep[Num]) extends StagedConcreteNum
-  case class I64C(i: Rep[Num]) extends StagedConcreteNum
-  case class F32C(i: Rep[Num]) extends StagedConcreteNum
-  case class F64C(i: Rep[Num]) extends StagedConcreteNum
+  case class StagedConcreteNum(tipe: ValueType, i: Rep[Num])
 
 
-  trait StagedSymbolicNum {
-    def tipe: ValueType = this match {
-      case I32S(_) => NumType(I32Type)
-      case I64S(_) => NumType(I64Type)
-      case F32S(_) => NumType(F32Type)
-      case F64S(_) => NumType(F64Type)
-    }
-
-    def s: Rep[SymVal]
-  }
-
-  case class I32S(s: Rep[SymVal]) extends StagedSymbolicNum
-  case class I64S(s: Rep[SymVal]) extends StagedSymbolicNum
-  case class F32S(s: Rep[SymVal]) extends StagedSymbolicNum
-  case class F64S(s: Rep[SymVal]) extends StagedSymbolicNum
+  case class StagedSymbolicNum(tipe: ValueType, s: Rep[SymVal])
 
   def toStagedNum(num: Num): StagedConcreteNum = {
     num match {
-      case I32V(_) => I32C(num)
-      case I64V(_) => I64C(num)
-      case F32V(_) => F32C(num)
-      case F64V(_) => F64C(num)
+      case I32V(_) => StagedConcreteNum(NumType(I32Type), num)
+      case I64V(_) => StagedConcreteNum(NumType(I64Type), num)
+      case F32V(_) => StagedConcreteNum(NumType(F32Type), num)
+      case F64V(_) => StagedConcreteNum(NumType(F64Type), num)
     }
   }
 
   def toStagedSymbolicNum(num: Num): StagedSymbolicNum = {
     num match {
-      case I32V(_) => I32S(Concrete(num))
-      case I64V(_) => I64S(Concrete(num))
-      case F32V(_) => F32S(Concrete(num))
-      case F64V(_) => F64S(Concrete(num))
+      case I32V(_) => StagedSymbolicNum(NumType(I32Type), Concrete(num))
+      case I64V(_) => StagedSymbolicNum(NumType(I64Type), Concrete(num))
+      case F32V(_) => StagedSymbolicNum(NumType(F32Type), Concrete(num))
+      case F64V(_) => StagedSymbolicNum(NumType(F64Type), Concrete(num))
     }
   }
 
@@ -114,24 +80,6 @@ trait StagedWasmEvaluator extends SAIOps {
       case NumType(I64Type) => 8
       case NumType(F32Type) => 4
       case NumType(F64Type) => 8
-    }
-
-    def concreteTag: (Rep[Num]) => StagedConcreteNum = {
-      ty match {
-        case NumType(I32Type) => I32C
-        case NumType(I64Type) => I64C
-        case NumType(F32Type) => F32C
-        case NumType(F64Type) => F64C
-      }
-    }
-
-    def symbolicTag: (Rep[SymVal]) => StagedSymbolicNum = {
-      ty match {
-        case NumType(I32Type) => I32S
-        case NumType(I64Type) => I64S
-        case NumType(F32Type) => F32S
-        case NumType(F64Type) => F64S
-      }
     }
   }
 
@@ -225,7 +173,7 @@ trait StagedWasmEvaluator extends SAIOps {
         val id = Stack.popS(ty)
         val symVal = id.makeSymbolic(ty)
         val num = SymEnv.read(symVal.s)
-        Stack.pushC(ty.concreteTag(num))
+        Stack.pushC(StagedConcreteNum(ty, num))
         Stack.pushS(symVal)
         val newCtx = ctx.pop()._2.push(ty)
         eval(rest, kont, mkont, trail)(newCtx)
@@ -295,8 +243,8 @@ trait StagedWasmEvaluator extends SAIOps {
         // For now, we assume that the result of memory.grow only depends on the execution path, 
         // we can relax this by turning it return to a symbol value and mimic the memory.grow's result as input. 
         val retSym = "Concrete".reflectCtrlWith[SymVal](retNum)
-        Stack.pushC(I32C(retNum))
-        Stack.pushS(I32S(retSym))
+        Stack.pushC(StagedConcreteNum(NumType(I32Type), retNum))
+        Stack.pushS(StagedSymbolicNum(NumType(I32Type), retSym))
         val newCtx2 = ctx.push(NumType(I32Type))
         eval(rest, kont, mkont, trail)(newCtx2)
       case MemoryFill => ???
@@ -722,47 +670,25 @@ trait StagedWasmEvaluator extends SAIOps {
       "stack-init".reflectCtrlWith[Unit]()
     }
 
-    def popC(ty: ValueType): StagedConcreteNum = ty match {
-      case NumType(I32Type) => I32C("stack-pop".reflectCtrlWith[Num]())
-      case NumType(I64Type) => I64C("stack-pop".reflectCtrlWith[Num]())
-      case NumType(F32Type) => F32C("stack-pop".reflectCtrlWith[Num]())
-      case NumType(F32Type) => F64C("stack-pop".reflectCtrlWith[Num]())
+    def popC(ty: ValueType): StagedConcreteNum = {
+      StagedConcreteNum(ty, "stack-pop".reflectCtrlWith[Num]())
     }
 
-    def popS(ty: ValueType): StagedSymbolicNum = ty match {
-      case NumType(I32Type) => I32S("sym-stack-pop".reflectCtrlWith[SymVal]())
-      case NumType(I64Type) => I64S("sym-stack-pop".reflectCtrlWith[SymVal]())
-      case NumType(F32Type) => F32S("sym-stack-pop".reflectCtrlWith[SymVal]())
-      case NumType(F64Type) => F64S("sym-stack-pop".reflectCtrlWith[SymVal]())
+    def popS(ty: ValueType): StagedSymbolicNum = {
+      StagedSymbolicNum(ty, "sym-stack-pop".reflectCtrlWith[SymVal]())
     }
 
-    def peekC(ty: ValueType): StagedConcreteNum = ty match {
-      case NumType(I32Type) => I32C("stack-peek".reflectCtrlWith[Num]())
-      case NumType(I64Type) => I64C("stack-peek".reflectCtrlWith[Num]())
-      case NumType(F32Type) => F32C("stack-peek".reflectCtrlWith[Num]())
-      case NumType(F32Type) => F64C("stack-peek".reflectCtrlWith[Num]())
+    def peekC(ty: ValueType): StagedConcreteNum = {
+      StagedConcreteNum(ty, "stack-peek".reflectCtrlWith[Num]())
     }
 
-    def peekS(ty: ValueType): StagedSymbolicNum = ty match {
-      case NumType(I32Type) => I32S("sym-stack-peek".reflectCtrlWith[SymVal]())
-      case NumType(I64Type) => I64S("sym-stack-peek".reflectCtrlWith[SymVal]())
-      case NumType(F32Type) => F32S("sym-stack-peek".reflectCtrlWith[SymVal]())
-      case NumType(F64Type) => F64S("sym-stack-peek".reflectCtrlWith[SymVal]())
+    def peekS(ty: ValueType): StagedSymbolicNum = {
+      StagedSymbolicNum(ty, "sym-stack-peek".reflectCtrlWith[SymVal]())
     }
 
-    def pushC(num: StagedConcreteNum) = num match {
-      case I32C(v) => "stack-push".reflectCtrlWith[Unit](v)
-      case I64C(v) => "stack-push".reflectCtrlWith[Unit](v)
-      case F32C(v) => "stack-push".reflectCtrlWith[Unit](v)
-      case F64C(v) => "stack-push".reflectCtrlWith[Unit](v)
-    }
+    def pushC(num: StagedConcreteNum) = "stack-push".reflectCtrlWith[Unit](num.i)
 
-    def pushS(num: StagedSymbolicNum) = num match {
-      case I32S(s) => "sym-stack-push".reflectCtrlWith[Unit](s)
-      case I64S(s) => "sym-stack-push".reflectCtrlWith[Unit](s)
-      case F32S(s) => "sym-stack-push".reflectCtrlWith[Unit](s)
-      case F64S(s) => "sym-stack-push".reflectCtrlWith[Unit](s)
-    }
+    def pushS(num: StagedSymbolicNum) = "sym-stack-push".reflectCtrlWith[Unit](num.s)
 
     def takeC(types: List[ValueType]): List[StagedConcreteNum] = types match {
       case Nil => Nil
@@ -792,39 +718,19 @@ trait StagedWasmEvaluator extends SAIOps {
   object Frames {
     def getC(i: Int)(implicit ctx: Context): StagedConcreteNum = {
       // val offset = ctx.frameTypes.take(i).map(_.size).sum
-      ctx.frameTypes(i) match {
-        case NumType(I32Type) => I32C("frame-get".reflectCtrlWith[Num](i))
-        case NumType(I64Type) => I64C("frame-get".reflectCtrlWith[Num](i))
-        case NumType(F32Type) => F32C("frame-get".reflectCtrlWith[Num](i))
-        case NumType(F64Type) => F64C("frame-get".reflectCtrlWith[Num](i))
-      }
+      StagedConcreteNum(ctx.frameTypes(i), "frame-get".reflectCtrlWith[Num](i))
     }
 
     def getS(i: Int)(implicit ctx: Context): StagedSymbolicNum = {
-      ctx.frameTypes(i) match {
-        case NumType(I32Type) => I32S("sym-frame-get".reflectCtrlWith[SymVal](i))
-        case NumType(I64Type) => I64S("sym-frame-get".reflectCtrlWith[SymVal](i))
-        case NumType(F32Type) => F32S("sym-frame-get".reflectCtrlWith[SymVal](i))
-        case NumType(F64Type) => F64S("sym-frame-get".reflectCtrlWith[SymVal](i))
-      }
+      StagedSymbolicNum(ctx.frameTypes(i), "sym-frame-get".reflectCtrlWith[SymVal](i))
     }
 
     def setC(i: Int, v: StagedConcreteNum): Rep[Unit] = {
-      v match {
-        case I32C(v) => "frame-set".reflectCtrlWith[Unit](i, v)
-        case I64C(v) => "frame-set".reflectCtrlWith[Unit](i, v)
-        case F32C(v) => "frame-set".reflectCtrlWith[Unit](i, v)
-        case F64C(v) => "frame-set".reflectCtrlWith[Unit](i, v)
-      }
+      "frame-set".reflectCtrlWith[Unit](i, v.i)
     }
 
     def setS(i: Int, s: StagedSymbolicNum): Rep[Unit] = {
-      s match {
-        case I32S(s) => "sym-frame-set".reflectCtrlWith[Unit](i, s)
-        case I64S(s) => "sym-frame-set".reflectCtrlWith[Unit](i, s)
-        case F32S(s) => "sym-frame-set".reflectCtrlWith[Unit](i, s)
-        case F64S(s) => "sym-frame-set".reflectCtrlWith[Unit](i, s)
-      }
+      "sym-frame-set".reflectCtrlWith[Unit](i, s.s)
     }
 
     def pushFrameC(locals: List[ValueType]): Rep[Unit] = {
@@ -867,11 +773,11 @@ trait StagedWasmEvaluator extends SAIOps {
     }
 
     def loadIntC(base: Rep[Int], offset: Int): StagedConcreteNum = {
-      I32C("I32V".reflectCtrlWith[Num]("memory-load-int".reflectCtrlWith[Int](base, offset)))
+      StagedConcreteNum(NumType(I32Type), "I32V".reflectCtrlWith[Num]("memory-load-int".reflectCtrlWith[Int](base, offset)))
     }
 
     def loadIntS(base: Rep[Int], offset: Int): StagedSymbolicNum = {
-      I32S("sym-load-int-todo".reflectCtrlWith[SymVal](base, offset))
+      StagedSymbolicNum(NumType(I32Type), "sym-load-int-todo".reflectCtrlWith[SymVal](base, offset))
     }
 
     // Returns the previous memory size on success, or -1 if the memory cannot be grown.
@@ -924,43 +830,23 @@ trait StagedWasmEvaluator extends SAIOps {
     }
 
     def getC(i: Int): StagedConcreteNum = {
-      module.globals(i).ty match {
-        case GlobalType(NumType(I32Type), _) => I32C("global-get".reflectCtrlWith[Num](i))
-        case GlobalType(NumType(I64Type), _) => I64C("global-get".reflectCtrlWith[Num](i))
-        case GlobalType(NumType(F32Type), _) => F32C("global-get".reflectCtrlWith[Num](i))
-        case GlobalType(NumType(F64Type), _) => F64C("global-get".reflectCtrlWith[Num](i))
-      }
+      StagedConcreteNum(module.globals(i).ty.ty, "global-get".reflectCtrlWith[Num](i))
     }
 
     def getS(i: Int): StagedSymbolicNum = {
-      module.globals(i).ty match {
-        case GlobalType(NumType(I32Type), _) => I32S("sym-global-get".reflectCtrlWith[SymVal](i))
-        case GlobalType(NumType(I64Type), _) => I64S("sym-global-get".reflectCtrlWith[SymVal](i))
-        case GlobalType(NumType(F32Type), _) => F32S("sym-global-get".reflectCtrlWith[SymVal](i))
-        case GlobalType(NumType(F64Type), _) => F64S("sym-global-get".reflectCtrlWith[SymVal](i))
-      }
+      StagedSymbolicNum(module.globals(i).ty.ty, "sym-global-get".reflectCtrlWith[SymVal](i))
     }
 
     def setC(i: Int, v: StagedConcreteNum): Rep[Unit] = {
-      module.globals(i).ty match {
-        case GlobalType(NumType(I32Type), _) => "global-set".reflectCtrlWith[Unit](i, v.i)
-        case GlobalType(NumType(I64Type), _) => "global-set".reflectCtrlWith[Unit](i, v.i)
-        case GlobalType(NumType(F32Type), _) => "global-set".reflectCtrlWith[Unit](i, v.i)
-        case GlobalType(NumType(F64Type), _) => "global-set".reflectCtrlWith[Unit](i, v.i)
-      }
+      "global-set".reflectCtrlWith[Unit](i, v.i)
     }
 
     def setS(i: Int, s: StagedSymbolicNum): Rep[Unit] = {
-      module.globals(i).ty match {
-        case GlobalType(NumType(I32Type), _) => "sym-global-set".reflectCtrlWith[Unit](i, s.s)
-        case GlobalType(NumType(I64Type), _) => "sym-global-set".reflectCtrlWith[Unit](i, s.s)
-        case GlobalType(NumType(F32Type), _) => "sym-global-set".reflectCtrlWith[Unit](i, s.s)
-        case GlobalType(NumType(F64Type), _) => "sym-global-set".reflectCtrlWith[Unit](i, s.s)
-      }
+      "sym-global-set".reflectCtrlWith[Unit](i, s.s)
     }
   }
 
-  // Exploration tree, 
+  // Exploration tree,
   object ExploreTree {
     def fillWithIfElse(s: Rep[SymVal], id: Int): Rep[Unit] = {
       "tree-fill-if-else".reflectCtrlWith[Unit](s, id)
@@ -993,320 +879,414 @@ trait StagedWasmEvaluator extends SAIOps {
   // runtime Num type
   implicit class StagedConcreteNumOps(num: StagedConcreteNum) {
 
-    def makeSymbolic(ty: ValueType): StagedSymbolicNum = num match {
-      case I32C(x) => I32S("make-symbolic-concrete".reflectCtrlWith[SymVal](num.toInt))
+    def makeSymbolic(ty: ValueType): StagedSymbolicNum = num.tipe match {
+      case NumType(I32Type) =>
+        StagedSymbolicNum(NumType(I32Type), "make-symbolic-concrete".reflectCtrlWith[SymVal](num.toInt))
     }
 
     def toInt: Rep[Int] = "num-to-int".reflectCtrlWith[Int](num.i)
 
-    def isZero(): StagedConcreteNum = num match {
-      case I32C(x_c) => I32C(Values.I32V("is-zero".reflectCtrlWith[Int](num.toInt)))
+    def isZero(): StagedConcreteNum = num.tipe match {
+      case NumType(I32Type) =>
+        StagedConcreteNum(NumType(I32Type), Values.I32V("is-zero".reflectCtrlWith[Int](num.toInt)))
     }
 
-    def clz(): StagedConcreteNum = num match {
-      case I32C(x) => I32C("clz".reflectCtrlWith[Num](x))
-      case I64C(x) => I64C("clz".reflectCtrlWith[Num](x))
+    def clz(): StagedConcreteNum = num.tipe match {
+      case NumType(I32Type) => StagedConcreteNum(NumType(I32Type), "clz".reflectCtrlWith[Num](num.i))
+      case NumType(I64Type) => StagedConcreteNum(NumType(I64Type), "clz".reflectCtrlWith[Num](num.i))
     }
 
-    def ctz(): StagedConcreteNum = num match {
-      case I32C(x) => I32C("ctz".reflectCtrlWith[Num](x))
-      case I64C(x) => I64C("ctz".reflectCtrlWith[Num](x))
+    def ctz(): StagedConcreteNum = num.tipe match {
+      case NumType(I32Type) => StagedConcreteNum(NumType(I32Type), "ctz".reflectCtrlWith[Num](num.i))
+      case NumType(I64Type) => StagedConcreteNum(NumType(I64Type), "ctz".reflectCtrlWith[Num](num.i))
     }
 
-    def popcnt(): StagedConcreteNum = num match {
-      case I32C(x) => I32C("popcnt".reflectCtrlWith[Num](x))
-      case I64C(x) => I64C("popcnt".reflectCtrlWith[Num](x))
+    def popcnt(): StagedConcreteNum = num.tipe match {
+      case NumType(I32Type) => StagedConcreteNum(NumType(I32Type), "popcnt".reflectCtrlWith[Num](num.i))
+      case NumType(I64Type) => StagedConcreteNum(NumType(I64Type), "popcnt".reflectCtrlWith[Num](num.i))
     }
 
-    def +(rhs: StagedConcreteNum): StagedConcreteNum = {
-      (num, rhs) match {
-        case (I32C(x), I32C(y)) => I32C("binary-add".reflectCtrlWith[Num](x, y))
-        case (I64C(x), I64C(y)) => I64C("binary-add".reflectCtrlWith[Num](x, y))
-        case (F32C(x), F32C(y)) => F32C("binary-add".reflectCtrlWith[Num](x, y))
-        case (F64C(x), F64C(y)) => F64C("binary-add".reflectCtrlWith[Num](x, y))
-      }
+    def +(rhs: StagedConcreteNum): StagedConcreteNum = (num.tipe, rhs.tipe) match {
+      case (NumType(I32Type), NumType(I32Type)) =>
+        StagedConcreteNum(NumType(I32Type), "binary-add".reflectCtrlWith[Num](num.i, rhs.i))
+      case (NumType(I64Type), NumType(I64Type)) =>
+        StagedConcreteNum(NumType(I64Type), "binary-add".reflectCtrlWith[Num](num.i, rhs.i))
+      case (NumType(F32Type), NumType(F32Type)) =>
+        StagedConcreteNum(NumType(F32Type), "binary-add".reflectCtrlWith[Num](num.i, rhs.i))
+      case (NumType(F64Type), NumType(F64Type)) =>
+        StagedConcreteNum(NumType(F64Type), "binary-add".reflectCtrlWith[Num](num.i, rhs.i))
     }
 
-    def -(rhs: StagedConcreteNum): StagedConcreteNum = {
-      (num, rhs) match {
-        case (I32C(x), I32C(y)) => I32C("binary-sub".reflectCtrlWith[Num](x, y))
-        case (I64C(x), I64C(y)) => I64C("binary-sub".reflectCtrlWith[Num](x, y))
-        case (F32C(x), F32C(y)) => F32C("binary-sub".reflectCtrlWith[Num](x, y))
-        case (F64C(x), F64C(y)) => F64C("binary-sub".reflectCtrlWith[Num](x, y))
-      }
+    def -(rhs: StagedConcreteNum): StagedConcreteNum = (num.tipe, rhs.tipe) match {
+      case (NumType(I32Type), NumType(I32Type)) =>
+        StagedConcreteNum(NumType(I32Type), "binary-sub".reflectCtrlWith[Num](num.i, rhs.i))
+      case (NumType(I64Type), NumType(I64Type)) =>
+        StagedConcreteNum(NumType(I64Type), "binary-sub".reflectCtrlWith[Num](num.i, rhs.i))
+      case (NumType(F32Type), NumType(F32Type)) =>
+        StagedConcreteNum(NumType(F32Type), "binary-sub".reflectCtrlWith[Num](num.i, rhs.i))
+      case (NumType(F64Type), NumType(F64Type)) =>
+        StagedConcreteNum(NumType(F64Type), "binary-sub".reflectCtrlWith[Num](num.i, rhs.i))
     }
 
     def *(rhs: StagedConcreteNum): StagedConcreteNum = {
-      (num, rhs) match {
-        case (I32C(x), I32C(y)) => I32C("binary-mul".reflectCtrlWith[Num](x, y))
-        case (I64C(x), I64C(y)) => I64C("binary-mul".reflectCtrlWith[Num](x, y))
-        case (F32C(x), F32C(y)) => F32C("binary-mul".reflectCtrlWith[Num](x, y))
-        case (F64C(x), F64C(y)) => F64C("binary-mul".reflectCtrlWith[Num](x, y))
+      (num.tipe, rhs.tipe) match {
+        case (NumType(I32Type), NumType(I32Type)) =>
+          StagedConcreteNum(NumType(I32Type), "binary-mul".reflectCtrlWith[Num](num.i, rhs.i))
+        case (NumType(I64Type), NumType(I64Type)) =>
+          StagedConcreteNum(NumType(I64Type), "binary-mul".reflectCtrlWith[Num](num.i, rhs.i))
+        case (NumType(F32Type), NumType(F32Type)) =>
+          StagedConcreteNum(NumType(F32Type), "binary-mul".reflectCtrlWith[Num](num.i, rhs.i))
+        case (NumType(F64Type), NumType(F64Type)) =>
+          StagedConcreteNum(NumType(F64Type), "binary-mul".reflectCtrlWith[Num](num.i, rhs.i))
       }
     }
 
     def /(rhs: StagedConcreteNum): StagedConcreteNum = {
-      (num, rhs) match {
-        case (I32C(x), I32C(y)) => I32C("binary-div".reflectCtrlWith[Num](x, y))
-        case (I64C(x), I64C(y)) => I64C("binary-div".reflectCtrlWith[Num](x, y))
-        case (F32C(x), F32C(y)) => F32C("binary-div".reflectCtrlWith[Num](x, y))
-        case (F64C(x), F64C(y)) => F64C("binary-div".reflectCtrlWith[Num](x, y))
+      (num.tipe, rhs.tipe) match {
+        case (NumType(I32Type), NumType(I32Type)) =>
+          StagedConcreteNum(NumType(I32Type), "binary-div".reflectCtrlWith[Num](num.i, rhs.i))
+        case (NumType(I64Type), NumType(I64Type)) =>
+          StagedConcreteNum(NumType(I64Type), "binary-div".reflectCtrlWith[Num](num.i, rhs.i))
+        case (NumType(F32Type), NumType(F32Type)) =>
+          StagedConcreteNum(NumType(F32Type), "binary-div".reflectCtrlWith[Num](num.i, rhs.i))
+        case (NumType(F64Type), NumType(F64Type)) =>
+          StagedConcreteNum(NumType(F64Type), "binary-div".reflectCtrlWith[Num](num.i, rhs.i))
       }
     }
 
     def <<(rhs: StagedConcreteNum): StagedConcreteNum = {
-      (num, rhs) match {
-        case (I32C(x), I32C(y)) => I32C("binary-shl".reflectCtrlWith[Num](x, y))
-        case (I64C(x), I64C(y)) => I64C("binary-shl".reflectCtrlWith[Num](x, y))
-        case (F32C(x), F32C(y)) => F32C("binary-shl".reflectCtrlWith[Num](x, y))
-        case (F64C(x), F64C(y)) => F64C("binary-shl".reflectCtrlWith[Num](x, y))
+      (num.tipe, rhs.tipe) match {
+        case (NumType(I32Type), NumType(I32Type)) =>
+          StagedConcreteNum(NumType(I32Type), "binary-shl".reflectCtrlWith[Num](num.i, rhs.i))
+        case (NumType(I64Type), NumType(I64Type)) =>
+          StagedConcreteNum(NumType(I64Type), "binary-shl".reflectCtrlWith[Num](num.i, rhs.i))
+        case (NumType(F32Type), NumType(F32Type)) =>
+          StagedConcreteNum(NumType(F32Type), "binary-shl".reflectCtrlWith[Num](num.i, rhs.i))
+        case (NumType(F64Type), NumType(F64Type)) =>
+          StagedConcreteNum(NumType(F64Type), "binary-shl".reflectCtrlWith[Num](num.i, rhs.i))
       }
     }
 
     def >>(rhs: StagedConcreteNum): StagedConcreteNum = {
-      (num, rhs) match {
-        case (I32C(x), I32C(y)) => I32C("binary-shr".reflectCtrlWith[Num](x, y))
-        case (I64C(x), I64C(y)) => I64C("binary-shr".reflectCtrlWith[Num](x, y))
-        case (F32C(x), F32C(y)) => F32C("binary-shr".reflectCtrlWith[Num](x, y))
-        case (F64C(x), F64C(y)) => F64C("binary-shr".reflectCtrlWith[Num](x, y))
+      (num.tipe, rhs.tipe) match {
+        case (NumType(I32Type), NumType(I32Type)) =>
+          StagedConcreteNum(NumType(I32Type), "binary-shr".reflectCtrlWith[Num](num.i, rhs.i))
+        case (NumType(I64Type), NumType(I64Type)) =>
+          StagedConcreteNum(NumType(I64Type), "binary-shr".reflectCtrlWith[Num](num.i, rhs.i))
+        case (NumType(F32Type), NumType(F32Type)) =>
+          StagedConcreteNum(NumType(F32Type), "binary-shr".reflectCtrlWith[Num](num.i, rhs.i))
+        case (NumType(F64Type), NumType(F64Type)) =>
+          StagedConcreteNum(NumType(F64Type), "binary-shr".reflectCtrlWith[Num](num.i, rhs.i))
       }
     }
 
     def &(rhs: StagedConcreteNum): StagedConcreteNum = {
-      (num, rhs) match {
-        case (I32C(x), I32C(y)) => I32C("binary-and".reflectCtrlWith[Num](x, y))
-        case (I64C(x), I64C(y)) => I64C("binary-and".reflectCtrlWith[Num](x, y))
-        case (F32C(x), F32C(y)) => F32C("binary-and".reflectCtrlWith[Num](x, y))
-        case (F64C(x), F64C(y)) => F64C("binary-and".reflectCtrlWith[Num](x, y))
+      (num.tipe, rhs.tipe) match {
+        case (NumType(I32Type), NumType(I32Type)) =>
+          StagedConcreteNum(NumType(I32Type), "binary-and".reflectCtrlWith[Num](num.i, rhs.i))
+        case (NumType(I64Type), NumType(I64Type)) =>
+          StagedConcreteNum(NumType(I64Type), "binary-and".reflectCtrlWith[Num](num.i, rhs.i))
+        case (NumType(F32Type), NumType(F32Type)) =>
+          StagedConcreteNum(NumType(F32Type), "binary-and".reflectCtrlWith[Num](num.i, rhs.i))
+        case (NumType(F64Type), NumType(F64Type)) =>
+          StagedConcreteNum(NumType(F64Type), "binary-and".reflectCtrlWith[Num](num.i, rhs.i))
       }
     }
 
     def numEq(rhs: StagedConcreteNum): StagedConcreteNum = {
-      (num, rhs) match {
-        case (I32C(x), I32C(y)) => I32C("relation-eq".reflectCtrlWith[Num](x, y))
-        case (I64C(x), I64C(y)) => I32C("relation-eq".reflectCtrlWith[Num](x, y))
+      (num.tipe, rhs.tipe) match {
+        case (NumType(I32Type), NumType(I32Type)) =>
+          StagedConcreteNum(NumType(I32Type), "relation-eq".reflectCtrlWith[Num](num.i, rhs.i))
+        case (NumType(I64Type), NumType(I64Type)) =>
+          StagedConcreteNum(NumType(I32Type), "relation-eq".reflectCtrlWith[Num](num.i, rhs.i))
       }
     }
 
     def numNe(rhs: StagedConcreteNum): StagedConcreteNum = {
-      (num, rhs) match {
-        case (I32C(x), I32C(y)) => I32C("relation-ne".reflectCtrlWith[Num](x, y))
-        case (I64C(x), I64C(y)) => I32C("relation-ne".reflectCtrlWith[Num](x, y))
+      (num.tipe, rhs.tipe) match {
+        case (NumType(I32Type), NumType(I32Type)) =>
+          StagedConcreteNum(NumType(I32Type), "relation-ne".reflectCtrlWith[Num](num.i, rhs.i))
+        case (NumType(I64Type), NumType(I64Type)) =>
+          StagedConcreteNum(NumType(I32Type), "relation-ne".reflectCtrlWith[Num](num.i, rhs.i))
       }
     }
 
     def <(rhs: StagedConcreteNum): StagedConcreteNum = {
-      (num, rhs) match {
-        case (I32C(x), I32C(y)) => I32C("relation-lt".reflectCtrlWith[Num](x, y))
-        case (I64C(x), I64C(y)) => I32C("relation-lt".reflectCtrlWith[Num](x, y))
+      (num.tipe, rhs.tipe) match {
+        case (NumType(I32Type), NumType(I32Type)) =>
+          StagedConcreteNum(NumType(I32Type), "relation-lt".reflectCtrlWith[Num](num.i, rhs.i))
+        case (NumType(I64Type), NumType(I64Type)) =>
+          StagedConcreteNum(NumType(I32Type), "relation-lt".reflectCtrlWith[Num](num.i, rhs.i))
       }
     }
 
     def ltu(rhs: StagedConcreteNum): StagedConcreteNum = {
-      (num, rhs) match {
-        case (I32C(x), I32C(y)) => I32C("relation-ltu".reflectCtrlWith[Num](x, y))
-        case (I64C(x), I64C(y)) => I32C("relation-ltu".reflectCtrlWith[Num](x, y))
+      (num.tipe, rhs.tipe) match {
+        case (NumType(I32Type), NumType(I32Type)) =>
+          StagedConcreteNum(NumType(I32Type), "relation-ltu".reflectCtrlWith[Num](num.i, rhs.i))
+        case (NumType(I64Type), NumType(I64Type)) =>
+          StagedConcreteNum(NumType(I32Type), "relation-ltu".reflectCtrlWith[Num](num.i, rhs.i))
       }
     }
 
     def >(rhs: StagedConcreteNum): StagedConcreteNum = {
-      (num, rhs) match {
-        case (I32C(x), I32C(y)) => I32C("relation-gt".reflectCtrlWith[Num](x, y))
-        case (I64C(x), I64C(y)) => I32C("relation-gt".reflectCtrlWith[Num](x, y))
+      (num.tipe, rhs.tipe) match {
+        case (NumType(I32Type), NumType(I32Type)) =>
+          StagedConcreteNum(NumType(I32Type), "relation-gt".reflectCtrlWith[Num](num.i, rhs.i))
+        case (NumType(I64Type), NumType(I64Type)) =>
+          StagedConcreteNum(NumType(I32Type), "relation-gt".reflectCtrlWith[Num](num.i, rhs.i))
       }
     }
 
     def gtu(rhs: StagedConcreteNum): StagedConcreteNum = {
-      (num, rhs) match {
-        case (I32C(x), I32C(y)) => I32C("relation-gtu".reflectCtrlWith[Num](x, y))
-        case (I64C(x), I64C(y)) => I32C("relation-gtu".reflectCtrlWith[Num](x, y))
+      (num.tipe, rhs.tipe) match {
+        case (NumType(I32Type), NumType(I32Type)) =>
+          StagedConcreteNum(NumType(I32Type), "relation-gtu".reflectCtrlWith[Num](num.i, rhs.i))
+        case (NumType(I64Type), NumType(I64Type)) =>
+          StagedConcreteNum(NumType(I32Type), "relation-gtu".reflectCtrlWith[Num](num.i, rhs.i))
       }
     }
 
     def <=(rhs: StagedConcreteNum): StagedConcreteNum = {
-      (num, rhs) match {
-        case (I32C(x), I32C(y)) => I32C("relation-le".reflectCtrlWith[Num](x, y))
-        case (I64C(x), I64C(y)) => I32C("relation-le".reflectCtrlWith[Num](x, y))
+      (num.tipe, rhs.tipe) match {
+        case (NumType(I32Type), NumType(I32Type)) =>
+          StagedConcreteNum(NumType(I32Type), "relation-le".reflectCtrlWith[Num](num.i, rhs.i))
+        case (NumType(I64Type), NumType(I64Type)) =>
+          StagedConcreteNum(NumType(I32Type), "relation-le".reflectCtrlWith[Num](num.i, rhs.i))
       }
     }
 
     def leu(rhs: StagedConcreteNum): StagedConcreteNum = {
-      (num, rhs) match {
-        case (I32C(x), I32C(y)) => I32C("relation-leu".reflectCtrlWith[Num](x, y))
-        case (I64C(x), I64C(y)) => I32C("relation-leu".reflectCtrlWith[Num](x, y))
+      (num.tipe, rhs.tipe) match {
+        case (NumType(I32Type), NumType(I32Type)) =>
+          StagedConcreteNum(NumType(I32Type), "relation-leu".reflectCtrlWith[Num](num.i, rhs.i))
+        case (NumType(I64Type), NumType(I64Type)) =>
+          StagedConcreteNum(NumType(I32Type), "relation-leu".reflectCtrlWith[Num](num.i, rhs.i))
       }
     }
 
     def >=(rhs: StagedConcreteNum): StagedConcreteNum = {
-      (num, rhs) match {
-        case (I32C(x), I32C(y)) => I32C("relation-ge".reflectCtrlWith[Num](x, y))
-        case (I64C(x), I64C(y)) => I32C("relation-ge".reflectCtrlWith[Num](x, y))
+      (num.tipe, rhs.tipe) match {
+        case (NumType(I32Type), NumType(I32Type)) =>
+          StagedConcreteNum(NumType(I32Type), "relation-ge".reflectCtrlWith[Num](num.i, rhs.i))
+        case (NumType(I64Type), NumType(I64Type)) =>
+          StagedConcreteNum(NumType(I32Type), "relation-ge".reflectCtrlWith[Num](num.i, rhs.i))
       }
     }
 
     def geu(rhs: StagedConcreteNum): StagedConcreteNum = {
-      (num, rhs) match {
-        case (I32C(x), I32C(y)) => I32C("relation-geu".reflectCtrlWith[Num](x, y))
-        case (I64C(x), I64C(y)) => I32C("relation-geu".reflectCtrlWith[Num](x, y))
+      (num.tipe, rhs.tipe) match {
+        case (NumType(I32Type), NumType(I32Type)) =>
+          StagedConcreteNum(NumType(I32Type), "relation-geu".reflectCtrlWith[Num](num.i, rhs.i))
+        case (NumType(I64Type), NumType(I64Type)) =>
+          StagedConcreteNum(NumType(I32Type), "relation-geu".reflectCtrlWith[Num](num.i, rhs.i))
       }
     }
   }
 
   implicit class StagedSymbolicNumOps(num: StagedSymbolicNum) {
-    def makeSymbolic(ty: ValueType): StagedSymbolicNum = num match {
-      case I32S(x) => I32S("make-symbolic".reflectCtrlWith[SymVal](x))
+    def makeSymbolic(ty: ValueType): StagedSymbolicNum = num.tipe match {
+      case NumType(I32Type) => StagedSymbolicNum(NumType(I32Type), "make-symbolic".reflectCtrlWith[SymVal](num.s))
       case _ => throw new RuntimeException("Symbol index must be an i32")
     }
 
-    def isZero(): StagedSymbolicNum = num match {
-      case I32S(x) => I32S("sym-is-zero".reflectCtrlWith[SymVal](x))
+    def isZero(): StagedSymbolicNum = num.tipe match {
+      case NumType(I32Type) => StagedSymbolicNum(NumType(I32Type), "sym-is-zero".reflectCtrlWith[SymVal](num.s))
     }
 
-    def clz(): StagedSymbolicNum = num match {
-      case I32S(x) => I32S("sym-clz".reflectCtrlWith[SymVal](x))
-      case I64S(x) => I64S("sym-clz".reflectCtrlWith[SymVal](x))
+    def clz(): StagedSymbolicNum = num.tipe match {
+      case NumType(I32Type) => StagedSymbolicNum(NumType(I32Type), "sym-clz".reflectCtrlWith[SymVal](num.s))
+      case NumType(I64Type) => StagedSymbolicNum(NumType(I64Type), "sym-clz".reflectCtrlWith[SymVal](num.s))
     }
 
-    def ctz(): StagedSymbolicNum = num match {
-      case I32S(x) => I32S("sym-ctz".reflectCtrlWith[SymVal](x))
-      case I64S(x) => I64S("sym-ctz".reflectCtrlWith[SymVal](x))
+    def ctz(): StagedSymbolicNum = num.tipe match {
+      case NumType(I32Type) => StagedSymbolicNum(NumType(I32Type), "sym-ctz".reflectCtrlWith[SymVal](num.s))
+      case NumType(I64Type) => StagedSymbolicNum(NumType(I64Type), "sym-ctz".reflectCtrlWith[SymVal](num.s))
     }
 
-    def popcnt(): StagedSymbolicNum = num match {
-      case I32S(x) => I32S("sym-popcnt".reflectCtrlWith[SymVal](x))
-      case I64S(x) => I64S("sym-popcnt".reflectCtrlWith[SymVal](x))
+    def popcnt(): StagedSymbolicNum = num.tipe match {
+      case NumType(I32Type) => StagedSymbolicNum(NumType(I32Type), "sym-popcnt".reflectCtrlWith[SymVal](num.s))
+      case NumType(I64Type) => StagedSymbolicNum(NumType(I64Type), "sym-popcnt".reflectCtrlWith[SymVal](num.s))
     }
 
     def +(rhs: StagedSymbolicNum): StagedSymbolicNum = {
-      (num, rhs) match {
-        case (I32S(x), I32S(y)) => I32S("sym-binary-add".reflectCtrlWith[SymVal](x, y))
-        case (I64S(x), I64S(y)) => I64S("sym-binary-add".reflectCtrlWith[SymVal](x, y))
-        case (F32S(x), F32S(y)) => F32S("sym-binary-add".reflectCtrlWith[SymVal](x, y))
-        case (F64S(x), F64S(y)) => F64S("sym-binary-add".reflectCtrlWith[SymVal](x, y))
+      (num.tipe, rhs.tipe) match {
+        case (NumType(I32Type), NumType(I32Type)) =>
+          StagedSymbolicNum(NumType(I32Type), "sym-binary-add".reflectCtrlWith[SymVal](num.s, rhs.s))
+        case (NumType(I64Type), NumType(I64Type)) =>
+          StagedSymbolicNum(NumType(I64Type), "sym-binary-add".reflectCtrlWith[SymVal](num.s, rhs.s))
+        case (NumType(F32Type), NumType(F32Type)) =>
+          StagedSymbolicNum(NumType(F32Type), "sym-binary-add".reflectCtrlWith[SymVal](num.s, rhs.s))
+        case (NumType(F64Type), NumType(F64Type)) =>
+          StagedSymbolicNum(NumType(F64Type), "sym-binary-add".reflectCtrlWith[SymVal](num.s, rhs.s))
       }
     }
 
     def -(rhs: StagedSymbolicNum): StagedSymbolicNum = {
-      (num, rhs) match {
-        case (I32S(x), I32S(y)) => I32S("sym-binary-sub".reflectCtrlWith[SymVal](x, y))
-        case (I64S(x), I64S(y)) => I64S("sym-binary-sub".reflectCtrlWith[SymVal](x, y))
-        case (F32S(x), F32S(y)) => F32S("sym-binary-sub".reflectCtrlWith[SymVal](x, y))
-        case (F64S(x), F64S(y)) => F64S("sym-binary-sub".reflectCtrlWith[SymVal](x, y))
+      (num.tipe, rhs.tipe) match {
+        case (NumType(I32Type), NumType(I32Type)) =>
+          StagedSymbolicNum(NumType(I32Type), "sym-binary-sub".reflectCtrlWith[SymVal](num.s, rhs.s))
+        case (NumType(I64Type), NumType(I64Type)) =>
+          StagedSymbolicNum(NumType(I64Type), "sym-binary-sub".reflectCtrlWith[SymVal](num.s, rhs.s))
+        case (NumType(F32Type), NumType(F32Type)) =>
+          StagedSymbolicNum(NumType(F32Type), "sym-binary-sub".reflectCtrlWith[SymVal](num.s, rhs.s))
+        case (NumType(F64Type), NumType(F64Type)) =>
+          StagedSymbolicNum(NumType(F64Type), "sym-binary-sub".reflectCtrlWith[SymVal](num.s, rhs.s))
       }
     }
 
     def *(rhs: StagedSymbolicNum): StagedSymbolicNum = {
-      (num, rhs) match {
-        case (I32S(x), I32S(y)) => I32S("sym-binary-mul".reflectCtrlWith[SymVal](x, y))
-        case (I64S(x), I64S(y)) => I64S("sym-binary-mul".reflectCtrlWith[SymVal](x, y))
-        case (F32S(x), F32S(y)) => F32S("sym-binary-mul".reflectCtrlWith[SymVal](x, y))
-        case (F64S(x), F64S(y)) => F64S("sym-binary-mul".reflectCtrlWith[SymVal](x, y))
+      (num.tipe, rhs.tipe) match {
+        case (NumType(I32Type), NumType(I32Type)) =>
+          StagedSymbolicNum(NumType(I32Type), "sym-binary-mul".reflectCtrlWith[SymVal](num.s, rhs.s))
+        case (NumType(I64Type), NumType(I64Type)) =>
+          StagedSymbolicNum(NumType(I64Type), "sym-binary-mul".reflectCtrlWith[SymVal](num.s, rhs.s))
+        case (NumType(F32Type), NumType(F32Type)) =>
+          StagedSymbolicNum(NumType(F32Type), "sym-binary-mul".reflectCtrlWith[SymVal](num.s, rhs.s))
+        case (NumType(F64Type), NumType(F64Type)) =>
+          StagedSymbolicNum(NumType(F64Type), "sym-binary-mul".reflectCtrlWith[SymVal](num.s, rhs.s))
       }
     }
 
     def /(rhs: StagedSymbolicNum): StagedSymbolicNum = {
-      (num, rhs) match {
-        case (I32S(x), I32S(y)) => I32S("sym-binary-div".reflectCtrlWith[SymVal](x, y))
-        case (I64S(x), I64S(y)) => I64S("sym-binary-div".reflectCtrlWith[SymVal](x, y))
-        case (F32S(x), F32S(y)) => F32S("sym-binary-div".reflectCtrlWith[SymVal](x, y))
-        case (F64S(x), F64S(y)) => F64S("sym-binary-div".reflectCtrlWith[SymVal](x, y))
+      (num.tipe, rhs.tipe) match {
+        case (NumType(I32Type), NumType(I32Type)) =>
+          StagedSymbolicNum(NumType(I32Type), "sym-binary-div".reflectCtrlWith[SymVal](num.s, rhs.s))
+        case (NumType(I64Type), NumType(I64Type)) =>
+          StagedSymbolicNum(NumType(I64Type), "sym-binary-div".reflectCtrlWith[SymVal](num.s, rhs.s))
+        case (NumType(F32Type), NumType(F32Type)) =>
+          StagedSymbolicNum(NumType(F32Type), "sym-binary-div".reflectCtrlWith[SymVal](num.s, rhs.s))
+        case (NumType(F64Type), NumType(F64Type)) =>
+          StagedSymbolicNum(NumType(F64Type), "sym-binary-div".reflectCtrlWith[SymVal](num.s, rhs.s))
       }
     }
 
     def <<(rhs: StagedSymbolicNum): StagedSymbolicNum = {
-      (num, rhs) match {
-        case (I32S(x), I32S(y)) => I32S("sym-binary-shl".reflectCtrlWith[SymVal](x, y))
-        case (I64S(x), I64S(y)) => I64S("sym-binary-shl".reflectCtrlWith[SymVal](x, y))
-        case (F32S(x), F32S(y)) => F32S("sym-binary-shl".reflectCtrlWith[SymVal](x, y))
-        case (F64S(x), F64S(y)) => F64S("sym-binary-shl".reflectCtrlWith[SymVal](x, y))
+      (num.tipe, rhs.tipe) match {
+        case (NumType(I32Type), NumType(I32Type)) =>
+          StagedSymbolicNum(NumType(I32Type), "sym-binary-shl".reflectCtrlWith[SymVal](num.s, rhs.s))
+        case (NumType(I64Type), NumType(I64Type)) =>
+          StagedSymbolicNum(NumType(I64Type), "sym-binary-shl".reflectCtrlWith[SymVal](num.s, rhs.s))
+        case (NumType(F32Type), NumType(F32Type)) =>
+          StagedSymbolicNum(NumType(F32Type), "sym-binary-shl".reflectCtrlWith[SymVal](num.s, rhs.s))
+        case (NumType(F64Type), NumType(F64Type)) =>
+          StagedSymbolicNum(NumType(F64Type), "sym-binary-shl".reflectCtrlWith[SymVal](num.s, rhs.s))
       }
     }
 
     def >>(rhs: StagedSymbolicNum): StagedSymbolicNum = {
-      (num, rhs) match {
-        case (I32S(x), I32S(y)) => I32S("sym-binary-shr".reflectCtrlWith[SymVal](x, y))
-        case (I64S(x), I64S(y)) => I64S("sym-binary-shr".reflectCtrlWith[SymVal](x, y))
-        case (F32S(x), F32S(y)) => F32S("sym-binary-shr".reflectCtrlWith[SymVal](x, y))
-        case (F64S(x), F64S(y)) => F64S("sym-binary-shr".reflectCtrlWith[SymVal](x, y))
+      (num.tipe, rhs.tipe) match {
+        case (NumType(I32Type), NumType(I32Type)) =>
+          StagedSymbolicNum(NumType(I32Type), "sym-binary-shr".reflectCtrlWith[SymVal](num.s, rhs.s))
+        case (NumType(I64Type), NumType(I64Type)) =>
+          StagedSymbolicNum(NumType(I64Type), "sym-binary-shr".reflectCtrlWith[SymVal](num.s, rhs.s))
+        case (NumType(F32Type), NumType(F32Type)) =>
+          StagedSymbolicNum(NumType(F32Type), "sym-binary-shr".reflectCtrlWith[SymVal](num.s, rhs.s))
+        case (NumType(F64Type), NumType(F64Type)) =>
+          StagedSymbolicNum(NumType(F64Type), "sym-binary-shr".reflectCtrlWith[SymVal](num.s, rhs.s))
       }
     }
 
     def &(rhs: StagedSymbolicNum): StagedSymbolicNum = {
-      (num, rhs) match {
-        case (I32S(x), I32S(y)) => I32S("sym-binary-and".reflectCtrlWith[SymVal](x, y))
-        case (I64S(x), I64S(y)) => I64S("sym-binary-and".reflectCtrlWith[SymVal](x, y))
-        case (F32S(x), F32S(y)) => F32S("sym-binary-and".reflectCtrlWith[SymVal](x, y))
-        case (F64S(x), F64S(y)) => F64S("sym-binary-and".reflectCtrlWith[SymVal](x, y))
+      (num.tipe, rhs.tipe) match {
+        case (NumType(I32Type), NumType(I32Type)) =>
+          StagedSymbolicNum(NumType(I32Type), "sym-binary-and".reflectCtrlWith[SymVal](num.s, rhs.s))
+        case (NumType(I64Type), NumType(I64Type)) =>
+          StagedSymbolicNum(NumType(I64Type), "sym-binary-and".reflectCtrlWith[SymVal](num.s, rhs.s))
+        case (NumType(F32Type), NumType(F32Type)) =>
+          StagedSymbolicNum(NumType(F32Type), "sym-binary-and".reflectCtrlWith[SymVal](num.s, rhs.s))
+        case (NumType(F64Type), NumType(F64Type)) =>
+          StagedSymbolicNum(NumType(F64Type), "sym-binary-and".reflectCtrlWith[SymVal](num.s, rhs.s))
       }
     }
 
     def numEq(rhs: StagedSymbolicNum): StagedSymbolicNum = {
-      (num, rhs) match {
-        case (I32S(x), I32S(y)) => I32S("sym-relation-eq".reflectCtrlWith[SymVal](x, y))
-        case (I64S(x), I64S(y)) => I32S("sym-relation-eq".reflectCtrlWith[SymVal](x, y))
+      (num.tipe, rhs.tipe) match {
+        case (NumType(I32Type), NumType(I32Type)) =>
+          StagedSymbolicNum(NumType(I32Type), "sym-relation-eq".reflectCtrlWith[SymVal](num.s, rhs.s))
+        case (NumType(I64Type), NumType(I64Type)) =>
+          StagedSymbolicNum(NumType(I32Type), "sym-relation-eq".reflectCtrlWith[SymVal](num.s, rhs.s))
       }
     }
 
     def numNe(rhs: StagedSymbolicNum): StagedSymbolicNum = {
-      (num, rhs) match {
-        case (I32S(x), I32S(y)) => I32S("sym-relation-ne".reflectCtrlWith[SymVal](x, y))
-        case (I64S(x), I64S(y)) => I32S("sym-relation-ne".reflectCtrlWith[SymVal](x, y))
+      (num.tipe, rhs.tipe) match {
+        case (NumType(I32Type), NumType(I32Type)) =>
+          StagedSymbolicNum(NumType(I32Type), "sym-relation-ne".reflectCtrlWith[SymVal](num.s, rhs.s))
+        case (NumType(I64Type), NumType(I64Type)) =>
+          StagedSymbolicNum(NumType(I32Type), "sym-relation-ne".reflectCtrlWith[SymVal](num.s, rhs.s))
       }
     }
 
     def <(rhs: StagedSymbolicNum): StagedSymbolicNum = {
-      (num, rhs) match {
-        case (I32S(x), I32S(y)) => I32S("sym-relation-lt".reflectCtrlWith[SymVal](x, y))
-        case (I64S(x), I64S(y)) => I32S("sym-relation-lt".reflectCtrlWith[SymVal](x, y))
+      (num.tipe, rhs.tipe) match {
+        case (NumType(I32Type), NumType(I32Type)) =>
+          StagedSymbolicNum(NumType(I32Type), "sym-relation-lt".reflectCtrlWith[SymVal](num.s, rhs.s))
+        case (NumType(I64Type), NumType(I64Type)) =>
+          StagedSymbolicNum(NumType(I32Type), "sym-relation-lt".reflectCtrlWith[SymVal](num.s, rhs.s))
       }
     }
 
     def ltu(rhs: StagedSymbolicNum): StagedSymbolicNum = {
-      (num, rhs) match {
-        case (I32S(x), I32S(y)) => I32S("relation-ltu".reflectCtrlWith[SymVal](x, y))
-        case (I64S(x), I64S(y)) => I32S("relation-ltu".reflectCtrlWith[SymVal](x, y))
+      (num.tipe, rhs.tipe) match {
+        case (NumType(I32Type), NumType(I32Type)) =>
+          StagedSymbolicNum(NumType(I32Type), "relation-ltu".reflectCtrlWith[SymVal](num.s, rhs.s))
+        case (NumType(I64Type), NumType(I64Type)) =>
+          StagedSymbolicNum(NumType(I32Type), "relation-ltu".reflectCtrlWith[SymVal](num.s, rhs.s))
       }
     }
 
     def >(rhs: StagedSymbolicNum): StagedSymbolicNum = {
-      (num, rhs) match {
-        case (I32S(x), I32S(y)) => I32S("sym-relation-gt".reflectCtrlWith[SymVal](x, y))
-        case (I64S(x), I64S(y)) => I32S("sym-relation-gt".reflectCtrlWith[SymVal](x, y))
+      (num.tipe, rhs.tipe) match {
+        case (NumType(I32Type), NumType(I32Type)) =>
+          StagedSymbolicNum(NumType(I32Type), "sym-relation-gt".reflectCtrlWith[SymVal](num.s, rhs.s))
+        case (NumType(I64Type), NumType(I64Type)) =>
+          StagedSymbolicNum(NumType(I32Type), "sym-relation-gt".reflectCtrlWith[SymVal](num.s, rhs.s))
       }
     }
 
     def gtu(rhs: StagedSymbolicNum): StagedSymbolicNum = {
-      (num, rhs) match {
-        case (I32S(x), I32S(y)) => I32S("sym-relation-gtu".reflectCtrlWith[SymVal](x, y))
-        case (I64S(x), I64S(y)) => I32S("sym-relation-gtu".reflectCtrlWith[SymVal](x, y))
+      (num.tipe, rhs.tipe) match {
+        case (NumType(I32Type), NumType(I32Type)) =>
+          StagedSymbolicNum(NumType(I32Type), "sym-relation-gtu".reflectCtrlWith[SymVal](num.s, rhs.s))
+        case (NumType(I64Type), NumType(I64Type)) =>
+          StagedSymbolicNum(NumType(I32Type), "sym-relation-gtu".reflectCtrlWith[SymVal](num.s, rhs.s))
       }
     }
 
     def <=(rhs: StagedSymbolicNum): StagedSymbolicNum = {
-      (num, rhs) match {
-        case (I32S(x), I32S(y)) => I32S("sym-relation-le".reflectCtrlWith[SymVal](x, y))
-        case (I64S(x), I64S(y)) => I32S("sym-relation-le".reflectCtrlWith[SymVal](x, y))
+      (num.tipe, rhs.tipe) match {
+        case (NumType(I32Type), NumType(I32Type)) =>
+          StagedSymbolicNum(NumType(I32Type), "sym-relation-le".reflectCtrlWith[SymVal](num.s, rhs.s))
+        case (NumType(I64Type), NumType(I64Type)) =>
+          StagedSymbolicNum(NumType(I32Type), "sym-relation-le".reflectCtrlWith[SymVal](num.s, rhs.s))
       }
     }
 
     def leu(rhs: StagedSymbolicNum): StagedSymbolicNum = {
-      (num, rhs) match {
-        case (I32S(x), I32S(y)) => I32S("sym-relation-leu".reflectCtrlWith[SymVal](x, y))
-        case (I64S(x), I64S(y)) => I32S("sym-relation-leu".reflectCtrlWith[SymVal](x, y))
+      (num.tipe, rhs.tipe) match {
+        case (NumType(I32Type), NumType(I32Type)) =>
+          StagedSymbolicNum(NumType(I32Type), "sym-relation-leu".reflectCtrlWith[SymVal](num.s, rhs.s))
+        case (NumType(I64Type), NumType(I64Type)) =>
+          StagedSymbolicNum(NumType(I32Type), "sym-relation-leu".reflectCtrlWith[SymVal](num.s, rhs.s))
       }
     }
 
     def >=(rhs: StagedSymbolicNum): StagedSymbolicNum = {
-      (num, rhs) match {
-        case (I32S(x), I32S(y)) => I32S("sym-relation-ge".reflectCtrlWith[SymVal](x, y))
-        case (I64S(x), I64S(y)) => I32S("sym-relation-ge".reflectCtrlWith[SymVal](x, y))
+      (num.tipe, rhs.tipe) match {
+        case (NumType(I32Type), NumType(I32Type)) =>
+          StagedSymbolicNum(NumType(I32Type), "sym-relation-ge".reflectCtrlWith[SymVal](num.s, rhs.s))
+        case (NumType(I64Type), NumType(I64Type)) =>
+          StagedSymbolicNum(NumType(I32Type), "sym-relation-ge".reflectCtrlWith[SymVal](num.s, rhs.s))
       }
     }
 
     def geu(rhs: StagedSymbolicNum): StagedSymbolicNum = {
-      (num, rhs) match {
-        case (I32S(x), I32S(y)) => I32S("sym-relation-geu".reflectCtrlWith[SymVal](x, y))
-        case (I64S(x), I64S(y)) => I32S("sym-relation-geu".reflectCtrlWith[SymVal](x, y))
+      (num.tipe, rhs.tipe) match {
+        case (NumType(I32Type), NumType(I32Type)) =>
+          StagedSymbolicNum(NumType(I32Type), "sym-relation-geu".reflectCtrlWith[SymVal](num.s, rhs.s))
+        case (NumType(I64Type), NumType(I64Type)) =>
+          StagedSymbolicNum(NumType(I32Type), "sym-relation-geu".reflectCtrlWith[SymVal](num.s, rhs.s))
       }
     }
   }
