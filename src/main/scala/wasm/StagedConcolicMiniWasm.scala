@@ -1408,7 +1408,7 @@ trait StagedWasmCppGen extends CGenBase with CppSAICodeGenBase {
     case Node(_, "global-get", List(i), _) =>
       emit("Globals.get("); shallow(i); emit(")")
     case Node(_, "sym-global-get", List(i), _) =>
-      emit("SymGlobal.get("); shallow(i); emit(")")
+      emit("SymGlobals.get("); shallow(i); emit(")")
     case Node(_, "global-set", List(i, value), _) =>
       emit("Globals.set("); shallow(i); emit(", "); shallow(value); emit(")")
     case Node(_, "sym-global-set", List(i, s_value), _) =>
