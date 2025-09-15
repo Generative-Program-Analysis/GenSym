@@ -799,19 +799,17 @@ inline std::monostate Snapshot_t::resume_execution(SymEnv_t &sym_env,
 }
 
 struct Memory_t {
-  std::vector<uint8_t> memory;
-  // Try to have
-  // std::vector<std::pair<uint8_t, SymVal>> memory;
+  std::vector<std::pair<uint8_t, SymVal>> memory;
 
   Memory_t(int32_t init_page_count) : memory(init_page_count * pagesize) {}
 
   int32_t loadInt(int32_t base, int32_t offset) {
-    return *reinterpret_cast<int32_t *>(static_cast<uint8_t *>(memory.data()) +
+    return *reinterpret_cast<int32_t *>(static_cast<std::pair<uint8_t, SymVal> *>(memory.data()) +
                                         base + offset);
   }
 
   std::monostate storeInt(int32_t base, int32_t offset, int32_t value) {
-    *reinterpret_cast<int32_t *>(static_cast<uint8_t *>(memory.data()) + base +
+    *reinterpret_cast<int32_t *>(static_cast<std::pair<uint8_t, SymVal> *>(memory.data()) + base +
                                  offset) = value;
     return std::monostate{};
   }
