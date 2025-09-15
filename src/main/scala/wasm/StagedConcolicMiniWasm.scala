@@ -228,9 +228,9 @@ trait StagedWasmEvaluator extends SAIOps {
         val addr = Stack.popC(ty1)
         Stack.popS(ty1)
         val num = Memory.loadIntC(addr.toInt, offset)
-        val sym = Memory.loadIntS(addr.toInt, offset)
+        // val sym = Memory.loadIntS(addr.toInt, offset)
         Stack.pushC(num)
-        Stack.pushS(sym)
+        // Stack.pushS(sym)
         val newCtx2 = newCtx1.push(ty)
         eval(rest, kont, mkont, trail)(newCtx2)
       case MemorySize => ???
@@ -767,9 +767,10 @@ trait StagedWasmEvaluator extends SAIOps {
   }
 
   object Memory {
+    // TODO: why this is only one function, rather than `storeInC` and `storeInS`?
     def storeInt(base: Rep[Int], offset: Int, value: Rep[Int]): Rep[Unit] = {
       "memory-store-int".reflectCtrlWith[Unit](base, offset, value)
-      // todo: store symbolic value to memory via extract/concat operation
+      // "sym-store-int".reflectCtrlWith[Unit](base, offset, value)
     }
 
     def loadIntC(base: Rep[Int], offset: Int): StagedConcreteNum = {
@@ -777,7 +778,7 @@ trait StagedWasmEvaluator extends SAIOps {
     }
 
     def loadIntS(base: Rep[Int], offset: Int): StagedSymbolicNum = {
-      StagedSymbolicNum(NumType(I32Type), "sym-load-int-todo".reflectCtrlWith[SymVal](base, offset))
+      StagedSymbolicNum(NumType(I32Type), "sym-load-int".reflectCtrlWith[SymVal](base, offset))
     }
 
     // Returns the previous memory size on success, or -1 if the memory cannot be grown.
@@ -1405,6 +1406,14 @@ trait StagedWasmCppGen extends CGenBase with CppSAICodeGenBase {
       emit("Memory.grow("); shallow(delta); emit(")")
     case Node(_, "stack-size", _, _) =>
       emit("Stack.size()")
+    // Symbolic Memory
+    case Node(_, "sym-store-int", List(base, offset, s_value), _) =>
+      emit("SymMemory.storeInt("); shallow(base); emit(", "); shallow(offset); emit(", "); shallow(s_value); emit(")")
+    case Node(_, "sym-load-int", List(base, offset), _) =>
+      emit("SymMemory.loadInt("); shallow(base); emit(", "); shallow(offset); emit(")")
+    case Node(_, "sym-memory-grow", List(delta), _) =>
+      emit("SymMemory.grow("); shallow(delta); emit(")")
+    // Globals
     case Node(_, "global-get", List(i), _) =>
       emit("Globals.get("); shallow(i); emit(")")
     case Node(_, "sym-global-get", List(i), _) =>
