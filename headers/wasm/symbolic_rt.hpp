@@ -804,13 +804,25 @@ struct Memory_t {
   Memory_t(int32_t init_page_count) : memory(init_page_count * pagesize) {}
 
   int32_t loadInt(int32_t base, int32_t offset) {
-    return *reinterpret_cast<int32_t *>(static_cast<std::pair<uint8_t, SymVal> *>(memory.data()) +
-                                        base + offset);
+    int32_t addr = base + offset;
+    // Ensure we don't read out of bounds
+    assert(addr + 3 < memory.size());
+    int32_t result = 0;
+    // Little-endian: lowest byte at lowest address
+    for (int i = 0; i < 4; ++i) {
+      result |= static_cast<int32_t>(memory[addr + i].first) << (8 * i);
+    }
+    return result;
   }
 
   std::monostate storeInt(int32_t base, int32_t offset, int32_t value) {
-    *reinterpret_cast<int32_t *>(static_cast<std::pair<uint8_t, SymVal> *>(memory.data()) + base +
-                                 offset) = value;
+    int32_t addr = base + offset;
+    // Ensure we don't write out of bounds
+    assert(addr + 3 < memory.size());
+    for (int i = 0; i < 4; ++i) {
+      memory[addr + i].first = static_cast<uint8_t>((value >> (8 * i)) & 0xFF);
+      // Optionally, update memory[addr + i].second (SymVal) if needed
+    }
     return std::monostate{};
   }
 
