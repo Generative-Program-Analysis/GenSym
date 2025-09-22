@@ -799,13 +799,13 @@ inline std::monostate Snapshot_t::resume_execution(SymEnv_t &sym_env,
 }
 
 struct Memory_t {
+  // TODO: We assign a SymVal to each byte in memory
   std::vector<std::pair<uint8_t, SymVal>> memory;
 
   Memory_t(int32_t init_page_count) : memory(init_page_count * pagesize) {}
 
   int32_t loadInt(int32_t base, int32_t offset) {
     int32_t addr = base + offset;
-    // Ensure we don't read out of bounds
     assert(addr + 3 < memory.size());
     int32_t result = 0;
     // Little-endian: lowest byte at lowest address
@@ -813,6 +813,36 @@ struct Memory_t {
       result |= static_cast<int32_t>(memory[addr + i].first) << (8 * i);
     }
     return result;
+  }
+
+  // When loading a symval, we need to concat 4 symbolic values
+  // This sounds terribly bad for SMT...
+  SymVal loadSym(int32_t base, int32_t offset) {
+    int32_t addr = base + offset;
+    assert(addr + 3 < memory.size());
+    SymVal result = Concrete(I32V(0));
+    for (int i = 0; i < 4; ++i) {
+      auto byte_sym = memory[addr + i].second;
+      auto shift_amount = Concrete(I32V(8 * i));
+      auto shift_byte = byte_sym.mul(Concrete(I32V(1 << (8 * i))));
+      result = result.add(shift_byte);
+    }
+    return result;
+  }
+
+  std::monostate storeSym(int32_t base, int32_t offset, SymVal value) {
+    int32_t addr = base + offset;
+    assert(addr + 3 < memory.size());
+    for (int i = 0; i < 4; ++i) {
+      // Extract the i-th byte from the symbolic value
+      auto shift_amount = Concrete(I32V(8 * i));
+      auto shifted = value.div(Concrete(I32V(1 << (8 * i))));
+      auto byte_sym = shifted.minus(shifted.div(Concrete(I32V(256))).mul(
+          Concrete(I32V(256))));
+      memory[addr + i].second = byte_sym;
+      // Optionally, update memory[addr + i].first (concrete byte) if needed
+    }
+    return std::monostate{};
   }
 
   std::monostate storeInt(int32_t base, int32_t offset, int32_t value) {

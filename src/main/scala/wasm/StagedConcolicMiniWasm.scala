@@ -220,7 +220,7 @@ trait StagedWasmEvaluator extends SAIOps {
         val (ty2, newCtx2) = newCtx1.pop()
         val addr = Stack.popC(ty2)
         val symAddr = Stack.popS(ty2)
-        Memory.storeInt(addr.toInt, offset, value.toInt)
+        Memory.storeInt(addr.toInt, offset, (value.toInt, symValue))
         eval(rest, kont, mkont, trail)(newCtx2)
       case Nop => eval(rest, kont, mkont, trail)
       case Load(LoadOp(align, offset, ty, None, None)) =>
@@ -768,9 +768,10 @@ trait StagedWasmEvaluator extends SAIOps {
 
   object Memory {
     // TODO: why this is only one function, rather than `storeInC` and `storeInS`?
-    def storeInt(base: Rep[Int], offset: Int, value: Rep[Int]): Rep[Unit] = {
-      "memory-store-int".reflectCtrlWith[Unit](base, offset, value)
-      // "sym-store-int".reflectCtrlWith[Unit](base, offset, value)
+    // TODO: what should the type of SymVal be?
+    def storeInt(base: Rep[Int], offset: Int, value: (Rep[Int], StagedSymbolicNum)): Rep[Unit] = {
+      "memory-store-int".reflectCtrlWith[Unit](base, offset, value._1)
+      // "sym-store-int".reflectCtrlWith[Unit](base, offset, value._2)
     }
 
     def loadIntC(base: Rep[Int], offset: Int): StagedConcreteNum = {
@@ -1408,9 +1409,9 @@ trait StagedWasmCppGen extends CGenBase with CppSAICodeGenBase {
       emit("Stack.size()")
     // Symbolic Memory
     case Node(_, "sym-store-int", List(base, offset, s_value), _) =>
-      emit("SymMemory.storeInt("); shallow(base); emit(", "); shallow(offset); emit(", "); shallow(s_value); emit(")")
+      emit("Memory.storeSym("); shallow(base); emit(", "); shallow(offset); emit(", "); shallow(s_value); emit(")")
     case Node(_, "sym-load-int", List(base, offset), _) =>
-      emit("SymMemory.loadInt("); shallow(base); emit(", "); shallow(offset); emit(")")
+      emit("Memory.loadSym("); shallow(base); emit(", "); shallow(offset); emit(")")
     case Node(_, "sym-memory-grow", List(delta), _) =>
       emit("SymMemory.grow("); shallow(delta); emit(")")
     // Globals

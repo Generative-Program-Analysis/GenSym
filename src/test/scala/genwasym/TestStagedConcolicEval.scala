@@ -79,9 +79,14 @@ class TestStagedConcolicEval extends FunSuite {
   test("global - concrete") { testFileConcreteCpp("./benchmarks/wasm/global-sym.wat", None) }
   // TODO: Waiting symbolic memory's implementations
   test("load - concrete") { testFileConcreteCpp("./benchmarks/wasm/load.wat", None, expect=Some(List(1))) }
-  // TODO: correct the behavior
   test("load overflow 1 - concrete") { testFileConcreteCpp("./benchmarks/wasm/load-overflow1.wat", None, expect=Some(List(1))) }
   test("load overflow 2 - concrete") { testFileConcreteCpp("./benchmarks/wasm/load-overflow2.wat", None, expect=Some(List(1))) }
+
+  test("load offset - concrete") { testFileConcreteCpp("./benchmarks/wasm/load-offset.wat", None, expect=Some(List(1))) }
+
+  // alex TODO: how to test this?
+  test("mem-sym") { testFileConcreteCpp("./benchmarks/wasm/mem-sym.wat", None, expect=Some(List(0))) }
+
   // test("btree - concrete") { testFileConcreteCpp("./benchmarks/wasm/btree/2o1u-unlabeled.wat") }
   test("fib - concrete") { testFileConcreteCpp("./benchmarks/wasm/fib.wat", None, expect=Some(List(144))) }
   test("tribonacci - concrete") { testFileConcreteCpp("./benchmarks/wasm/tribonacci.wat", None, expect=Some(List(504))) }
