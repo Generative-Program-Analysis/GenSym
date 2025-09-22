@@ -66,6 +66,10 @@ class TestStagedConcolicEval extends FunSuite {
     testFileConcolicCpp("./benchmarks/wasm/staged/simple_global.wat", Some("real_main"), exitByCoverage=true)
   }
 
+  test("mem-sym-concolic") {
+    testFileConcolicCpp("./benchmarks/wasm/mem-sym.wat", None, exitByCoverage=true)
+  }
+
   test("return-poly - concrete") {
     testFileConcreteCpp("./benchmarks/wasm/staged/return_poly.wat", Some("$real_main"), expect=Some(List(42)))
   }
@@ -83,9 +87,6 @@ class TestStagedConcolicEval extends FunSuite {
   test("load overflow 2 - concrete") { testFileConcreteCpp("./benchmarks/wasm/load-overflow2.wat", None, expect=Some(List(1))) }
 
   test("load offset - concrete") { testFileConcreteCpp("./benchmarks/wasm/load-offset.wat", None, expect=Some(List(1))) }
-
-  // alex TODO: how to test this?
-  test("mem-sym") { testFileConcreteCpp("./benchmarks/wasm/mem-sym.wat", None, expect=Some(List(0))) }
 
   // test("btree - concrete") { testFileConcreteCpp("./benchmarks/wasm/btree/2o1u-unlabeled.wat") }
   test("fib - concrete") { testFileConcreteCpp("./benchmarks/wasm/fib.wat", None, expect=Some(List(144))) }

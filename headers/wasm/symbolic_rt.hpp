@@ -72,6 +72,7 @@ struct SymVal {
   SymVal gt(const SymVal &other) const;
   SymVal geq(const SymVal &other) const;
   SymVal negate() const;
+  // TODO: add bitwise operations, and use the underlying bitvector theory
 
   bool is_concrete() const;
 };
@@ -815,7 +816,7 @@ struct Memory_t {
     return result;
   }
 
-  // When loading a symval, we need to concat 4 symbolic values
+  // TODO: when loading a symval, we need to concat 4 symbolic values
   // This sounds terribly bad for SMT...
   SymVal loadSym(int32_t base, int32_t offset) {
     int32_t addr = base + offset;
@@ -823,7 +824,7 @@ struct Memory_t {
     SymVal result = Concrete(I32V(0));
     for (int i = 0; i < 4; ++i) {
       auto byte_sym = memory[addr + i].second;
-      auto shift_amount = Concrete(I32V(8 * i));
+      // 1 << i === 2^i
       auto shift_byte = byte_sym.mul(Concrete(I32V(1 << (8 * i))));
       result = result.add(shift_byte);
     }
@@ -835,7 +836,6 @@ struct Memory_t {
     assert(addr + 3 < memory.size());
     for (int i = 0; i < 4; ++i) {
       // Extract the i-th byte from the symbolic value
-      auto shift_amount = Concrete(I32V(8 * i));
       auto shifted = value.div(Concrete(I32V(1 << (8 * i))));
       auto byte_sym = shifted.minus(shifted.div(Concrete(I32V(256))).mul(
           Concrete(I32V(256))));

@@ -228,7 +228,7 @@ trait StagedWasmEvaluator extends SAIOps {
         val addr = Stack.popC(ty1)
         Stack.popS(ty1)
         val num = Memory.loadIntC(addr.toInt, offset)
-        // val sym = Memory.loadIntS(addr.toInt, offset)
+        val sym = Memory.loadIntS(addr.toInt, offset)
         Stack.pushC(num)
         // Stack.pushS(sym)
         val newCtx2 = newCtx1.push(ty)
@@ -771,7 +771,7 @@ trait StagedWasmEvaluator extends SAIOps {
     // TODO: what should the type of SymVal be?
     def storeInt(base: Rep[Int], offset: Int, value: (Rep[Int], StagedSymbolicNum)): Rep[Unit] = {
       "memory-store-int".reflectCtrlWith[Unit](base, offset, value._1)
-      // "sym-store-int".reflectCtrlWith[Unit](base, offset, value._2)
+      "sym-store-int".reflectCtrlWith[Unit](base, offset, value._2.s)
     }
 
     def loadIntC(base: Rep[Int], offset: Int): StagedConcreteNum = {
