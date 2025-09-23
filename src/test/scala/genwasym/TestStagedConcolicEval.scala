@@ -70,6 +70,10 @@ class TestStagedConcolicEval extends FunSuite {
     testFileConcolicCpp("./benchmarks/wasm/mem-sym.wat", None, exitByCoverage=true)
   }
 
+  test("mem-sym-extract-concolic") {
+    testFileConcolicCpp("./benchmarks/wasm/mem-sym-extract.wat", None, exitByCoverage=true)
+  }
+
   test("return-poly - concrete") {
     testFileConcreteCpp("./benchmarks/wasm/staged/return_poly.wat", Some("$real_main"), expect=Some(List(42)))
   }
