@@ -11,18 +11,20 @@
 #include <variant>
 #include <vector>
 
-void info() {
+inline std::monostate info() {
 #ifdef DEBUG
   std::cout << std::endl;
 #endif
+  return std::monostate{};
 }
 
 template <typename T, typename... Args>
-void info(const T &first, const Args &...args) {
+std::monostate info(const T &first, const Args &...args) {
 #ifdef DEBUG
   std::cout << first << " ";
   info(args...);
 #endif
+  return std::monostate{};
 }
 
 struct Num {
