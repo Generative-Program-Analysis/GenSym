@@ -230,7 +230,7 @@ trait StagedWasmEvaluator extends SAIOps {
         val num = Memory.loadIntC(addr.toInt, offset)
         val sym = Memory.loadIntS(addr.toInt, offset)
         Stack.pushC(num)
-        // Stack.pushS(sym)
+        Stack.pushS(sym)
         val newCtx2 = newCtx1.push(ty)
         eval(rest, kont, mkont, trail)(newCtx2)
       case MemorySize => ???
