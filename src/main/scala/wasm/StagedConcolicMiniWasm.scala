@@ -220,7 +220,7 @@ trait StagedWasmEvaluator extends SAIOps {
         val (ty2, newCtx2) = newCtx1.pop()
         val addr = Stack.popC(ty2)
         val symAddr = Stack.popS(ty2)
-        Memory.storeInt(addr.toInt, offset, value.toInt)
+        Memory.storeInt(addr.toInt, offset, (value.toInt, symValue))
         eval(rest, kont, mkont, trail)(newCtx2)
       case Nop => eval(rest, kont, mkont, trail)
       case Load(LoadOp(align, offset, ty, None, None)) =>
@@ -245,7 +245,7 @@ trait StagedWasmEvaluator extends SAIOps {
         val retSym = "Concrete".reflectCtrlWith[SymVal](retNum)
         Stack.pushC(StagedConcreteNum(NumType(I32Type), retNum))
         Stack.pushS(StagedSymbolicNum(NumType(I32Type), retSym))
-        val newCtx2 = ctx.push(NumType(I32Type))
+        val newCtx2 = newCtx.push(NumType(I32Type))
         eval(rest, kont, mkont, trail)(newCtx2)
       case MemoryFill => ???
       case Unreachable => unreachable()
@@ -767,9 +767,11 @@ trait StagedWasmEvaluator extends SAIOps {
   }
 
   object Memory {
-    def storeInt(base: Rep[Int], offset: Int, value: Rep[Int]): Rep[Unit] = {
-      "memory-store-int".reflectCtrlWith[Unit](base, offset, value)
-      // todo: store symbolic value to memory via extract/concat operation
+    // TODO: why this is only one function, rather than `storeInC` and `storeInS`?
+    // TODO: what should the type of SymVal be?
+    def storeInt(base: Rep[Int], offset: Int, value: (Rep[Int], StagedSymbolicNum)): Rep[Unit] = {
+      "memory-store-int".reflectCtrlWith[Unit](base, offset, value._1)
+      "sym-store-int".reflectCtrlWith[Unit](base, offset, value._2.s)
     }
 
     def loadIntC(base: Rep[Int], offset: Int): StagedConcreteNum = {
@@ -777,7 +779,7 @@ trait StagedWasmEvaluator extends SAIOps {
     }
 
     def loadIntS(base: Rep[Int], offset: Int): StagedSymbolicNum = {
-      StagedSymbolicNum(NumType(I32Type), "sym-load-int-todo".reflectCtrlWith[SymVal](base, offset))
+      StagedSymbolicNum(NumType(I32Type), "sym-load-int".reflectCtrlWith[SymVal](base, offset))
     }
 
     // Returns the previous memory size on success, or -1 if the memory cannot be grown.
@@ -1405,6 +1407,14 @@ trait StagedWasmCppGen extends CGenBase with CppSAICodeGenBase {
       emit("Memory.grow("); shallow(delta); emit(")")
     case Node(_, "stack-size", _, _) =>
       emit("Stack.size()")
+    // Symbolic Memory
+    case Node(_, "sym-store-int", List(base, offset, s_value), _) =>
+      emit("Memory.storeSym("); shallow(base); emit(", "); shallow(offset); emit(", "); shallow(s_value); emit(")")
+    case Node(_, "sym-load-int", List(base, offset), _) =>
+      emit("Memory.loadSym("); shallow(base); emit(", "); shallow(offset); emit(")")
+    case Node(_, "sym-memory-grow", List(delta), _) =>
+      emit("SymMemory.grow("); shallow(delta); emit(")")
+    // Globals
     case Node(_, "global-get", List(i), _) =>
       emit("Globals.get("); shallow(i); emit(")")
     case Node(_, "sym-global-get", List(i), _) =>
@@ -1464,11 +1474,15 @@ trait StagedWasmCppGen extends CGenBase with CppSAICodeGenBase {
       shallow(lhs); emit(".mul("); shallow(rhs); emit(")")
     case Node(_, "sym-binary-div", List(lhs, rhs), _) =>
       shallow(lhs); emit(".div("); shallow(rhs); emit(")")
+    case Node(_, "sym-binary-and", List(lhs, rhs), _) =>
+      shallow(lhs); emit(".bitwise_and("); shallow(rhs); emit(")")
     case Node(_, "sym-relation-le", List(lhs, rhs), _) =>
-      shallow(lhs); emit(".leq("); shallow(rhs); emit(")")
+      shallow(lhs); emit(".le("); shallow(rhs); emit(")")
     case Node(_, "sym-relation-leu", List(lhs, rhs), _) =>
       shallow(lhs); emit(".leu("); shallow(rhs); emit(")")
-    case Node(_, "sym-relation-ge", List(lhs, rhs), _) => 
+    case Node(_, "sym-relation-lt", List(lhs, rhs), _) =>
+      shallow(lhs); emit(".lt("); shallow(rhs); emit(")")
+    case Node(_, "sym-relation-ge", List(lhs, rhs), _) =>
       shallow(lhs); emit(".ge("); shallow(rhs); emit(")")
     case Node(_, "sym-relation-geu", List(lhs, rhs), _) =>
       shallow(lhs); emit(".geu("); shallow(rhs); emit(")")
@@ -1476,6 +1490,8 @@ trait StagedWasmCppGen extends CGenBase with CppSAICodeGenBase {
       shallow(lhs); emit(".eq("); shallow(rhs); emit(")")
     case Node(_, "sym-relation-ne", List(lhs, rhs), _) =>
       shallow(lhs); emit(".neq("); shallow(rhs); emit(")")
+    case Node(_, "sym-relation-gt", List(lhs, rhs), _) =>
+      shallow(lhs); emit(".gt("); shallow(rhs); emit(")")
     case Node(_, "num-to-int", List(num), _) =>
       shallow(num); emit(".toInt()")
     case Node(_, "make-symbolic", List(num), _) =>

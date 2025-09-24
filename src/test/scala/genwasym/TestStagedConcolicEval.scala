@@ -66,6 +66,16 @@ class TestStagedConcolicEval extends FunSuite {
     testFileConcolicCpp("./benchmarks/wasm/staged/simple_global.wat", Some("real_main"), exitByCoverage=true)
   }
 
+  test("mem-sym-concolic") {
+    testFileConcolicCpp("./benchmarks/wasm/mem-sym.wat", None, exitByCoverage=true)
+  }
+
+  test("mem-sym-extract-concolic") {
+    testFileConcolicCpp("./benchmarks/wasm/mem-sym-extract.wat", None, exitByCoverage=true)
+  }
+  test("btree-bug-finding-concolic") { testFileConcolicCpp("./benchmarks/wasm/btree/2o1u-unlabeled.wat") }
+
+
   test("return-poly - concrete") {
     testFileConcreteCpp("./benchmarks/wasm/staged/return_poly.wat", Some("$real_main"), expect=Some(List(42)))
   }
@@ -76,10 +86,14 @@ class TestStagedConcolicEval extends FunSuite {
   // TODO: Waiting more symbolic operators' implementations
   // test("loop - concrete") { testFileConcreteCpp("./benchmarks/wasm/loop.wat", None, expect=Some(List(10))) }
   test("even-odd - concrete") { testFileConcreteCpp("./benchmarks/wasm/even_odd.wat", None, expect=Some(List(1))) }
-  // Try global
   test("global - concrete") { testFileConcreteCpp("./benchmarks/wasm/global-sym.wat", None) }
   // TODO: Waiting symbolic memory's implementations
-  // test("load - concrete") { testFileConcreteCpp("./benchmarks/wasm/load.wat", None, expect=Some(List(1))) }
+  test("load - concrete") { testFileConcreteCpp("./benchmarks/wasm/load.wat", None, expect=Some(List(1))) }
+  test("load overflow 1 - concrete") { testFileConcreteCpp("./benchmarks/wasm/load-overflow1.wat", None, expect=Some(List(1))) }
+  test("load overflow 2 - concrete") { testFileConcreteCpp("./benchmarks/wasm/load-overflow2.wat", None, expect=Some(List(1))) }
+
+  test("load offset - concrete") { testFileConcreteCpp("./benchmarks/wasm/load-offset.wat", None, expect=Some(List(1))) }
+
   // test("btree - concrete") { testFileConcreteCpp("./benchmarks/wasm/btree/2o1u-unlabeled.wat") }
   test("fib - concrete") { testFileConcreteCpp("./benchmarks/wasm/fib.wat", None, expect=Some(List(144))) }
   test("tribonacci - concrete") { testFileConcreteCpp("./benchmarks/wasm/tribonacci.wat", None, expect=Some(List(504))) }

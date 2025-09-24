@@ -6,6 +6,7 @@
 #include "utils.hpp"
 #include <cassert>
 #include <cstddef>
+#include <cstdint>
 #include <cstdio>
 #include <fstream>
 #include <iterator>
@@ -48,7 +49,33 @@ public:
   SymConcrete(Num num) : value(num) {}
 };
 
+class SmallBV : public Symbolic {
+public:
+  SmallBV(int size, int64_t value) : size(size), value(value) {}
+  int get_size() const { return size; }
+  int64_t get_value() const { return value; }
+
+private:
+  int size;
+  int64_t value;
+};
+
 struct SymBinary;
+
+enum Operation {
+  ADD,    // Addition
+  SUB,    // Subtraction
+  MUL,    // Multiplication
+  DIV,    // Division
+  EQ,     // Equal
+  NEQ,    // Not equal
+  LT,     // Less than
+  LEQ,    // Less than or equal
+  GT,     // Greater than
+  GEQ,    // Greater than or equal
+  B_AND,  // Bitwise AND
+  CONCAT, // Byte-level concatenation
+};
 
 struct SymVal {
   std::shared_ptr<Symbolic> symptr;
@@ -59,7 +86,7 @@ struct SymVal {
   // data structure operations
   SymVal makeSymbolic() const;
 
-  // arithmetic operations
+  // bitvector arithmetic operations
   SymVal is_zero() const;
   SymVal add(const SymVal &other) const;
   SymVal minus(const SymVal &other) const;
@@ -68,12 +95,19 @@ struct SymVal {
   SymVal eq(const SymVal &other) const;
   SymVal neq(const SymVal &other) const;
   SymVal lt(const SymVal &other) const;
-  SymVal leq(const SymVal &other) const;
+  SymVal le(const SymVal &other) const;
   SymVal gt(const SymVal &other) const;
-  SymVal geq(const SymVal &other) const;
+  SymVal ge(const SymVal &other) const;
   SymVal negate() const;
+  SymVal bitwise_and(const SymVal &other) const;
+  SymVal concat(const SymVal &other) const;
+  SymVal extract(int high, int low) const;
+  // TODO: add bitwise operations, and use the underlying bitvector theory
 
   bool is_concrete() const;
+
+private:
+  static SymVal make_binary(Operation op, const SymVal &lhs, const SymVal &rhs);
 };
 
 static SymVal make_symbolic(int index) {
@@ -84,7 +118,17 @@ inline SymVal Concrete(Num num) {
   return SymVal(std::make_shared<SymConcrete>(num));
 }
 
-enum Operation { ADD, SUB, MUL, DIV, EQ, NEQ, LT, LEQ, GT, GEQ };
+// Extract is different from other operations, it only has one symbolic operand,
+// the other two operands are constants
+// Extract from value, both high and low are inclusive byte indexes
+struct SymExtract : Symbolic {
+  SymVal value;
+  int high;
+  int low;
+
+  SymExtract(SymVal value, int high, int low)
+      : value(value), high(high), low(low) {}
+};
 
 struct SymBinary : Symbolic {
   Operation op;
@@ -96,47 +140,70 @@ struct SymBinary : Symbolic {
 };
 
 inline SymVal SymVal::add(const SymVal &other) const {
-  return SymVal(std::make_shared<SymBinary>(ADD, *this, other));
+  return make_binary(ADD, *this, other);
 }
 
 inline SymVal SymVal::minus(const SymVal &other) const {
-  return SymVal(std::make_shared<SymBinary>(SUB, *this, other));
+  return make_binary(SUB, *this, other);
 }
 
 inline SymVal SymVal::mul(const SymVal &other) const {
-  return SymVal(std::make_shared<SymBinary>(MUL, *this, other));
+  return make_binary(MUL, *this, other);
 }
 
 inline SymVal SymVal::div(const SymVal &other) const {
-  return SymVal(std::make_shared<SymBinary>(DIV, *this, other));
+  return make_binary(DIV, *this, other);
 }
 
 inline SymVal SymVal::eq(const SymVal &other) const {
-  return SymVal(std::make_shared<SymBinary>(EQ, *this, other));
+  return make_binary(EQ, *this, other);
 }
 
 inline SymVal SymVal::neq(const SymVal &other) const {
-  return SymVal(std::make_shared<SymBinary>(NEQ, *this, other));
-}
-inline SymVal SymVal::lt(const SymVal &other) const {
-  return SymVal(std::make_shared<SymBinary>(LT, *this, other));
-}
-inline SymVal SymVal::leq(const SymVal &other) const {
-  return SymVal(std::make_shared<SymBinary>(LEQ, *this, other));
-}
-inline SymVal SymVal::gt(const SymVal &other) const {
-  return SymVal(std::make_shared<SymBinary>(GT, *this, other));
-}
-inline SymVal SymVal::geq(const SymVal &other) const {
-  return SymVal(std::make_shared<SymBinary>(GEQ, *this, other));
-}
-inline SymVal SymVal::is_zero() const {
-  return SymVal(std::make_shared<SymBinary>(EQ, *this, Concrete(I32V(0))));
-}
-inline SymVal SymVal::negate() const {
-  return SymVal(std::make_shared<SymBinary>(EQ, *this, Concrete(I32V(0))));
+  return make_binary(NEQ, *this, other);
 }
 
+inline SymVal SymVal::lt(const SymVal &other) const {
+  return make_binary(LT, *this, other);
+}
+
+inline SymVal SymVal::le(const SymVal &other) const {
+  return make_binary(LEQ, *this, other);
+}
+
+inline SymVal SymVal::gt(const SymVal &other) const {
+  return make_binary(GT, *this, other);
+}
+
+inline SymVal SymVal::ge(const SymVal &other) const {
+  return make_binary(GEQ, *this, other);
+}
+
+inline SymVal SymVal::is_zero() const {
+  return make_binary(EQ, *this, Concrete(I32V(0)));
+}
+
+inline SymVal SymVal::negate() const {
+  return make_binary(EQ, *this, Concrete(I32V(0)));
+}
+
+inline SymVal SymVal::concat(const SymVal &other) const {
+  return make_binary(CONCAT, *this, other);
+}
+
+inline SymVal SymVal::extract(int high, int low) const {
+  assert(high >= low && "Invalid extract range");
+  return SymVal(std::make_shared<SymExtract>(*this, high, low));
+}
+
+inline SymVal SymVal::bitwise_and(const SymVal &other) const {
+  return make_binary(B_AND, *this, other);
+}
+inline SymVal SymVal::make_binary(Operation op, const SymVal &lhs,
+                                  const SymVal &rhs) {
+  assert(lhs.symptr != nullptr && rhs.symptr != nullptr);
+  return SymVal(std::make_shared<SymBinary>(op, lhs, rhs));
+}
 inline SymVal SymVal::makeSymbolic() const {
   auto concrete = dynamic_cast<SymConcrete *>(symptr.get());
   if (concrete) {
@@ -178,6 +245,7 @@ public:
   std::monostate shift(int32_t offset, int32_t size) {
     auto n = stack.size();
     for (size_t i = n - size; i < n; ++i) {
+      assert(i - offset >= 0);
       stack[i - offset] = stack[i];
     }
     stack.resize(n - offset);
@@ -723,6 +791,17 @@ static SymEnv_t SymEnv;
 static Num eval_sym_expr(const SymVal &sym, SymEnv_t &sym_env) {
   if (auto concrete = dynamic_cast<SymConcrete *>(sym.symptr.get())) {
     return concrete->value;
+  } else if (auto extract = dynamic_cast<SymExtract *>(sym.symptr.get())) {
+    auto value = eval_sym_expr(extract->value, sym_env);
+    int high = extract->high;
+    int low = extract->low;
+    assert(high >= low && "Invalid extract range");
+    int size = high - low + 1; // size in bytes
+    int64_t mask = (1LL << (size * 8)) - 1;
+    int64_t extracted_value = (value.toInt() >> (low * 8)) & mask;
+    return Num(I64V(extracted_value));
+  } else if (auto smallbv = dynamic_cast<SmallBV *>(sym.symptr.get())) {
+    return Num(I64V(smallbv->get_value()));
   } else if (auto operation = dynamic_cast<SymBinary *>(sym.symptr.get())) {
     // If it's a operation, we need to evaluate it
     auto lhs = eval_sym_expr(operation->lhs, sym_env);
@@ -744,8 +823,18 @@ static Num eval_sym_expr(const SymVal &sym, SymEnv_t &sym_env) {
       return lhs > rhs;
     case GEQ:
       return lhs >= rhs;
+    case NEQ:
+      return lhs != rhs;
+    case EQ:
+      return lhs == rhs;
+    case B_AND:
+      return Num(I64V(lhs.value & rhs.value));
+    case CONCAT:
+      // we must know the size of lhs and rhs in bytes to support concat
+      throw std::runtime_error(
+          "Concatenation operation not supported in evaluation");
     default:
-      throw std::runtime_error("Operation not supported: " +
+      throw std::runtime_error("Operation not supported in evaluation: " +
                                std::to_string(operation->op));
     }
   } else if (auto symbol = dynamic_cast<Symbol *>(sym.symptr.get())) {
@@ -797,5 +886,94 @@ inline std::monostate Snapshot_t::resume_execution(SymEnv_t &sym_env,
   // Resume execution from the continuation
   return cont(mcont);
 }
+
+struct Memory_t {
+  // TODO: We assign a SymVal to each byte in memory
+  std::vector<std::pair<uint8_t, SymVal>> memory;
+
+  Memory_t(int32_t init_page_count) : memory(init_page_count * pagesize) {}
+
+  int32_t loadInt(int32_t base, int32_t offset) {
+    // just load a 4-byte integer from memory of the vector
+    int32_t addr = base + offset;
+    assert(addr + 3 < memory.size());
+    int32_t result = 0;
+    // Little-endian: lowest byte at lowest address
+    for (int i = 0; i < 4; ++i) {
+      result |= static_cast<int32_t>(memory[addr + i].first) << (8 * i);
+    }
+    return result;
+  }
+
+  // TODO: when loading a symval, we need to concat 4 symbolic values
+  // This sounds terribly bad for SMT...
+  // Load a 4-byte symbolic value from memory
+  SymVal loadSym(int32_t base, int32_t offset) {
+    int32_t addr = base + offset;
+    assert(addr + 3 < memory.size());
+    SymVal s0 = memory[addr].second;
+    if (s0.symptr == nullptr) {
+      s0 = SymVal(std::make_shared<SmallBV>(8, 0));
+    }
+    SymVal s1 = memory[addr + 1].second;
+    if (s1.symptr == nullptr) {
+      s1 = SymVal(std::make_shared<SmallBV>(8, 0));
+    }
+    SymVal s2 = memory[addr + 2].second;
+    if (s2.symptr == nullptr) {
+      s2 = SymVal(std::make_shared<SmallBV>(8, 0));
+    }
+    SymVal s3 = memory[addr + 3].second;
+    if (s3.symptr == nullptr) {
+      s3 = SymVal(std::make_shared<SmallBV>(8, 0));
+    }
+    return s0.concat(s1).concat(s2).concat(s3);
+  }
+
+  // Store a 4-byte symbolic value to memory
+  std::monostate storeSym(int32_t base, int32_t offset, SymVal value) {
+    int32_t addr = base + offset;
+    // Extract 4 bytes from that symbol
+    SymVal s0 = value.extract(1, 1);
+    SymVal s1 = value.extract(2, 2);
+    SymVal s2 = value.extract(3, 3);
+    SymVal s3 = value.extract(4, 4);
+    memory[addr].second = s0;
+    memory[addr + 1].second = s1;
+    memory[addr + 2].second = s2;
+    memory[addr + 3].second = s3;
+    return std::monostate{};
+  }
+
+  std::monostate storeInt(int32_t base, int32_t offset, int32_t value) {
+    int32_t addr = base + offset;
+    // Ensure we don't write out of bounds
+    assert(addr + 3 < memory.size());
+    for (int i = 0; i < 4; ++i) {
+      memory[addr + i].first = static_cast<uint8_t>((value >> (8 * i)) & 0xFF);
+      // Optionally, update memory[addr + i].second (SymVal) if needed
+    }
+    return std::monostate{};
+  }
+
+  // grow memory by delta bytes when bytes > 0. return -1 if failed, return old
+  // size when success
+  int32_t grow(int32_t delta) {
+    if (delta <= 0) {
+      return memory.size();
+    }
+
+    try {
+      memory.resize(memory.size() + delta * pagesize);
+      auto old_page_count = page_count;
+      page_count += delta;
+      return memory.size();
+    } catch (const std::bad_alloc &e) {
+      return -1;
+    }
+  }
+};
+
+static Memory_t Memory(1); // 1 page memory
 
 #endif // WASM_SYMBOLIC_RT_HPP

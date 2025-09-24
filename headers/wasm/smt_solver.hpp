@@ -71,6 +71,9 @@ inline z3::expr Solver::build_z3_expr(const SymVal &sym_val) {
   } else if (auto concrete =
                  std::dynamic_pointer_cast<SymConcrete>(sym_val.symptr)) {
     return z3_ctx.bv_val(concrete->value.value, 32);
+  } else if (auto smallbv =
+                 std::dynamic_pointer_cast<SmallBV>(sym_val.symptr)) {
+    return z3_ctx.bv_val(smallbv->get_value(), smallbv->get_size());
   } else if (auto binary =
                  std::dynamic_pointer_cast<SymBinary>(sym_val.symptr)) {
     auto bit_width = 32;
@@ -119,7 +122,23 @@ inline z3::expr Solver::build_z3_expr(const SymVal &sym_val) {
     case DIV: {
       return left / right;
     }
+    case B_AND: {
+      return left & right;
     }
+    case CONCAT: {
+      return z3::concat(left, right);
+    }
+    default:
+      throw std::runtime_error("Operation not supported: " +
+                               std::to_string(binary->op));
+    }
+  } else if (auto extract = dynamic_cast<SymExtract *>(sym_val.symptr.get())) {
+    assert(extract);
+    int high = extract->high * 8 - 1;
+    int low = extract->low * 8 - 8;
+    auto s = build_z3_expr(extract->value);
+    auto res = s.extract(high, low);
+    return res;
   }
   throw std::runtime_error("Unsupported symbolic value type");
 }
