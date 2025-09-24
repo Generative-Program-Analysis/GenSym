@@ -51,13 +51,13 @@ public:
 
 class SmallBV : public Symbolic {
 public:
-  SmallBV(int size, uint64_t value) : size(size), value(value) {}
+  SmallBV(int size, int64_t value) : size(size), value(value) {}
   int get_size() const { return size; }
-  uint64_t get_value() const { return value; }
+  int64_t get_value() const { return value; }
 
 private:
   int size;
-  uint64_t value;
+  int64_t value;
 };
 
 struct SymBinary;
@@ -791,6 +791,17 @@ static SymEnv_t SymEnv;
 static Num eval_sym_expr(const SymVal &sym, SymEnv_t &sym_env) {
   if (auto concrete = dynamic_cast<SymConcrete *>(sym.symptr.get())) {
     return concrete->value;
+  } else if (auto extract = dynamic_cast<SymExtract *>(sym.symptr.get())) {
+    auto value = eval_sym_expr(extract->value, sym_env);
+    int high = extract->high;
+    int low = extract->low;
+    assert(high >= low && "Invalid extract range");
+    int size = high - low + 1; // size in bytes
+    int64_t mask = (1LL << (size * 8)) - 1;
+    int64_t extracted_value = (value.toInt() >> (low * 8)) & mask;
+    return Num(I64V(extracted_value));
+  } else if (auto smallbv = dynamic_cast<SmallBV *>(sym.symptr.get())) {
+    return Num(I64V(smallbv->get_value()));
   } else if (auto operation = dynamic_cast<SymBinary *>(sym.symptr.get())) {
     // If it's a operation, we need to evaluate it
     auto lhs = eval_sym_expr(operation->lhs, sym_env);
@@ -812,8 +823,18 @@ static Num eval_sym_expr(const SymVal &sym, SymEnv_t &sym_env) {
       return lhs > rhs;
     case GEQ:
       return lhs >= rhs;
+    case NEQ:
+      return lhs != rhs;
+    case EQ:
+      return lhs == rhs;
+    case B_AND:
+      return Num(I64V(lhs.value & rhs.value));
+    case CONCAT:
+      // we must know the size of lhs and rhs in bytes to support concat
+      throw std::runtime_error(
+          "Concatenation operation not supported in evaluation");
     default:
-      throw std::runtime_error("Operation not supported: " +
+      throw std::runtime_error("Operation not supported in evaluation: " +
                                std::to_string(operation->op));
     }
   } else if (auto symbol = dynamic_cast<Symbol *>(sym.symptr.get())) {
