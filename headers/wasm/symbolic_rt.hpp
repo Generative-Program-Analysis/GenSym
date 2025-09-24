@@ -927,7 +927,7 @@ struct Memory_t {
     if (s3.symptr == nullptr) {
       s3 = SymVal(std::make_shared<SmallBV>(8, 0));
     }
-    return s0.concat(s1).concat(s2).concat(s3);
+    return s3.concat(s2).concat(s1).concat(s0);
   }
 
   // Store a 4-byte symbolic value to memory

@@ -13,11 +13,22 @@
     i32.const 25
     i32.eq
     if (result i32)  ;; if x == 25
-      i32.const 1 ;; return 1
-    else
       i32.const 0 
       call 0 ;; assert false
       i32.const 1 ;; to satisfy the type checker, this line will never be reached
+    else
+      i32.const 1
+      i32.load
+      i32.const 1
+      i32.eq
+      if (result i32) ;; if x >> 8 == 1
+        i32.const 0
+        call 0 ;; assert false
+        i32.const 1 ;; to satisfy the type checker, this line will never be reached
+      else
+        i32.const 1
+      end
+      i32.const 1
     end
   )
   (func (;2;) (type 1)
