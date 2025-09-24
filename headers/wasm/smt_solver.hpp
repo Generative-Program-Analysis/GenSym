@@ -119,7 +119,17 @@ inline z3::expr Solver::build_z3_expr(const SymVal &sym_val) {
     case DIV: {
       return left / right;
     }
+    case CONCAT: {
+      return z3::concat(left, right);
     }
+    }
+  } else if (auto extract = dynamic_cast<SymExtract *>(sym_val.symptr.get())) {
+    assert(extract);
+    int high = extract->high * 8 - 1;
+    int low = extract->low * 8 - 8;
+    auto s = build_z3_expr(extract->value);
+    auto res = s.extract(high, low);
+    return res;
   }
   throw std::runtime_error("Unsupported symbolic value type");
 }

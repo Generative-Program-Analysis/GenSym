@@ -59,7 +59,7 @@ struct SymVal {
   // data structure operations
   SymVal makeSymbolic() const;
 
-  // arithmetic operations
+  // bitvector arithmetic operations
   SymVal is_zero() const;
   SymVal add(const SymVal &other) const;
   SymVal minus(const SymVal &other) const;
@@ -72,6 +72,8 @@ struct SymVal {
   SymVal gt(const SymVal &other) const;
   SymVal geq(const SymVal &other) const;
   SymVal negate() const;
+  SymVal concat(const SymVal &other) const;
+  SymVal extract(int high, int low) const;
   // TODO: add bitwise operations, and use the underlying bitvector theory
 
   bool is_concrete() const;
@@ -85,7 +87,31 @@ inline SymVal Concrete(Num num) {
   return SymVal(std::make_shared<SymConcrete>(num));
 }
 
-enum Operation { ADD, SUB, MUL, DIV, EQ, NEQ, LT, LEQ, GT, GEQ };
+enum Operation {
+  ADD,
+  SUB,
+  MUL,
+  DIV,
+  EQ,
+  NEQ,
+  LT,
+  LEQ,
+  GT,
+  GEQ,
+  CONCAT,
+};
+
+// Extract is different from other operations, it only has one symbolic operand,
+// the other two operands are constants
+// Extract from value, both high and low are inclusive byte indexes
+struct SymExtract : Symbolic {
+  SymVal value;
+  int high;
+  int low;
+
+  SymExtract(SymVal value, int high, int low)
+      : value(value), high(high), low(low) {}
+};
 
 struct SymBinary : Symbolic {
   Operation op;
@@ -136,6 +162,13 @@ inline SymVal SymVal::is_zero() const {
 }
 inline SymVal SymVal::negate() const {
   return SymVal(std::make_shared<SymBinary>(EQ, *this, Concrete(I32V(0))));
+}
+inline SymVal SymVal::concat(const SymVal &other) const {
+  return SymVal(std::make_shared<SymBinary>(CONCAT, *this, other));
+}
+inline SymVal SymVal::extract(int high, int low) const {
+  assert(high >= low && "Invalid extract range");
+  return SymVal(std::make_shared<SymExtract>(*this, high, low));
 }
 
 inline SymVal SymVal::makeSymbolic() const {
@@ -806,6 +839,7 @@ struct Memory_t {
   Memory_t(int32_t init_page_count) : memory(init_page_count * pagesize) {}
 
   int32_t loadInt(int32_t base, int32_t offset) {
+    // just load a 4-byte integer from memory of the vector
     int32_t addr = base + offset;
     assert(addr + 3 < memory.size());
     int32_t result = 0;
@@ -818,30 +852,31 @@ struct Memory_t {
 
   // TODO: when loading a symval, we need to concat 4 symbolic values
   // This sounds terribly bad for SMT...
+  // Load a 4-byte symbolic value from memory
   SymVal loadSym(int32_t base, int32_t offset) {
     int32_t addr = base + offset;
     assert(addr + 3 < memory.size());
-    SymVal result = Concrete(I32V(0));
-    for (int i = 0; i < 4; ++i) {
-      auto byte_sym = memory[addr + i].second;
-      // 1 << i === 2^i
-      auto shift_byte = byte_sym.mul(Concrete(I32V(1 << (8 * i))));
-      result = result.add(shift_byte);
-    }
-    return result;
+    SymVal s0 = memory[addr].second;
+    SymVal s1 = memory[addr + 1].second;
+    SymVal s2 = memory[addr + 2].second;
+    SymVal s3 = memory[addr + 3].second;
+    assert(!s0.symptr && !s1.symptr && !s2.symptr && !s3.symptr &&
+           "Loading symbolic value from uninitialized memory");
+    return s0.concat(s1).concat(s2).concat(s3);
   }
 
+  // Store a 4-byte symbolic value to memory
   std::monostate storeSym(int32_t base, int32_t offset, SymVal value) {
     int32_t addr = base + offset;
-    assert(addr + 3 < memory.size());
-    for (int i = 0; i < 4; ++i) {
-      // Extract the i-th byte from the symbolic value
-      auto shifted = value.div(Concrete(I32V(1 << (8 * i))));
-      auto byte_sym = shifted.minus(shifted.div(Concrete(I32V(256))).mul(
-          Concrete(I32V(256))));
-      memory[addr + i].second = byte_sym;
-      // Optionally, update memory[addr + i].first (concrete byte) if needed
-    }
+    // Extract 4 bytes from that symbol
+    SymVal s0 = value.extract(1, 1);
+    SymVal s1 = value.extract(2, 2);
+    SymVal s2 = value.extract(3, 3);
+    SymVal s3 = value.extract(4, 4);
+    memory[addr].second = s0;
+    memory[addr + 1].second = s1;
+    memory[addr + 2].second = s2;
+    memory[addr + 3].second = s3;
     return std::monostate{};
   }
 
