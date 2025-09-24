@@ -6,6 +6,7 @@
 #include "utils.hpp"
 #include <cassert>
 #include <cstddef>
+#include <cstdint>
 #include <cstdio>
 #include <fstream>
 #include <iterator>
@@ -48,7 +49,33 @@ public:
   SymConcrete(Num num) : value(num) {}
 };
 
+class SmallBV : public Symbolic {
+public:
+  SmallBV(int size, uint64_t value) : size(size), value(value) {}
+  int get_size() const { return size; }
+  uint64_t get_value() const { return value; }
+
+private:
+  int size;
+  uint64_t value;
+};
+
 struct SymBinary;
+
+enum Operation {
+  ADD,    // Addition
+  SUB,    // Subtraction
+  MUL,    // Multiplication
+  DIV,    // Division
+  EQ,     // Equal
+  NEQ,    // Not equal
+  LT,     // Less than
+  LEQ,    // Less than or equal
+  GT,     // Greater than
+  GEQ,    // Greater than or equal
+  B_AND,  // Bitwise AND
+  CONCAT, // Byte-level concatenation
+};
 
 struct SymVal {
   std::shared_ptr<Symbolic> symptr;
@@ -68,15 +95,19 @@ struct SymVal {
   SymVal eq(const SymVal &other) const;
   SymVal neq(const SymVal &other) const;
   SymVal lt(const SymVal &other) const;
-  SymVal leq(const SymVal &other) const;
+  SymVal le(const SymVal &other) const;
   SymVal gt(const SymVal &other) const;
-  SymVal geq(const SymVal &other) const;
+  SymVal ge(const SymVal &other) const;
   SymVal negate() const;
+  SymVal bitwise_and(const SymVal &other) const;
   SymVal concat(const SymVal &other) const;
   SymVal extract(int high, int low) const;
   // TODO: add bitwise operations, and use the underlying bitvector theory
 
   bool is_concrete() const;
+
+private:
+  static SymVal make_binary(Operation op, const SymVal &lhs, const SymVal &rhs);
 };
 
 static SymVal make_symbolic(int index) {
@@ -86,20 +117,6 @@ static SymVal make_symbolic(int index) {
 inline SymVal Concrete(Num num) {
   return SymVal(std::make_shared<SymConcrete>(num));
 }
-
-enum Operation {
-  ADD,
-  SUB,
-  MUL,
-  DIV,
-  EQ,
-  NEQ,
-  LT,
-  LEQ,
-  GT,
-  GEQ,
-  CONCAT,
-};
 
 // Extract is different from other operations, it only has one symbolic operand,
 // the other two operands are constants
@@ -123,54 +140,70 @@ struct SymBinary : Symbolic {
 };
 
 inline SymVal SymVal::add(const SymVal &other) const {
-  return SymVal(std::make_shared<SymBinary>(ADD, *this, other));
+  return make_binary(ADD, *this, other);
 }
 
 inline SymVal SymVal::minus(const SymVal &other) const {
-  return SymVal(std::make_shared<SymBinary>(SUB, *this, other));
+  return make_binary(SUB, *this, other);
 }
 
 inline SymVal SymVal::mul(const SymVal &other) const {
-  return SymVal(std::make_shared<SymBinary>(MUL, *this, other));
+  return make_binary(MUL, *this, other);
 }
 
 inline SymVal SymVal::div(const SymVal &other) const {
-  return SymVal(std::make_shared<SymBinary>(DIV, *this, other));
+  return make_binary(DIV, *this, other);
 }
 
 inline SymVal SymVal::eq(const SymVal &other) const {
-  return SymVal(std::make_shared<SymBinary>(EQ, *this, other));
+  return make_binary(EQ, *this, other);
 }
 
 inline SymVal SymVal::neq(const SymVal &other) const {
-  return SymVal(std::make_shared<SymBinary>(NEQ, *this, other));
+  return make_binary(NEQ, *this, other);
 }
+
 inline SymVal SymVal::lt(const SymVal &other) const {
-  return SymVal(std::make_shared<SymBinary>(LT, *this, other));
+  return make_binary(LT, *this, other);
 }
-inline SymVal SymVal::leq(const SymVal &other) const {
-  return SymVal(std::make_shared<SymBinary>(LEQ, *this, other));
+
+inline SymVal SymVal::le(const SymVal &other) const {
+  return make_binary(LEQ, *this, other);
 }
+
 inline SymVal SymVal::gt(const SymVal &other) const {
-  return SymVal(std::make_shared<SymBinary>(GT, *this, other));
+  return make_binary(GT, *this, other);
 }
-inline SymVal SymVal::geq(const SymVal &other) const {
-  return SymVal(std::make_shared<SymBinary>(GEQ, *this, other));
+
+inline SymVal SymVal::ge(const SymVal &other) const {
+  return make_binary(GEQ, *this, other);
 }
+
 inline SymVal SymVal::is_zero() const {
-  return SymVal(std::make_shared<SymBinary>(EQ, *this, Concrete(I32V(0))));
+  return make_binary(EQ, *this, Concrete(I32V(0)));
 }
+
 inline SymVal SymVal::negate() const {
-  return SymVal(std::make_shared<SymBinary>(EQ, *this, Concrete(I32V(0))));
+  return make_binary(EQ, *this, Concrete(I32V(0)));
 }
+
 inline SymVal SymVal::concat(const SymVal &other) const {
-  return SymVal(std::make_shared<SymBinary>(CONCAT, *this, other));
+  return make_binary(CONCAT, *this, other);
 }
+
 inline SymVal SymVal::extract(int high, int low) const {
   assert(high >= low && "Invalid extract range");
   return SymVal(std::make_shared<SymExtract>(*this, high, low));
 }
 
+inline SymVal SymVal::bitwise_and(const SymVal &other) const {
+  return make_binary(B_AND, *this, other);
+}
+inline SymVal SymVal::make_binary(Operation op, const SymVal &lhs,
+                                  const SymVal &rhs) {
+  assert(lhs.symptr != nullptr && rhs.symptr != nullptr);
+  return SymVal(std::make_shared<SymBinary>(op, lhs, rhs));
+}
 inline SymVal SymVal::makeSymbolic() const {
   auto concrete = dynamic_cast<SymConcrete *>(symptr.get());
   if (concrete) {
@@ -212,6 +245,7 @@ public:
   std::monostate shift(int32_t offset, int32_t size) {
     auto n = stack.size();
     for (size_t i = n - size; i < n; ++i) {
+      assert(i - offset >= 0);
       stack[i - offset] = stack[i];
     }
     stack.resize(n - offset);
@@ -857,11 +891,21 @@ struct Memory_t {
     int32_t addr = base + offset;
     assert(addr + 3 < memory.size());
     SymVal s0 = memory[addr].second;
+    if (s0.symptr == nullptr) {
+      s0 = SymVal(std::make_shared<SmallBV>(8, 0));
+    }
     SymVal s1 = memory[addr + 1].second;
+    if (s1.symptr == nullptr) {
+      s1 = SymVal(std::make_shared<SmallBV>(8, 0));
+    }
     SymVal s2 = memory[addr + 2].second;
+    if (s2.symptr == nullptr) {
+      s2 = SymVal(std::make_shared<SmallBV>(8, 0));
+    }
     SymVal s3 = memory[addr + 3].second;
-    assert(!s0.symptr && !s1.symptr && !s2.symptr && !s3.symptr &&
-           "Loading symbolic value from uninitialized memory");
+    if (s3.symptr == nullptr) {
+      s3 = SymVal(std::make_shared<SmallBV>(8, 0));
+    }
     return s0.concat(s1).concat(s2).concat(s3);
   }
 

@@ -245,7 +245,7 @@ trait StagedWasmEvaluator extends SAIOps {
         val retSym = "Concrete".reflectCtrlWith[SymVal](retNum)
         Stack.pushC(StagedConcreteNum(NumType(I32Type), retNum))
         Stack.pushS(StagedSymbolicNum(NumType(I32Type), retSym))
-        val newCtx2 = ctx.push(NumType(I32Type))
+        val newCtx2 = newCtx.push(NumType(I32Type))
         eval(rest, kont, mkont, trail)(newCtx2)
       case MemoryFill => ???
       case Unreachable => unreachable()
@@ -1474,11 +1474,15 @@ trait StagedWasmCppGen extends CGenBase with CppSAICodeGenBase {
       shallow(lhs); emit(".mul("); shallow(rhs); emit(")")
     case Node(_, "sym-binary-div", List(lhs, rhs), _) =>
       shallow(lhs); emit(".div("); shallow(rhs); emit(")")
+    case Node(_, "sym-binary-and", List(lhs, rhs), _) =>
+      shallow(lhs); emit(".bitwise_and("); shallow(rhs); emit(")")
     case Node(_, "sym-relation-le", List(lhs, rhs), _) =>
-      shallow(lhs); emit(".leq("); shallow(rhs); emit(")")
+      shallow(lhs); emit(".le("); shallow(rhs); emit(")")
     case Node(_, "sym-relation-leu", List(lhs, rhs), _) =>
       shallow(lhs); emit(".leu("); shallow(rhs); emit(")")
-    case Node(_, "sym-relation-ge", List(lhs, rhs), _) => 
+    case Node(_, "sym-relation-lt", List(lhs, rhs), _) =>
+      shallow(lhs); emit(".lt("); shallow(rhs); emit(")")
+    case Node(_, "sym-relation-ge", List(lhs, rhs), _) =>
       shallow(lhs); emit(".ge("); shallow(rhs); emit(")")
     case Node(_, "sym-relation-geu", List(lhs, rhs), _) =>
       shallow(lhs); emit(".geu("); shallow(rhs); emit(")")
@@ -1486,6 +1490,8 @@ trait StagedWasmCppGen extends CGenBase with CppSAICodeGenBase {
       shallow(lhs); emit(".eq("); shallow(rhs); emit(")")
     case Node(_, "sym-relation-ne", List(lhs, rhs), _) =>
       shallow(lhs); emit(".neq("); shallow(rhs); emit(")")
+    case Node(_, "sym-relation-gt", List(lhs, rhs), _) =>
+      shallow(lhs); emit(".gt("); shallow(rhs); emit(")")
     case Node(_, "num-to-int", List(num), _) =>
       shallow(num); emit(".toInt()")
     case Node(_, "make-symbolic", List(num), _) =>

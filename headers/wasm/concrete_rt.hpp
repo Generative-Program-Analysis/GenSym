@@ -74,6 +74,7 @@ public:
   Num pop() {
 #ifdef DEBUG
     assert(count > 0 && "Stack underflow");
+    printf("[Debug] poping from stack, size of concrete stack is: %d\n", count);
 #endif
     Num num = stack_ptr[count - 1];
     count--;
@@ -99,9 +100,13 @@ public:
     if (size < 0) {
       throw std::out_of_range("Invalid size: " + std::to_string(size));
     }
+    std::cout << "Shifting stack by offset " << offset << " and size " << size
+              << std::endl;
+    std::cout << "Current stack size: " << count << std::endl;
 #endif
     // shift last `size` of numbers forward of `offset`
     for (int32_t i = count - size; i < count; ++i) {
+      assert(i - offset >= 0);
       stack_ptr[i - offset] = stack_ptr[i];
     }
     count -= offset;
@@ -194,6 +199,5 @@ static std::monostate unreachable() {
 
 static int32_t pagesize = 65536;
 static int32_t page_count = 0;
-
 
 #endif // WASM_CONCRETE_RT_HPP
