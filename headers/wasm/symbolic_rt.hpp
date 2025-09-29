@@ -56,7 +56,7 @@ public:
   int64_t get_value() const { return value; }
 
 private:
-  int size;
+  int size; // in bits
   int64_t value;
 };
 
@@ -77,10 +77,13 @@ enum Operation {
   CONCAT, // Byte-level concatenation
 };
 
+static std::shared_ptr<SymConcrete> ZERO =
+    std::make_shared<SymConcrete>(I32V(0));
+
 struct SymVal {
   std::shared_ptr<Symbolic> symptr;
 
-  SymVal() : symptr(nullptr) {}
+  SymVal() : symptr(ZERO) {}
   SymVal(std::shared_ptr<Symbolic> symptr) : symptr(symptr) {}
 
   // data structure operations
@@ -283,12 +286,13 @@ public:
 
   SymVal get(int index) {
     // Get the symbolic value at the given frame index
-    return stack[stack.size() - 1 - index];
+    auto res = stack[stack.size() - 1 - index];
+    return res;
   }
 
   void set(int index, SymVal val) {
     // Set the symbolic value at the given index
-    // Not implemented yet
+    assert(val.symptr != nullptr);
     stack[stack.size() - 1 - index] = val;
   }
 
@@ -786,61 +790,72 @@ private:
 
 static SymEnv_t SymEnv;
 
+struct EvalRes {
+  Num value;
+  int width; // in bits
+  EvalRes(Num value, int width) : value(value), width(width) {}
+};
+
 // TODO: reduce the re-computation of the same symbolic expression, it's better
 // if it can be done by the smt solver
-static Num eval_sym_expr(const SymVal &sym, SymEnv_t &sym_env) {
+static EvalRes eval_sym_expr(const SymVal &sym, SymEnv_t &sym_env) {
+  assert(sym.symptr != nullptr && "Symbolic expression is null");
   if (auto concrete = dynamic_cast<SymConcrete *>(sym.symptr.get())) {
-    return concrete->value;
+    return EvalRes(concrete->value, 32);
   } else if (auto extract = dynamic_cast<SymExtract *>(sym.symptr.get())) {
-    auto value = eval_sym_expr(extract->value, sym_env);
+    auto res = eval_sym_expr(extract->value, sym_env);
     int high = extract->high;
     int low = extract->low;
     assert(high >= low && "Invalid extract range");
     int size = high - low + 1; // size in bytes
     int64_t mask = (1LL << (size * 8)) - 1;
-    int64_t extracted_value = (value.toInt() >> (low * 8)) & mask;
-    return Num(I64V(extracted_value));
+    int64_t extracted_value = (res.value.toInt() >> (low * 8)) & mask;
+    return EvalRes(Num(I64V(extracted_value)), size * 8);
   } else if (auto smallbv = dynamic_cast<SmallBV *>(sym.symptr.get())) {
-    return Num(I64V(smallbv->get_value()));
+    return EvalRes(Num(I64V(smallbv->get_value())), smallbv->get_size());
   } else if (auto operation = dynamic_cast<SymBinary *>(sym.symptr.get())) {
     // If it's a operation, we need to evaluate it
-    auto lhs = eval_sym_expr(operation->lhs, sym_env);
-    auto rhs = eval_sym_expr(operation->rhs, sym_env);
+    auto lhs_res = eval_sym_expr(operation->lhs, sym_env);
+    auto rhs_res = eval_sym_expr(operation->rhs, sym_env);
+    auto lhs = lhs_res.value;
+    auto rhs = rhs_res.value;
     switch (operation->op) {
     case ADD:
-      return lhs + rhs;
+      return EvalRes(lhs + rhs, 32);
     case SUB:
-      return lhs - rhs;
+      return EvalRes(lhs - rhs, 32);
     case MUL:
-      return lhs * rhs;
+      return EvalRes(lhs * rhs, 32);
     case DIV:
-      return lhs / rhs;
+      return EvalRes(lhs / rhs, 32);
     case LT:
-      return lhs < rhs;
+      return EvalRes(lhs < rhs, 32);
     case LEQ:
-      return lhs <= rhs;
+      return EvalRes(lhs <= rhs, 32);
     case GT:
-      return lhs > rhs;
+      return EvalRes(lhs > rhs, 32);
     case GEQ:
-      return lhs >= rhs;
+      return EvalRes(lhs >= rhs, 32);
     case NEQ:
-      return lhs != rhs;
+      return EvalRes(lhs != rhs, 32);
     case EQ:
-      return lhs == rhs;
+      return EvalRes(lhs == rhs, 32);
     case B_AND:
-      return Num(I64V(lhs.value & rhs.value));
-    case CONCAT:
-      // we must know the size of lhs and rhs in bytes to support concat
-      throw std::runtime_error(
-          "Concatenation operation not supported in evaluation");
+      return EvalRes(Num(I64V(lhs.value & rhs.value)), 32);
+    case CONCAT: {
+      auto lhs_width = lhs_res.width;
+      auto rhs_width = rhs_res.width;
+      auto conc_value = (lhs.value << rhs_width) | (rhs.value);
+      auto new_width = lhs_width + rhs_width;
+      return EvalRes(Num(I64V(conc_value)), new_width);
+    }
     default:
-      throw std::runtime_error("Operation not supported in evaluation: " +
-                               std::to_string(operation->op));
+      assert(false && "Operation not supported in evaluation");
     }
   } else if (auto symbol = dynamic_cast<Symbol *>(sym.symptr.get())) {
     auto sym_id = symbol->get_id();
     GENSYM_INFO("Reading symbol: " + std::to_string(sym_id));
-    return sym_env.read(sym);
+    return EvalRes(sym_env.read(sym), 32);
   }
   throw std::runtime_error("Not supported symbolic expression");
 }
@@ -850,7 +865,8 @@ static void resume_conc_stack(const SymStack_t &sym_stack, Stack_t &stack,
   stack.resize(sym_stack.size());
   for (size_t i = 0; i < sym_stack.size(); ++i) {
     auto sym = sym_stack[i];
-    auto conc = eval_sym_expr(sym, sym_env);
+    auto res = eval_sym_expr(sym, sym_env);
+    auto conc = res.value;
     stack.set_from_front(i, conc);
   }
 }
@@ -860,7 +876,9 @@ static void resume_conc_frames(const SymFrames_t &sym_frame, Frames_t &frames,
   frames.resize(sym_frame.size());
   for (size_t i = 0; i < sym_frame.size(); ++i) {
     auto sym = sym_frame[i];
-    auto conc = eval_sym_expr(sym, sym_env);
+    assert(sym.symptr != nullptr);
+    auto res = eval_sym_expr(sym, sym_env);
+    auto conc = res.value;
     frames.set_from_front(i, conc);
   }
 }
@@ -896,7 +914,9 @@ struct Memory_t {
   int32_t loadInt(int32_t base, int32_t offset) {
     // just load a 4-byte integer from memory of the vector
     int32_t addr = base + offset;
-    assert(addr + 3 < memory.size());
+    if (!(addr + 3 < memory.size())) {
+      throw std::runtime_error("Invalid memory access" + std::to_string(addr));
+    }
     int32_t result = 0;
     // Little-endian: lowest byte at lowest address
     for (int i = 0; i < 4; ++i) {
@@ -910,22 +930,28 @@ struct Memory_t {
   // Load a 4-byte symbolic value from memory
   SymVal loadSym(int32_t base, int32_t offset) {
     int32_t addr = base + offset;
-    assert(addr + 3 < memory.size());
+    if (!(addr + 3 < memory.size())) {
+      throw std::runtime_error("Invalid memory access" + std::to_string(addr));
+    }
     SymVal s0 = memory[addr].second;
     if (s0.symptr == nullptr) {
       s0 = SymVal(std::make_shared<SmallBV>(8, 0));
+      memory[addr].second = s0;
     }
     SymVal s1 = memory[addr + 1].second;
     if (s1.symptr == nullptr) {
       s1 = SymVal(std::make_shared<SmallBV>(8, 0));
+      memory[addr + 1].second = s1;
     }
     SymVal s2 = memory[addr + 2].second;
     if (s2.symptr == nullptr) {
       s2 = SymVal(std::make_shared<SmallBV>(8, 0));
+      memory[addr + 2].second = s2;
     }
     SymVal s3 = memory[addr + 3].second;
     if (s3.symptr == nullptr) {
       s3 = SymVal(std::make_shared<SmallBV>(8, 0));
+      memory[addr + 3].second = s3;
     }
     return s3.concat(s2).concat(s1).concat(s0);
   }

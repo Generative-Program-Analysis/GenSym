@@ -8,6 +8,7 @@
 #include <functional>
 #include <optional>
 #include <ostream>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -83,7 +84,8 @@ inline void ConcolicDriver::run() {
 
       GENSYM_INFO("Execution finished successfully with symbolic environment:");
       GENSYM_INFO(SymEnv.to_string());
-    } catch (...) {
+    } catch (std::runtime_error &e) {
+      std::cout << "Caught runtime error: " << e.what() << std::endl;
       ExploreTree.fillFailedNode();
       GENSYM_INFO("Caught runtime error with symbolic environment:");
       GENSYM_INFO(SymEnv.to_string());

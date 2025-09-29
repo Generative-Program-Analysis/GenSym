@@ -73,7 +73,7 @@ class TestStagedConcolicEval extends FunSuite {
   test("mem-sym-extract-concolic") {
     testFileConcolicCpp("./benchmarks/wasm/mem-sym-extract.wat", None, exitByCoverage=true)
   }
-  test("btree-bug-finding-concolic") { testFileConcolicCpp("./benchmarks/wasm/btree/2o1u-unlabeled.wat") }
+  test("btree-bug-finding-concolic") { testFileConcolicCpp("./benchmarks/wasm/btree/2o1u-unlabeled.wat", exitByCoverage = true) }
 
 
   test("return-poly - concrete") {

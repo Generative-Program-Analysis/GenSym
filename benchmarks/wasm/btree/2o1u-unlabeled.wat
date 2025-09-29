@@ -2626,9 +2626,12 @@
     i32.and
     drop)
   (func (;7;) (type 4)
-    i32.const 3
     i32.const 2
+    i32.symbolic
     i32.const 1
+    i32.symbolic
+    i32.const 0
+    i32.symbolic
     call 6)
   (memory (;0;) 2)
   (export "main" (func 7))
