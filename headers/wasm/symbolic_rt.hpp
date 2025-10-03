@@ -4,6 +4,7 @@
 #include "concrete_rt.hpp"
 #include "controls.hpp"
 #include "utils.hpp"
+#include "wasm/profile.hpp"
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
@@ -645,6 +646,14 @@ public:
     cursor = root.get();
   }
 
+  void clear() {
+    GENSYM_INFO("Clearing the explore tree");
+    root = std::make_unique<NodeBox>(nullptr);
+    cursor = root.get();
+    true_branch_cov_map.clear();
+    false_branch_cov_map.clear();
+  }
+
   void set_cursor(NodeBox *new_cursor) {
     GENSYM_INFO("Setting cursor to a new node");
     cursor = new_cursor;
@@ -660,6 +669,7 @@ public:
   }
 
   std::monostate moveCursor(bool branch, Snapshot_t snapshot) {
+    Profile.step(ProfileKind::CURSOR_MOVE);
     assert(cursor != nullptr);
     auto if_else_node = dynamic_cast<IfElseNode *>(cursor->node.get());
     assert(
@@ -905,17 +915,30 @@ inline std::monostate Snapshot_t::resume_execution(SymEnv_t &sym_env,
   return cont(mcont);
 }
 
+
+static const int PRE_ALLOC_PAGES = 20;
+
 struct Memory_t {
   // TODO: We assign a SymVal to each byte in memory
   std::vector<std::pair<uint8_t, SymVal>> memory;
+  int page_count;
+  int allocated_pages;
 
-  Memory_t(int32_t init_page_count) : memory(init_page_count * pagesize) {}
+  Memory_t(int32_t init_page_count)
+      : memory(PRE_ALLOC_PAGES * pagesize), page_count(init_page_count),
+        allocated_pages(PRE_ALLOC_PAGES) {
+    // warm up the memory with zero bytes
+    for (auto &byte : memory) {
+      byte.first = 0;
+      byte.second = SymVal();
+    }
+  }
 
   int32_t loadInt(int32_t base, int32_t offset) {
     // just load a 4-byte integer from memory of the vector
     int32_t addr = base + offset;
     if (!(addr + 3 < memory.size())) {
-      throw std::runtime_error("Invalid memory access" + std::to_string(addr));
+      throw std::runtime_error("Invalid memory access " + std::to_string(addr));
     }
     int32_t result = 0;
     // Little-endian: lowest byte at lowest address
@@ -931,7 +954,7 @@ struct Memory_t {
   SymVal loadSym(int32_t base, int32_t offset) {
     int32_t addr = base + offset;
     if (!(addr + 3 < memory.size())) {
-      throw std::runtime_error("Invalid memory access" + std::to_string(addr));
+      throw std::runtime_error("Invalid memory access " + std::to_string(addr));
     }
     SymVal s0 = memory[addr].second;
     if (s0.symptr == nullptr) {
@@ -985,11 +1008,18 @@ struct Memory_t {
   // grow memory by delta bytes when bytes > 0. return -1 if failed, return old
   // size when success
   int32_t grow(int32_t delta) {
+    Profile.step(ProfileKind::MEM_GROW);
     if (delta <= 0) {
-      return memory.size();
+      return page_count * pagesize;
+    }
+
+    if (page_count + delta < allocated_pages) {
+      page_count += delta;
+      return page_count * pagesize;
     }
 
     try {
+      assert(false && "Use pre-allocated memory, should not reach here");
       memory.resize(memory.size() + delta * pagesize);
       auto old_page_count = page_count;
       page_count += delta;
