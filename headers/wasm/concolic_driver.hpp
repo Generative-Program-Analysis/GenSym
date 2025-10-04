@@ -5,6 +5,9 @@
 #include "smt_solver.hpp"
 #include "symbolic_rt.hpp"
 #include "utils.hpp"
+#include "wasm/profile.hpp"
+#include <cassert>
+#include <chrono>
 #include <functional>
 #include <optional>
 #include <ostream>
@@ -35,6 +38,7 @@ public:
   void run();
 
 private:
+  void main_exploration_loop();
   Solver solver;
   std::function<void()> entrypoint;
   std::optional<std::string> tree_file;
@@ -46,13 +50,20 @@ class ManagedConcolicCleanup {
 public:
   ManagedConcolicCleanup(const ConcolicDriver &driver) : driver(driver) {}
   ~ManagedConcolicCleanup() {
+    // put any cleanup code that needs to be done after each execution here
+
+    // Dump the explore tree if needed
     if (driver.tree_file.has_value())
       ExploreTree.dump_graphviz(driver.tree_file.value());
+
+    // Clear the symbol bookkeeper
+    SymBookKeeper.clear();
   }
 };
 
-inline void ConcolicDriver::run() {
-  ExploreTree.reset_cursor();
+static std::monostate reset_stacks();
+
+inline void ConcolicDriver::main_exploration_loop() {
   while (true) {
     ManagedConcolicCleanup cleanup{*this};
 
@@ -79,6 +90,8 @@ inline void ConcolicDriver::run() {
               dynamic_cast<SnapshotNode *>(unexplored->node.get())) {
         snapshot_node->get_snapshot().resume_execution(SymEnv, unexplored);
       } else {
+        auto timer = ManagedTimer();
+        reset_stacks();
         entrypoint();
       }
 
@@ -97,7 +110,8 @@ inline void ConcolicDriver::run() {
           GENSYM_INFO("All branches covered, exiting...");
           return;
         } else {
-          GENSYM_INFO("Found a bug, but not all branches covered, continuing...");
+          GENSYM_INFO(
+              "Found a bug, but not all branches covered, continuing...");
         }
       }
     }
@@ -107,13 +121,19 @@ inline void ConcolicDriver::run() {
   }
 }
 
+inline void ConcolicDriver::run() {
+  ExploreTree.reset_cursor();
+  main_exploration_loop();
+  Profile.print_summary();
+}
+
 static std::monostate reset_stacks() {
   Stack.reset();
   Frames.reset();
   SymStack.reset();
   SymFrames.reset();
   initRand();
-  Memory = Memory_t(1);
+  Memory.reset();
   return std::monostate{};
 }
 

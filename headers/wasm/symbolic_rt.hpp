@@ -3,8 +3,9 @@
 
 #include "concrete_rt.hpp"
 #include "controls.hpp"
+#include "heap_mem_bookkeeper.hpp"
+#include "profile.hpp"
 #include "utils.hpp"
-#include "wasm/profile.hpp"
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
@@ -16,6 +17,7 @@
 #include <ostream>
 #include <set>
 #include <string>
+#include <unordered_map>
 #include <variant>
 #include <vector>
 
@@ -60,7 +62,6 @@ private:
   int size; // in bits
   int64_t value;
 };
-
 struct SymBinary;
 
 enum Operation {
@@ -77,9 +78,12 @@ enum Operation {
   B_AND,  // Bitwise AND
   CONCAT, // Byte-level concatenation
 };
+static MemBookKeeper<Symbolic> SymBookKeeper;
 
 static std::shared_ptr<SymConcrete> ZERO =
-    std::make_shared<SymConcrete>(I32V(0));
+    SymBookKeeper.allocate<SymConcrete>(I32V(0));
+static std::shared_ptr<SmallBV> ZeroByte =
+    SymBookKeeper.allocate<SmallBV>(8, 0);
 
 struct SymVal {
   std::shared_ptr<Symbolic> symptr;
@@ -115,11 +119,11 @@ private:
 };
 
 static SymVal make_symbolic(int index) {
-  return SymVal(std::make_shared<Symbol>(index));
+  return SymVal(SymBookKeeper.allocate<Symbol>(index));
 }
 
 inline SymVal Concrete(Num num) {
-  return SymVal(std::make_shared<SymConcrete>(num));
+  return SymVal(SymBookKeeper.allocate<SymConcrete>(num));
 }
 
 // Extract is different from other operations, it only has one symbolic operand,
@@ -197,7 +201,7 @@ inline SymVal SymVal::concat(const SymVal &other) const {
 
 inline SymVal SymVal::extract(int high, int low) const {
   assert(high >= low && "Invalid extract range");
-  return SymVal(std::make_shared<SymExtract>(*this, high, low));
+  return SymVal(SymBookKeeper.allocate<SymExtract>(*this, high, low));
 }
 
 inline SymVal SymVal::bitwise_and(const SymVal &other) const {
@@ -206,13 +210,13 @@ inline SymVal SymVal::bitwise_and(const SymVal &other) const {
 inline SymVal SymVal::make_binary(Operation op, const SymVal &lhs,
                                   const SymVal &rhs) {
   assert(lhs.symptr != nullptr && rhs.symptr != nullptr);
-  return SymVal(std::make_shared<SymBinary>(op, lhs, rhs));
+  return SymVal(SymBookKeeper.allocate<SymBinary>(op, lhs, rhs));
 }
 inline SymVal SymVal::makeSymbolic() const {
   auto concrete = dynamic_cast<SymConcrete *>(symptr.get());
   if (concrete) {
     // If the symbolic value is a concrete value, use it to create a symbol
-    return SymVal(std::make_shared<Symbol>(concrete->value.toInt()));
+    return SymVal(SymBookKeeper.allocate<Symbol>(concrete->value.toInt()));
   } else {
     throw std::runtime_error(
         "Cannot make symbolic a non-concrete symbolic value");
@@ -315,6 +319,55 @@ private:
 struct NodeBox;
 struct SymEnv_t;
 
+class SymMemory_t {
+public:
+  std::unordered_map<int, SymVal> memory;
+
+  SymVal loadSymByte(int32_t addr) {
+    // if the address is not in the memory, it must be a zero-initialized memory
+    auto it = memory.find(addr);
+    SymVal s = (it != memory.end())
+                   ? it->second
+                   : SymVal(SymBookKeeper.allocate<SmallBV>(8, 0));
+    return s;
+  }
+
+  SymVal loadSym(int32_t base, int32_t offset) {
+    // calculate the real address
+    int32_t addr = base + offset;
+    auto it = memory.find(addr);
+    SymVal s0 = (it != memory.end()) ? it->second : SymVal(ZeroByte);
+    it = memory.find(addr + 1);
+    SymVal s1 = (it != memory.end()) ? it->second : SymVal(ZeroByte);
+    it = memory.find(addr + 2);
+    SymVal s2 = (it != memory.end()) ? it->second : SymVal(ZeroByte);
+    it = memory.find(addr + 3);
+    SymVal s3 = (it != memory.end()) ? it->second : SymVal(ZeroByte);
+
+    return s3.concat(s2).concat(s1).concat(s0);
+  }
+
+  // when loading a symval, we need to concat 4 symbolic values
+  // This sounds terribly bad for SMT...
+  // Load a 4-byte symbolic value from memory
+  // Store a 4-byte symbolic value to memory
+  std::monostate storeSym(int32_t base, int32_t offset, SymVal value) {
+    int32_t addr = base + offset;
+    // Extract 4 bytes from that symbol
+    SymVal s0 = value.extract(1, 1);
+    SymVal s1 = value.extract(2, 2);
+    SymVal s2 = value.extract(3, 3);
+    SymVal s3 = value.extract(4, 4);
+    memory[addr] = s0;
+    memory[addr + 1] = s1;
+    memory[addr + 2] = s2;
+    memory[addr + 3] = s3;
+    return std::monostate{};
+  }
+};
+
+static SymMemory_t SymMemory;
+
 // A snapshot of the symbolic state and execution context (control)
 class Snapshot_t {
 public:
@@ -322,12 +375,14 @@ public:
 
   SymStack_t get_stack() const { return stack; }
   SymFrames_t get_frames() const { return frames; }
+  SymMemory_t get_memory() const { return memory; }
 
   std::monostate resume_execution(SymEnv_t &sym_env, NodeBox *node) const;
 
 private:
   SymStack_t stack;
   SymFrames_t frames;
+  SymMemory_t memory;
   // The continuation at the snapshot point
   Cont_t cont;
   MCont_t mcont;
@@ -629,7 +684,9 @@ inline std::vector<SymVal> NodeBox::collect_path_conds() {
 }
 
 inline Snapshot_t::Snapshot_t(Cont_t cont, MCont_t mcont)
-    : stack(SymStack), frames(SymFrames), cont(cont), mcont(mcont) {
+    : stack(SymStack), frames(SymFrames), memory(SymMemory), cont(cont),
+      mcont(mcont) {
+  Profile.step(ProfileKind::SNAPSHOT_CREATE);
 #ifdef DEBUG
   std::cout << "Creating snapshot of size " << stack.size() << std::endl;
 #endif
@@ -893,11 +950,28 @@ static void resume_conc_frames(const SymFrames_t &sym_frame, Frames_t &frames,
   }
 }
 
+static void resume_conc_memory(const SymMemory_t &sym_memory, Memory_t &memory,
+                               SymEnv_t &sym_env) {
+  memory.reset();
+  for (const auto &pair : sym_memory.memory) {
+    int32_t addr = pair.first;
+    SymVal sym = pair.second;
+    assert(sym.symptr != nullptr);
+    auto res = eval_sym_expr(sym, sym_env);
+    auto conc = res.value;
+    assert(res.width == 8 && "Memory should only store bytes");
+    memory.store_byte(addr, conc.value & 0xFF);
+  }
+}
+
 static void resume_conc_states(const SymStack_t &sym_stack,
-                               const SymFrames_t &sym_frame, Stack_t &stack,
-                               Frames_t &frames, SymEnv_t &sym_env) {
+                               const SymFrames_t &sym_frame,
+                               const SymMemory_t &sym_memory, Stack_t &stack,
+                               Frames_t &frames, Memory_t &memory,
+                               SymEnv_t &sym_env) {
   resume_conc_stack(sym_stack, stack, sym_env);
   resume_conc_frames(sym_frame, frames, sym_env);
+  resume_conc_memory(sym_memory, memory, sym_env);
 }
 
 inline std::monostate Snapshot_t::resume_execution(SymEnv_t &sym_env,
@@ -909,127 +983,11 @@ inline std::monostate Snapshot_t::resume_execution(SymEnv_t &sym_env,
   GENSYM_INFO("Reusing symbolic state from snapshot");
   SymStack = stack;
   SymFrames = frames;
+  SymMemory = memory;
   // Restore the concrete states from the symbolic states
-  resume_conc_states(stack, frames, Stack, Frames, sym_env);
+  resume_conc_states(stack, frames, memory, Stack, Frames, Memory, sym_env);
   // Resume execution from the continuation
   return cont(mcont);
 }
-
-
-static const int PRE_ALLOC_PAGES = 20;
-
-struct Memory_t {
-  // TODO: We assign a SymVal to each byte in memory
-  std::vector<std::pair<uint8_t, SymVal>> memory;
-  int page_count;
-  int allocated_pages;
-
-  Memory_t(int32_t init_page_count)
-      : memory(PRE_ALLOC_PAGES * pagesize), page_count(init_page_count),
-        allocated_pages(PRE_ALLOC_PAGES) {
-    // warm up the memory with zero bytes
-    for (auto &byte : memory) {
-      byte.first = 0;
-      byte.second = SymVal();
-    }
-  }
-
-  int32_t loadInt(int32_t base, int32_t offset) {
-    // just load a 4-byte integer from memory of the vector
-    int32_t addr = base + offset;
-    if (!(addr + 3 < memory.size())) {
-      throw std::runtime_error("Invalid memory access " + std::to_string(addr));
-    }
-    int32_t result = 0;
-    // Little-endian: lowest byte at lowest address
-    for (int i = 0; i < 4; ++i) {
-      result |= static_cast<int32_t>(memory[addr + i].first) << (8 * i);
-    }
-    return result;
-  }
-
-  // TODO: when loading a symval, we need to concat 4 symbolic values
-  // This sounds terribly bad for SMT...
-  // Load a 4-byte symbolic value from memory
-  SymVal loadSym(int32_t base, int32_t offset) {
-    int32_t addr = base + offset;
-    if (!(addr + 3 < memory.size())) {
-      throw std::runtime_error("Invalid memory access " + std::to_string(addr));
-    }
-    SymVal s0 = memory[addr].second;
-    if (s0.symptr == nullptr) {
-      s0 = SymVal(std::make_shared<SmallBV>(8, 0));
-      memory[addr].second = s0;
-    }
-    SymVal s1 = memory[addr + 1].second;
-    if (s1.symptr == nullptr) {
-      s1 = SymVal(std::make_shared<SmallBV>(8, 0));
-      memory[addr + 1].second = s1;
-    }
-    SymVal s2 = memory[addr + 2].second;
-    if (s2.symptr == nullptr) {
-      s2 = SymVal(std::make_shared<SmallBV>(8, 0));
-      memory[addr + 2].second = s2;
-    }
-    SymVal s3 = memory[addr + 3].second;
-    if (s3.symptr == nullptr) {
-      s3 = SymVal(std::make_shared<SmallBV>(8, 0));
-      memory[addr + 3].second = s3;
-    }
-    return s3.concat(s2).concat(s1).concat(s0);
-  }
-
-  // Store a 4-byte symbolic value to memory
-  std::monostate storeSym(int32_t base, int32_t offset, SymVal value) {
-    int32_t addr = base + offset;
-    // Extract 4 bytes from that symbol
-    SymVal s0 = value.extract(1, 1);
-    SymVal s1 = value.extract(2, 2);
-    SymVal s2 = value.extract(3, 3);
-    SymVal s3 = value.extract(4, 4);
-    memory[addr].second = s0;
-    memory[addr + 1].second = s1;
-    memory[addr + 2].second = s2;
-    memory[addr + 3].second = s3;
-    return std::monostate{};
-  }
-
-  std::monostate storeInt(int32_t base, int32_t offset, int32_t value) {
-    int32_t addr = base + offset;
-    // Ensure we don't write out of bounds
-    assert(addr + 3 < memory.size());
-    for (int i = 0; i < 4; ++i) {
-      memory[addr + i].first = static_cast<uint8_t>((value >> (8 * i)) & 0xFF);
-      // Optionally, update memory[addr + i].second (SymVal) if needed
-    }
-    return std::monostate{};
-  }
-
-  // grow memory by delta bytes when bytes > 0. return -1 if failed, return old
-  // size when success
-  int32_t grow(int32_t delta) {
-    Profile.step(ProfileKind::MEM_GROW);
-    if (delta <= 0) {
-      return page_count * pagesize;
-    }
-
-    if (page_count + delta < allocated_pages) {
-      page_count += delta;
-      return page_count * pagesize;
-    }
-
-    try {
-      assert(false && "Use pre-allocated memory, should not reach here");
-      memory.resize(memory.size() + delta * pagesize);
-      auto old_page_count = page_count;
-      page_count += delta;
-      return memory.size();
-    } catch (const std::bad_alloc &e) {
-      return -1;
-    }
-  }
-};
-
-static Memory_t Memory(1); // 1 page memory
 
 #endif // WASM_SYMBOLIC_RT_HPP

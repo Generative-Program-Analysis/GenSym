@@ -1,5 +1,7 @@
 #ifndef UTILS_HPP
 #define UTILS_HPP
+#include <iostream>
+#include <variant>
 
 #ifndef GENSYM_ASSERT
 #define GENSYM_ASSERT(condition)                                               \
@@ -39,15 +41,34 @@
 #if __cplusplus < 202002L
 #include <string>
 
-inline bool starts_with(const std::string& str, const std::string& prefix) {
+inline bool starts_with(const std::string &str, const std::string &prefix) {
   return str.size() >= prefix.size() &&
-       std::equal(prefix.begin(), prefix.end(), str.begin());
+         std::equal(prefix.begin(), prefix.end(), str.begin());
 }
 #else
 #include <string>
-inline bool starts_with(const std::string& str, const std::string& prefix) {
+inline bool starts_with(const std::string &str, const std::string &prefix) {
   return str.starts_with(prefix);
 }
 #endif
+
+inline std::monostate info() {
+#ifdef DEBUG
+  std::cout << std::endl;
+#endif
+  return std::monostate{};
+}
+
+template <typename T, typename... Args>
+std::monostate info(const T &first, const Args &...args) {
+#ifdef DEBUG
+  std::cout << first << " ";
+  info(args...);
+#endif
+  return std::monostate{};
+}
+
+inline std::monostate get_unit() { return std::monostate{}; }
+inline std::monostate get_unit(std::monostate x) { return std::monostate{}; }
 
 #endif // UTILS_HPP

@@ -1,6 +1,7 @@
 #ifndef WASM_CONCRETE_RT_HPP
 #define WASM_CONCRETE_RT_HPP
 
+#include "wasm/profile.hpp"
 #include "wasm/utils.hpp"
 #include <cassert>
 #include <cstdint>
@@ -8,24 +9,9 @@
 #include <iostream>
 #include <memory>
 #include <ostream>
+#include <unistd.h>
 #include <variant>
 #include <vector>
-
-inline std::monostate info() {
-#ifdef DEBUG
-  std::cout << std::endl;
-#endif
-  return std::monostate{};
-}
-
-template <typename T, typename... Args>
-std::monostate info(const T &first, const Args &...args) {
-#ifdef DEBUG
-  std::cout << first << " ";
-  info(args...);
-#endif
-  return std::monostate{};
-}
 
 struct Num {
   Num(int64_t value) : value(value) {}
@@ -59,24 +45,34 @@ const int STACK_SIZE = 1024 * 64;
 
 class Stack_t {
 public:
-  Stack_t() : count(0), stack_ptr(new Num[STACK_SIZE]) {}
+  Stack_t() : count(0), stack_ptr(new Num[STACK_SIZE]) {
+    size_t page_size = (size_t)sysconf(_SC_PAGESIZE);
+    // pre touch the memory to avoid page faults during execution
+    for (int i = 0; i < STACK_SIZE; i += page_size) {
+      stack_ptr[i] = Num(0);
+    }
+  }
 
   std::monostate push(Num &&num) {
+    Profile.step(ProfileKind::PUSH);
     stack_ptr[count] = num;
     count++;
     return std::monostate{};
   }
 
   std::monostate push(Num &num) {
+    Profile.step(ProfileKind::PUSH);
     stack_ptr[count] = num;
     count++;
     return std::monostate{};
   }
 
   Num pop() {
+    Profile.step(ProfileKind::POP);
 #ifdef DEBUG
     assert(count > 0 && "Stack underflow");
-    printf("[Debug] poping from stack, size of concrete stack is: %d\n", count);
+    printf("[Debug] popping from stack, size of concrete stack is: %d\n",
+           count);
 #endif
     Num num = stack_ptr[count - 1];
     count--;
@@ -84,6 +80,7 @@ public:
   }
 
   Num peek() {
+    Profile.step(ProfileKind::PEEK);
 #ifdef DEBUG
     if (count == 0) {
       throw std::runtime_error("Stack underflow");
@@ -95,6 +92,7 @@ public:
   int32_t size() { return count; }
 
   void shift(int32_t offset, int32_t size) {
+    Profile.step(ProfileKind::SHIFT);
 #ifdef DEBUG
     if (offset < 0) {
       throw std::out_of_range("Invalid offset: " + std::to_string(offset));
@@ -148,7 +146,13 @@ const int FRAME_SIZE = 1024;
 
 class Frames_t {
 public:
-  Frames_t() : count(0), stack_ptr(new Num[FRAME_SIZE]) {}
+  Frames_t() : count(0), stack_ptr(new Num[FRAME_SIZE]) {
+    size_t page_size = (size_t)sysconf(_SC_PAGESIZE);
+    // pre touch the memory to avoid page faults during execution
+    for (int i = 0; i < FRAME_SIZE; i += page_size) {
+      stack_ptr[i] = Num(0);
+    }
+  }
 
   std::monostate popFrame(std::int32_t size) {
     assert(size >= 0);
@@ -157,11 +161,15 @@ public:
   }
 
   Num get(std::int32_t index) {
+    Profile.step(ProfileKind::GET);
     auto ret = stack_ptr[count - 1 - index];
     return ret;
   }
 
-  void set(std::int32_t index, Num num) { stack_ptr[count - 1 - index] = num; }
+  void set(std::int32_t index, Num num) {
+    Profile.step(ProfileKind::SET);
+    stack_ptr[count - 1 - index] = num;
+  }
 
   void pushFrame(std::int32_t size) {
     assert(size >= 0);
@@ -199,7 +207,85 @@ static std::monostate unreachable() {
   throw std::runtime_error("Unreachable code reached");
 }
 
+static const int PRE_ALLOC_PAGES = 20;
 static int32_t pagesize = 65536;
 static int32_t page_count = 0;
+
+struct Memory_t {
+  // TODO: We assign a SymVal to each byte in memory
+  std::vector<uint8_t> memory;
+  int init_page_count;
+  int page_count;
+  int allocated_pages;
+
+  Memory_t(int32_t init_page_count)
+      : memory(PRE_ALLOC_PAGES * pagesize), init_page_count(init_page_count),
+        page_count(init_page_count), allocated_pages(PRE_ALLOC_PAGES) {}
+
+  int32_t loadInt(int32_t base, int32_t offset) {
+    // just load a 4-byte integer from memory of the vector
+    int32_t addr = base + offset;
+    if (!(addr + 3 < memory.size())) {
+      throw std::runtime_error("Invalid memory access " + std::to_string(addr));
+    }
+    int32_t result = 0;
+    // Little-endian: lowest byte at lowest address
+    for (int i = 0; i < 4; ++i) {
+      result |= static_cast<int32_t>(memory[addr + i]) << (8 * i);
+    }
+    return result;
+  }
+
+  std::monostate storeInt(int32_t base, int32_t offset, int32_t value) {
+    int32_t addr = base + offset;
+    // Ensure we don't write out of bounds
+    assert(addr + 3 < memory.size());
+    for (int i = 0; i < 4; ++i) {
+      memory[addr + i] = static_cast<uint8_t>((value >> (8 * i)) & 0xFF);
+      // Optionally, update memory[addr + i].second (SymVal) if needed
+    }
+    return std::monostate{};
+  }
+
+  std::monostate store_byte(int32_t addr, uint8_t value) {
+    assert(addr < memory.size());
+    memory[addr] = value;
+    return std::monostate{};
+  }
+
+  // grow memory by delta bytes when bytes > 0. return -1 if failed, return old
+  // size when success
+  int32_t grow(int32_t delta) {
+    Profile.step(ProfileKind::MEM_GROW);
+    if (delta <= 0) {
+      return page_count * pagesize;
+    }
+
+    if (page_count + delta < allocated_pages) {
+      page_count += delta;
+      return page_count * pagesize;
+    }
+
+    try {
+      assert(false && "Use pre-allocated memory, should not reach here");
+      memory.resize(memory.size() + delta * pagesize);
+      auto old_page_count = page_count;
+      page_count += delta;
+      return memory.size();
+    } catch (const std::bad_alloc &e) {
+      return -1;
+    }
+  }
+
+  void reset() {
+    page_count = init_page_count;
+    allocated_pages = PRE_ALLOC_PAGES;
+    for (int i = 0; i < memory.size() && i < page_count * pagesize; ++i) {
+      memory[i] = 0;
+    }
+  }
+};
+
+static Memory_t Memory(1); // 1 page memory
 
 #endif // WASM_CONCRETE_RT_HPP

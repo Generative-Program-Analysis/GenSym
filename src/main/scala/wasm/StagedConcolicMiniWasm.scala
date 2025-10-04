@@ -626,7 +626,7 @@ trait StagedWasmEvaluator extends SAIOps {
         }
     }
     val (instrs, locals) = (funBody.body, funBody.locals)
-    resetStacks()
+    // resetStacks() // Don't manually reset the global states (like stack), manage them in the driver
     initGlobals(module.globals)
     Frames.pushFrameC(locals)
     Frames.pushFrameS(locals)
@@ -1409,9 +1409,9 @@ trait StagedWasmCppGen extends CGenBase with CppSAICodeGenBase {
       emit("Stack.size()")
     // Symbolic Memory
     case Node(_, "sym-store-int", List(base, offset, s_value), _) =>
-      emit("Memory.storeSym("); shallow(base); emit(", "); shallow(offset); emit(", "); shallow(s_value); emit(")")
+      emit("SymMemory.storeSym("); shallow(base); emit(", "); shallow(offset); emit(", "); shallow(s_value); emit(")")
     case Node(_, "sym-load-int", List(base, offset), _) =>
-      emit("Memory.loadSym("); shallow(base); emit(", "); shallow(offset); emit(")")
+      emit("SymMemory.loadSym("); shallow(base); emit(", "); shallow(offset); emit(")")
     case Node(_, "sym-memory-grow", List(delta), _) =>
       emit("SymMemory.grow("); shallow(delta); emit(")")
     // Globals
