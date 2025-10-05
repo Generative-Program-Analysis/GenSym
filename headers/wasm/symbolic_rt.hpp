@@ -816,36 +816,36 @@ private:
 
 static ExploreTree_t ExploreTree;
 
+using NumMap = std::unordered_map<int, Num>;
+
 class SymEnv_t {
 public:
   Num read(const Symbol &symbol) {
-    if (symbol.get_id() >= map.size()) {
-      map.resize(symbol.get_id() + 1);
-    }
 #if DEBUG
     std::cout << "Read symbol: " << symbol.get_id()
               << " from symbolic environment" << std::endl;
     std::cout << "Current symbolic environment: " << to_string() << std::endl;
 #endif
-
-    return map[symbol.get_id()];
+    map.try_emplace(symbol.get_id(), Num(I32V(0)));
+    return map.at(symbol.get_id());
   }
 
   Num read(SymVal sym) {
+    // Read the value of a symbolic value from the environment, it will update
+    // the environment if the key does not exist.
     auto symbol = dynamic_cast<Symbol *>(sym.symptr.get());
     assert(symbol);
     return read(*symbol);
   }
 
-  void update(std::vector<Num> new_env) { map = std::move(new_env); }
+  void update(NumMap new_env) { map = std::move(new_env); }
 
   std::string to_string() const {
     std::string result;
     result += "(\n";
-    for (int i = 0; i < map.size(); ++i) {
-      const Num &num = map[i];
+    for (const auto &[id, num] : map) {
       result +=
-          "  (" + std::to_string(i) + "->" + std::to_string(num.value) + ")\n";
+          "  (" + std::to_string(id) + "->" + std::to_string(num.value) + ")\n";
     }
     result += ")";
     return result;
@@ -854,7 +854,7 @@ public:
   size_t size() const { return map.size(); }
 
 private:
-  std::vector<Num> map; // The symbolic environment, a vector of Num
+  NumMap map; // The symbolic environment, a vector of Num
 };
 
 static SymEnv_t SymEnv;

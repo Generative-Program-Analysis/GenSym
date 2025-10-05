@@ -14,7 +14,7 @@
 class Solver {
 public:
   Solver() {}
-  std::optional<std::vector<Num>> solve(const std::vector<SymVal> &conditions) {
+  std::optional<NumMap> solve(const std::vector<SymVal> &conditions) {
     // make an conjunction of all conditions
     z3::expr conjunction = z3_ctx.bool_val(true);
     for (const auto &cond : conditions) {
@@ -33,7 +33,7 @@ public:
       return std::nullopt; // No solution found
     case z3::sat: {
       z3::model model = z3_solver.get_model();
-      std::vector<Num> result;
+      NumMap result;
       // Reference:
       // https://github.com/Z3Prover/z3/blob/master/examples/c%2B%2B/example.cpp#L59
       GENSYM_INFO("Solved Z3 model");
@@ -44,9 +44,6 @@ public:
         std::string name = var.name().str();
         if (starts_with(name, "s_")) {
           int id = std::stoi(name.substr(2));
-          if (id >= result.size()) {
-            result.resize(id + 1);
-          }
           result[id] = Num(value.get_numeral_int64());
         } else {
           GENSYM_INFO("Find a variable that is not created by GenSym: " + name);
