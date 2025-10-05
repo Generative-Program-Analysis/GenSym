@@ -344,11 +344,11 @@ trait StagedWasmEvaluator extends SAIOps {
         val id = Counter.getId(inst)
         ExploreTree.fillWithIfElse(symCond.s, id)
         def thnK: Rep[Cont[Unit]] = topFun((mk: Rep[MCont[Unit]]) => {
-          info("Entering the true branch of the if")
+          info(s"Entering the true branch $id of the if")
           eval(thn, restK _, mk, restK _ :: trail)(newCtx)
         })
         def elsK: Rep[Cont[Unit]] = topFun((mk: Rep[MCont[Unit]]) => {
-          info("Entering the false branch of the if")
+          info(s"Entering the false branch $id of the if")
           eval(els, restK _, mk, restK _ :: trail)(newCtx)
         })
         if (cond.toInt != 0) {
@@ -407,13 +407,13 @@ trait StagedWasmEvaluator extends SAIOps {
             // snapshotNode (this is done by moveCursor's runtime implementation)
             // TODO: store snapshot into this snapshot node
             def thnK: Rep[Cont[Unit]] = topFun((mk: Rep[MCont[Unit]]) => {
-              info("Entering the true branch of the br_table")
+              info(s"Entering the true branch $id of the br_table")
               Stack.popC(ty)
               Stack.popS(ty)
               trail(choices.head)(newCtx)(mk)
             })
             def elsK: Rep[Cont[Unit]] = topFun((mk: Rep[MCont[Unit]]) => {
-              info("Entering the false branch of the br_table")
+              info(s"Entering the false branch $id of the br_table")
               aux(choices.tail, idx + 1, mk)
             })
             if (cond.toInt != 0) {
@@ -1361,7 +1361,10 @@ trait StagedWasmCppGen extends CGenBase with CppSAICodeGenBase {
       val argTypes = b.in.map(a => remap(typeMap(a))).mkString(", ")
       emitln(s"std::function<$retType(${argTypes})> ${quote(f)};")
       emit(quote(f)); emit(" = ")
-      quoteTypedBlock(b, false, true, capture = "&")
+      // We need to capture by value here, because we want to save a function in
+      // snapshot, and use the function later, while the local variables have
+      // been released.
+      quoteTypedBlock(b, false, true, capture = "=")
       emitln(";")
     case _ => super.traverse(n)
   }
@@ -1386,7 +1389,7 @@ trait StagedWasmCppGen extends CGenBase with CppSAICodeGenBase {
     case Node(_, "sym-stack-pop", _, _) =>
       emit("SymStack.pop()")
     case Node(_, "snapshot-make", List(k, mk), _) =>
-      emit("Snapshot_t("); shallow(k); emit(", "); shallow(mk); emit(")")
+      emit("makeSnapshot("); shallow(k); emit(", "); shallow(mk); emit(")")
     case Node(_, "frame-pop", List(i), _) =>
       emit("Frames.popFrame("); shallow(i); emit(")")
     case Node(_, "sym-frame-pop", List(i), _) =>

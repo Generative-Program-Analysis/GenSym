@@ -2,10 +2,11 @@
 #define CONCOLIC_DRIVER_HPP
 
 #include "concrete_rt.hpp"
+#include "config.hpp"
+#include "profile.hpp"
 #include "smt_solver.hpp"
 #include "symbolic_rt.hpp"
 #include "utils.hpp"
-#include "wasm/profile.hpp"
 #include <cassert>
 #include <chrono>
 #include <functional>
@@ -14,16 +15,6 @@
 #include <stdexcept>
 #include <string>
 #include <vector>
-
-enum class ExploreMode { EarlyExit, ExitByCoverage };
-
-#ifdef EARLY_EXIT
-static const ExploreMode EXPLORE_MODE = ExploreMode::EarlyExit;
-#elif defined(BY_COVERAGE)
-static const ExploreMode EXPLORE_MODE = ExploreMode::ExitByCoverage;
-#else
-static const ExploreMode EXPLORE_MODE = ExploreMode::EarlyExit;
-#endif
 
 class ConcolicDriver {
   friend class ManagedConcolicCleanup;
@@ -107,12 +98,14 @@ inline void ConcolicDriver::main_exploration_loop() {
     try {
       GENSYM_INFO("Now execute the program with symbolic environment: ");
       GENSYM_INFO(SymEnv.to_string());
-      if (auto snapshot_node =
-              dynamic_cast<SnapshotNode *>(node->node.get())) {
+      if (auto snapshot_node = dynamic_cast<SnapshotNode *>(node->node.get())) {
+        assert(REUSE_SNAPSHOT);
+        auto timer = ManagedTimer();
         snapshot_node->get_snapshot().resume_execution(SymEnv, node);
       } else {
         auto timer = ManagedTimer();
         reset_stacks();
+        ExploreTree.reset_cursor();
         entrypoint();
       }
 
@@ -134,6 +127,7 @@ inline void ConcolicDriver::main_exploration_loop() {
           GENSYM_INFO(
               "Found a bug, but not all branches covered, continuing...");
         }
+        std::cout << e.what() << std::endl;
       }
     }
 #if defined(RUN_ONCE)
@@ -143,18 +137,18 @@ inline void ConcolicDriver::main_exploration_loop() {
 }
 
 inline void ConcolicDriver::run() {
-  ExploreTree.reset_cursor();
   main_exploration_loop();
   Profile.print_summary();
 }
 
 static std::monostate reset_stacks() {
   Stack.reset();
-  Frames.reset();
   SymStack.reset();
+  Frames.reset();
   SymFrames.reset();
-  initRand();
   Memory.reset();
+  SymMemory.reset();
+  initRand();
   return std::monostate{};
 }
 

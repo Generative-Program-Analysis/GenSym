@@ -2,6 +2,7 @@
 #define WASM_SYMBOLIC_RT_HPP
 
 #include "concrete_rt.hpp"
+#include "config.hpp"
 #include "controls.hpp"
 #include "heap_mem_bookkeeper.hpp"
 #include "profile.hpp"
@@ -28,12 +29,6 @@ public:
 };
 
 static int max_id = 0;
-
-#ifdef NO_REUSE
-static bool REUSE_MODE = false;
-#else
-static bool REUSE_MODE = true;
-#endif
 
 class Symbol : public Symbolic {
 public:
@@ -265,8 +260,6 @@ public:
     stack.clear();
   }
 
-  void reuse(Snapshot_t snapshot);
-
   size_t size() const { return stack.size(); }
 
   SymVal operator[](size_t index) const { return stack[index]; }
@@ -305,8 +298,6 @@ public:
     // Reset the symbolic frames
     stack.clear();
   }
-
-  void reuse(Snapshot_t snapshot);
 
   size_t size() const { return stack.size(); }
 
@@ -364,6 +355,11 @@ public:
     memory[addr + 3] = s3;
     return std::monostate{};
   }
+
+  std::monostate reset() {
+    memory.clear();
+    return std::monostate{};
+  }
 };
 
 static SymMemory_t SymMemory;
@@ -371,7 +367,9 @@ static SymMemory_t SymMemory;
 // A snapshot of the symbolic state and execution context (control)
 class Snapshot_t {
 public:
-  explicit Snapshot_t(Cont_t cont, MCont_t mcont);
+  explicit Snapshot_t(Cont_t cont, MCont_t mcont, SymStack_t stack,
+                      SymFrames_t frames, SymMemory_t memory);
+  explicit Snapshot_t() {}
 
   SymStack_t get_stack() const { return stack; }
   SymFrames_t get_frames() const { return frames; }
@@ -388,30 +386,17 @@ private:
   MCont_t mcont;
 };
 
-inline void SymStack_t::reuse(Snapshot_t snapshot) {
-// Reusing the symbolic stack from the snapshot
-#ifdef DEBUG
-  std::cout << "Reusing symbolic state from snapshot" << std::endl;
-  std::cout << "Old stack size = " << stack.size() << std::endl;
-  std::cout << "New stack size = " << snapshot.get_stack().stack.size()
-            << std::endl;
-#endif
-  stack = snapshot.get_stack().stack;
-}
-
-inline void SymFrames_t::reuse(Snapshot_t snapshot) {
-// Reusing the symbolic frames from the snapshot
-#ifdef DEBUG
-  std::cout << "Reusing symbolic state from snapshot" << std::endl;
-  std::cout << "Old frame size = " << stack.size() << std::endl;
-  std::cout << "New frame size = " << snapshot.get_frames().stack.size()
-            << std::endl;
-#endif
-  stack = snapshot.get_frames().stack;
-}
-
 static SymFrames_t SymFrames;
 static SymFrames_t SymGlobals;
+
+static Snapshot_t makeSnapshot(Cont_t cont, MCont_t mcont) {
+  if (REUSE_SNAPSHOT) {
+    return Snapshot_t(cont, mcont, SymStack, SymFrames, SymMemory);
+  } else {
+    // create a dummy snapshot, which will not be used
+    return Snapshot_t();
+  }
+}
 
 struct Node;
 
@@ -684,9 +669,10 @@ inline std::vector<SymVal> NodeBox::collect_path_conds() {
   return result;
 }
 
-inline Snapshot_t::Snapshot_t(Cont_t cont, MCont_t mcont)
-    : stack(SymStack), frames(SymFrames), memory(SymMemory), cont(cont),
-      mcont(mcont) {
+inline Snapshot_t::Snapshot_t(Cont_t cont, MCont_t mcont, SymStack_t stack,
+                              SymFrames_t frames, SymMemory_t memory)
+    : stack(std::move(stack)), frames(std::move(frames)),
+      memory(std::move(memory)), cont(cont), mcont(mcont) {
   Profile.step(ProfileKind::SNAPSHOT_CREATE);
 #ifdef DEBUG
   std::cout << "Creating snapshot of size " << stack.size() << std::endl;
@@ -740,11 +726,19 @@ public:
         "Can't move cursor when the branch node is not initialized correctly!");
     if (branch) {
       true_branch_cov_map[if_else_node->id] = true;
-      if_else_node->false_branch->fillSnapshotNode(snapshot);
+      if (REUSE_SNAPSHOT) {
+        if_else_node->false_branch->fillSnapshotNode(snapshot);
+      } else {
+        // Do nothing, the initial value of the branch is an unexplored node
+      }
       cursor = if_else_node->true_branch.get();
     } else {
       false_branch_cov_map[if_else_node->id] = true;
-      if_else_node->true_branch->fillSnapshotNode(snapshot);
+      if (REUSE_SNAPSHOT) {
+        if_else_node->true_branch->fillSnapshotNode(snapshot);
+      } else {
+        // Do nothing, the initial value of the branch is an unexplored node
+      }
       cursor = if_else_node->false_branch.get();
     }
 
@@ -884,7 +878,7 @@ static EvalRes eval_sym_expr(const SymVal &sym, SymEnv_t &sym_env) {
     assert(high >= low && "Invalid extract range");
     int size = high - low + 1; // size in bytes
     int64_t mask = (1LL << (size * 8)) - 1;
-    int64_t extracted_value = (res.value.toInt() >> (low * 8)) & mask;
+    int64_t extracted_value = (res.value.toInt() >> ((low - 1) * 8)) & mask;
     return EvalRes(Num(I64V(extracted_value)), size * 8);
   } else if (auto smallbv = dynamic_cast<SmallBV *>(sym.symptr.get())) {
     return EvalRes(Num(I64V(smallbv->get_value())), smallbv->get_size());

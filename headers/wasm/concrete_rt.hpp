@@ -17,24 +17,30 @@ struct Num {
   Num(int64_t value) : value(value) {}
   Num() : value(0) {}
   int64_t value;
-  int32_t toInt() { return static_cast<int32_t>(value); }
+  int32_t toInt() const { return static_cast<int32_t>(value); }
 
-  bool operator==(const Num &other) const { return value == other.value; }
+  // TODO: support different bit width operations, for now we just assume all
+  // oprands are i32
+  bool operator==(const Num &other) const { return toInt() == other.toInt(); }
   bool operator!=(const Num &other) const { return !(*this == other); }
-  Num operator+(const Num &other) const { return Num(value + other.value); }
-  Num operator-(const Num &other) const { return Num(value - other.value); }
-  Num operator*(const Num &other) const { return Num(value * other.value); }
+  Num operator+(const Num &other) const { return Num(toInt() + other.toInt()); }
+  Num operator-(const Num &other) const { return Num(toInt() - other.toInt()); }
+  Num operator*(const Num &other) const { return Num(toInt() * other.toInt()); }
   Num operator/(const Num &other) const {
-    if (other.value == 0) {
+    if (other.toInt() == 0) {
       throw std::runtime_error("Division by zero");
     }
-    return Num(value / other.value);
+    return Num(toInt() / other.toInt());
   }
-  Num operator<(const Num &other) const { return Num(value < other.value); }
-  Num operator<=(const Num &other) const { return Num(value <= other.value); }
-  Num operator>(const Num &other) const { return Num(value > other.value); }
-  Num operator>=(const Num &other) const { return Num(value >= other.value); }
-  Num operator&(const Num &other) const { return Num(value & other.value); }
+  Num operator<(const Num &other) const { return Num(toInt() < other.toInt()); }
+  Num operator<=(const Num &other) const {
+    return Num(toInt() <= other.toInt());
+  }
+  Num operator>(const Num &other) const { return Num(toInt() > other.toInt()); }
+  Num operator>=(const Num &other) const {
+    return Num(toInt() >= other.toInt());
+  }
+  Num operator&(const Num &other) const { return Num(toInt() & other.toInt()); }
 };
 
 static Num I32V(int v) { return v; }
@@ -71,8 +77,9 @@ public:
     Profile.step(ProfileKind::POP);
 #ifdef DEBUG
     assert(count > 0 && "Stack underflow");
-    printf("[Debug] popping from stack, size of concrete stack is: %d\n",
-           count);
+    printf("[Debug] popping a value %ld from stack, size of concrete stack is: "
+           "%d\n",
+           stack_ptr[count - 1].value, count);
 #endif
     Num num = stack_ptr[count - 1];
     count--;
@@ -223,6 +230,10 @@ struct Memory_t {
         page_count(init_page_count), allocated_pages(PRE_ALLOC_PAGES) {}
 
   int32_t loadInt(int32_t base, int32_t offset) {
+#ifdef DEBUG
+    std::cout << "[Debug] loading int from memory at address: "
+              << (base + offset) << std::endl;
+#endif
     // just load a 4-byte integer from memory of the vector
     int32_t addr = base + offset;
     if (!(addr + 3 < memory.size())) {
@@ -238,8 +249,14 @@ struct Memory_t {
 
   std::monostate storeInt(int32_t base, int32_t offset, int32_t value) {
     int32_t addr = base + offset;
+#ifdef DEBUG
+    std::cout << "[Debug] storing int " << value << " to memory at address "
+              << addr << std::endl;
+#endif
     // Ensure we don't write out of bounds
-    assert(addr + 3 < memory.size());
+    if (!(addr + 3 < memory.size())) {
+      throw std::runtime_error("Invalid memory access " + std::to_string(addr));
+    }
     for (int i = 0; i < 4; ++i) {
       memory[addr + i] = static_cast<uint8_t>((value >> (8 * i)) & 0xFF);
       // Optionally, update memory[addr + i].second (SymVal) if needed
