@@ -42,6 +42,7 @@ private:
   Solver solver;
   std::function<void()> entrypoint;
   std::optional<std::string> tree_file;
+  std::vector<NodeBox *> work_list;
 };
 
 class ManagedConcolicCleanup {
@@ -64,19 +65,39 @@ public:
 static std::monostate reset_stacks();
 
 inline void ConcolicDriver::main_exploration_loop() {
-  while (true) {
-    ManagedConcolicCleanup cleanup{*this};
 
-    auto unexplored = ExploreTree.pick_unexplored();
-    if (!unexplored) {
-      GENSYM_INFO("No unexplored nodes found, exiting...");
-      return;
+  // Register a collector to ExploreTree to add new nodes to work_list
+  ExploreTree.register_new_node_collector(
+      [&](NodeBox *new_node) { work_list.push_back(new_node); });
+
+  std::set<NodeBox *> visited;
+
+  assert(ExploreTree.get_root()->isUnexplored() &&
+         "Before main loop, root should be unexplored!");
+  work_list.push_back(ExploreTree.get_root());
+
+  while (!work_list.empty()) {
+    ManagedConcolicCleanup cleanup{*this};
+    // Pick an unexplored node from the work list
+    auto node = work_list.back();
+    work_list.pop_back();
+
+    if (visited.find(node) != visited.end()) {
+      continue;
+    } else {
+      visited.insert(node);
     }
-    auto cond = unexplored->collect_path_conds();
+
+    if (!node->isUnexplored()) {
+      // if it's not unexplored anymore, skip it
+      continue;
+    }
+
+    auto cond = node->collect_path_conds();
     auto result = solver.solve(cond);
     if (!result.has_value()) {
       GENSYM_INFO("Found an unreachable path, marking it as unreachable...");
-      unexplored->fillUnreachableNode();
+      node->fillUnreachableNode();
       continue;
     }
     auto new_env = result.value();
@@ -87,8 +108,8 @@ inline void ConcolicDriver::main_exploration_loop() {
       GENSYM_INFO("Now execute the program with symbolic environment: ");
       GENSYM_INFO(SymEnv.to_string());
       if (auto snapshot_node =
-              dynamic_cast<SnapshotNode *>(unexplored->node.get())) {
-        snapshot_node->get_snapshot().resume_execution(SymEnv, unexplored);
+              dynamic_cast<SnapshotNode *>(node->node.get())) {
+        snapshot_node->get_snapshot().resume_execution(SymEnv, node);
       } else {
         auto timer = ManagedTimer();
         reset_stacks();

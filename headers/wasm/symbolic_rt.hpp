@@ -420,7 +420,7 @@ struct NodeBox {
   std::unique_ptr<Node> node;
   NodeBox *parent;
 
-  std::monostate fillIfElseNode(SymVal cond, int id);
+  bool fillIfElseNode(SymVal cond, int id);
   std::monostate fillFinishedNode();
   std::monostate fillFailedNode();
   std::monostate fillUnreachableNode();
@@ -610,15 +610,16 @@ inline NodeBox::NodeBox(NodeBox *parent)
       /* TODO: avoid allocation of unexplored node */
       parent(parent) {}
 
-inline std::monostate NodeBox::fillIfElseNode(SymVal cond, int id) {
+inline bool NodeBox::fillIfElseNode(SymVal cond, int id) {
   // fill the current NodeBox with an ifelse branch node when it's unexplored
   if (this->isUnexplored()) {
     node = std::make_unique<IfElseNode>(cond, this, id);
+    return true;
   }
   assert(
       dynamic_cast<IfElseNode *>(node.get()) != nullptr &&
       "Current node is not an Unexplored nor an IfElseNode, cannot fill it!");
-  return std::monostate();
+  return false;
 }
 
 inline std::monostate NodeBox::fillSnapshotNode(Snapshot_t snapshot) {
@@ -722,7 +723,12 @@ public:
   std::monostate fillFailedNode() { return cursor->fillFailedNode(); }
 
   std::monostate fillIfElseNode(SymVal cond, int id) {
-    return cursor->fillIfElseNode(cond, id);
+    if (cursor->fillIfElseNode(cond, id)) {
+      auto if_else_node = dynamic_cast<IfElseNode *>(cursor->node.get());
+      register_new_node(if_else_node->true_branch.get());
+      register_new_node(if_else_node->false_branch.get());
+    }
+    return std::monostate();
   }
 
   std::monostate moveCursor(bool branch, Snapshot_t snapshot) {
@@ -764,16 +770,6 @@ public:
     return std::monostate();
   }
 
-  std::optional<std::vector<SymVal>> get_unexplored_conditions() {
-    // Get all unexplored conditions in the tree
-    std::vector<SymVal> result;
-    auto box = pick_unexplored();
-    if (!box) {
-      return std::nullopt;
-    }
-    return box->collect_path_conds();
-  }
-
   NodeBox *pick_unexplored() {
     // Pick an unexplored node from the tree
     // For now, we just iterate through the tree and return the first unexplored
@@ -793,6 +789,12 @@ public:
     return true;
   }
 
+  NodeBox *get_root() const { return root.get(); }
+
+  void register_new_node_collector(std::function<void(NodeBox *)> func) {
+    new_node_collectors.push_back(func);
+  }
+
 private:
   NodeBox *pick_unexplored_of(NodeBox *node) {
     if (node->isUnexplored()) {
@@ -808,8 +810,14 @@ private:
     }
     return nullptr; // No unexplored node found
   }
+  void register_new_node(NodeBox *node) {
+    for (auto &func : new_node_collectors) {
+      func(node);
+    }
+  }
   std::unique_ptr<NodeBox> root;
   NodeBox *cursor;
+  std::vector<std::function<void(NodeBox *)>> new_node_collectors;
 };
 
 static ExploreTree_t ExploreTree;
