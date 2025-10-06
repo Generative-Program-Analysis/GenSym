@@ -1590,6 +1590,7 @@ object WasmToCppCompiler {
                    outputCpp: String,
                    outputExe: String,
                    printRes: Boolean,
+                   optimizeLevel: Int,
                    macros: String*): Unit = {
     val generated = compile(moduleInst, main, printRes)
     val code = generated.source
@@ -1604,7 +1605,7 @@ object WasmToCppCompiler {
     import sys.process._
     val includeFlags = generated.headerFolders.map(f => s"-I$f").mkString(" ")
     val macroFlags = macros.map(m => s"-D$m").mkString(" ")
-    val command = s"g++ -std=c++17 $outputCpp -o $outputExe -O3 -g -l z3 " + includeFlags + " " + macroFlags
+    val command = s"g++ -std=c++17 $outputCpp -o $outputExe -O$optimizeLevel -g -l z3 " + includeFlags + " " + macroFlags
     if (command.! != 0) {
       throw new RuntimeException(s"Compilation failed for $outputCpp")
     }

@@ -21,7 +21,7 @@ class TestStagedConcolicEval extends FunSuite {
       // Do concolic execution with snapshot reuse
       val exe = s"$cppFile.exe"
       val exploreTreeFile = s"$filename.tree.dot"
-      WasmToCppCompiler.compileToExe(moduleInst, main, cppFile, exe, true, if (exitByCoverage) "BY_COVERAGE" else "EARLY_EXIT")
+      WasmToCppCompiler.compileToExe(moduleInst, main, cppFile, exe, true, optimizeLevel=0, if (exitByCoverage) "BY_COVERAGE" else "EARLY_EXIT")
       println(s"Running compiled concolic execution with snapshot reuse: $exe")
       val result = Process(s"./$exe", None, "TREE_FILE" -> exploreTreeFile).!!
       println(result)
@@ -31,7 +31,7 @@ class TestStagedConcolicEval extends FunSuite {
       // Do concolic execution without snapshot reuse
       val exe = s"$cppFile.noreuse.exe"
       val exploreTreeFile = s"$filename.noreuse.tree.dot"
-      WasmToCppCompiler.compileToExe(moduleInst, main, cppFile, exe, false, if (exitByCoverage) "BY_COVERAGE" else "EARLY_EXIT")
+      WasmToCppCompiler.compileToExe(moduleInst, main, cppFile, exe, false, optimizeLevel=0, if (exitByCoverage) "BY_COVERAGE" else "EARLY_EXIT")
       println(s"Running compiled concolic execution without snapshot reuse: $exe")
       val result = Process(s"./$exe", None, "TREE_FILE" -> exploreTreeFile).!!
       println(result)
@@ -51,7 +51,7 @@ class TestStagedConcolicEval extends FunSuite {
     val moduleInst = ModuleInstance(Parser.parseFile(filename))
     val cppFile = s"$filename.cpp"
     val exe = s"$cppFile.exe"
-    WasmToCppCompiler.compileToExe(moduleInst, main, cppFile, exe, true, "NO_INFO", "RUN_ONCE")
+    WasmToCppCompiler.compileToExe(moduleInst, main, cppFile, exe, true, optimizeLevel=0, "NO_INFO", "RUN_ONCE")
 
     import sys.process._
     val result = s"./$exe".!!
