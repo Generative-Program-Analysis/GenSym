@@ -33,4 +33,12 @@ static const bool REUSE_SNAPSHOT = false;
 static const bool REUSE_SNAPSHOT = true;
 #endif
 
+// If we use immutable data structures for symbolic states to reduce the cost of
+// copying.
+#ifdef USE_IMM
+static const bool IMMUTABLE_SYMS = true;
+#else
+static const bool IMMUTABLE_SYMS = false;
+#endif
+
 #endif // CONFIG_HPP

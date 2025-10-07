@@ -5,6 +5,9 @@
 #include "config.hpp"
 #include "controls.hpp"
 #include "heap_mem_bookkeeper.hpp"
+#include "immer/map.hpp"
+#include "immer/map_transient.hpp"
+#include "immer/vector_transient.hpp"
 #include "profile.hpp"
 #include "utils.hpp"
 #include <cassert>
@@ -238,26 +241,44 @@ public:
     printf("[Debug] poping from stack, size of symbolic stack is: %zu\n",
            stack.size());
 #endif
+#ifdef USE_IMM
+    auto ret = *(stack.end() - 1);
+    stack.take(stack.size() - 1);
+    return ret;
+#else
     auto ret = stack.back();
     stack.pop_back();
     return ret;
+#endif
   }
 
-  SymVal peek() { return stack.back(); }
+  SymVal peek() { return *(stack.end() - 1); }
 
   std::monostate shift(int32_t offset, int32_t size) {
     auto n = stack.size();
     for (size_t i = n - size; i < n; ++i) {
       assert(i - offset >= 0);
+#ifdef USE_IMM
+      stack.set(i - offset, stack[i]);
+#else
       stack[i - offset] = stack[i];
+#endif
     }
+#ifdef USE_IMM
+    stack.take(n - offset);
+#else
     stack.resize(n - offset);
+#endif
     return std::monostate();
   }
 
   void reset() {
-    // Reset the symbolic stack
+// Reset the symbolic stack
+#ifdef USE_IMM
+    stack = immer::vector_transient<SymVal>();
+#else
     stack.clear();
+#endif
   }
 
   size_t size() const { return stack.size(); }
@@ -265,20 +286,36 @@ public:
   SymVal operator[](size_t index) const { return stack[index]; }
 
 private:
+#ifdef USE_IMM
+  immer::vector_transient<SymVal> stack;
+#else
   std::vector<SymVal> stack;
+#endif
 };
 
 static SymStack_t SymStack;
 
 class SymFrames_t {
+
 public:
   void pushFrame(int size) {
     // Push a new frame with the given size
+#ifdef USE_IMM
+    for (int i = 0; i < size; ++i) {
+      stack.push_back(SymVal());
+    }
+#else
     stack.resize(size + stack.size());
+#endif
   }
   std::monostate popFrame(int size) {
     // Pop the frame of the given size
+
+#ifdef USE_IMM
+    stack.take(stack.size() - size);
+#else
     stack.resize(stack.size() - size);
+#endif
     return std::monostate();
   }
 
@@ -291,12 +328,21 @@ public:
   void set(int index, SymVal val) {
     // Set the symbolic value at the given index
     assert(val.symptr != nullptr);
+#ifdef USE_IMM
+    stack.set(stack.size() - 1 - index, val);
+#else
     stack[stack.size() - 1 - index] = val;
+#endif
   }
 
   void reset() {
     // Reset the symbolic frames
+
+#ifdef USE_IMM
+    stack = immer::vector_transient<SymVal>();
+#else
     stack.clear();
+#endif
   }
 
   size_t size() const { return stack.size(); }
@@ -304,7 +350,11 @@ public:
   SymVal operator[](size_t index) const { return stack[index]; }
 
 private:
+#ifdef USE_IMM
+  immer::vector_transient<SymVal> stack;
+#else
   std::vector<SymVal> stack;
+#endif
 };
 
 struct NodeBox;
@@ -312,19 +362,45 @@ struct SymEnv_t;
 
 class SymMemory_t {
 public:
+#ifdef USE_IMM
+  immer::map_transient<int, SymVal> memory;
+#else
   std::unordered_map<int, SymVal> memory;
+#endif
 
   SymVal loadSymByte(int32_t addr) {
-    // if the address is not in the memory, it must be a zero-initialized memory
+// if the address is not in the memory, it must be a zero-initialized memory
+#ifdef USE_IMM
     auto it = memory.find(addr);
-    SymVal s = (it != memory.end())
-                   ? it->second
-                   : SymVal(SymBookKeeper.allocate<SmallBV>(8, 0));
+    if (it != nullptr) {
+      return *it;
+    } else {
+      auto s = SymVal(ZeroByte);
+      return s;
+    }
+#else
+    auto it = memory.find(addr);
+    SymVal s = (it != memory.end()) ? it->second : SymVal(ZeroByte);
     return s;
+#endif
   }
 
   SymVal loadSym(int32_t base, int32_t offset) {
     // calculate the real address
+
+#ifdef USE_IMM
+    int32_t addr = base + offset;
+    auto it = memory.find(addr);
+    SymVal s0 = it ? *it : SymVal(ZeroByte);
+    it = memory.find(addr + 1);
+    SymVal s1 = it ? *it : SymVal(ZeroByte);
+    it = memory.find(addr + 2);
+    SymVal s2 = it ? *it : SymVal(ZeroByte);
+    it = memory.find(addr + 3);
+    SymVal s3 = it ? *it : SymVal(ZeroByte);
+
+    return s3.concat(s2).concat(s1).concat(s0);
+#else
     int32_t addr = base + offset;
     auto it = memory.find(addr);
     SymVal s0 = (it != memory.end()) ? it->second : SymVal(ZeroByte);
@@ -336,6 +412,7 @@ public:
     SymVal s3 = (it != memory.end()) ? it->second : SymVal(ZeroByte);
 
     return s3.concat(s2).concat(s1).concat(s0);
+#endif
   }
 
   // when loading a symval, we need to concat 4 symbolic values
@@ -349,15 +426,26 @@ public:
     SymVal s1 = value.extract(2, 2);
     SymVal s2 = value.extract(3, 3);
     SymVal s3 = value.extract(4, 4);
+#ifdef USE_IMM
+    memory.set(addr, s0);
+    memory.set(addr + 1, s1);
+    memory.set(addr + 2, s2);
+    memory.set(addr + 3, s3);
+#else
     memory[addr] = s0;
     memory[addr + 1] = s1;
     memory[addr + 2] = s2;
     memory[addr + 3] = s3;
+#endif
     return std::monostate{};
   }
 
   std::monostate reset() {
+#ifdef USE_IMM
+    memory = immer::map_transient<int, SymVal>();
+#else
     memory.clear();
+#endif
     return std::monostate{};
   }
 };

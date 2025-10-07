@@ -1,8 +1,8 @@
 #ifndef PROFILE_HPP
 #define PROFILE_HPP
 
-#include "utils.hpp"
 #include "config.hpp"
+#include "utils.hpp"
 #include <array>
 #include <chrono>
 #include <iomanip>
