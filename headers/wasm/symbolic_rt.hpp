@@ -120,8 +120,16 @@ static SymVal make_symbolic(int index) {
   return SymVal(SymBookKeeper.allocate<Symbol>(index));
 }
 
+static std::unordered_map<int64_t, SymVal> concrete_pool;
+
 inline SymVal Concrete(Num num) {
-  return SymVal(SymBookKeeper.allocate<SymConcrete>(num));
+  if (concrete_pool.find(num.toInt()) != concrete_pool.end()) {
+    return concrete_pool[num.toInt()];
+  }
+
+  auto new_val = SymVal(SymBookKeeper.allocate<SymConcrete>(num));
+  concrete_pool[num.toInt()] = new_val;
+  return new_val;
 }
 
 // Extract is different from other operations, it only has one symbolic operand,
