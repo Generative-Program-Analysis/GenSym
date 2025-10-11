@@ -174,4 +174,8 @@ class TestStagedConcolicEval extends FunSuite {
   test("large-branch-concrete") {
     testFileConcreteCpp("./benchmarks/wasm/compare_wasp/large-branch.wat")
   }
+
+  test("small-snapshot-concrete") {
+    testFileConcreteCpp("./benchmarks/wasm/compare_wasp/small-snapshot.wat", Some("main"))
+  }
 }
