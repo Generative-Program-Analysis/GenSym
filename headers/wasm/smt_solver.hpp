@@ -4,6 +4,7 @@
 #include "concrete_rt.hpp"
 #include "symbolic_rt.hpp"
 #include "utils.hpp"
+#include "wasm/profile.hpp"
 #include "z3++.h"
 #include <array>
 #include <set>
@@ -15,20 +16,17 @@ class Solver {
 public:
   Solver() {}
   std::optional<NumMap> solve(const std::vector<SymVal> &conditions) {
-    // make an conjunction of all conditions
-    z3::expr conjunction = z3_ctx.bool_val(true);
-    for (const auto &cond : conditions) {
-      auto z3_cond = build_z3_expr(cond);
-      conjunction = conjunction && z3_cond != z3_ctx.bv_val(0, 32);
-    }
-#ifdef DEBUG
-    std::cout << "Symbolic conditions size: " << conditions.size() << std::endl;
-    std::cout << "Solving conditions: " << conjunction << std::endl;
-#endif
-    // call z3 to solve the condition
     z3::solver z3_solver(z3_ctx);
-    z3_solver.add(conjunction);
-    switch (z3_solver.check()) {
+    z3::check_result solver_result;
+    {
+      // make an conjunction of all conditions
+      auto conjunction = to_z3_conjunction(conditions);
+      // call z3 to solve the condition
+      auto timer = ManagedTimer(TimeProfileKind::SOLVER);
+      z3_solver.add(conjunction); // NOTE: half of the solver time is spent in solver.add
+      solver_result = z3_solver.check();
+    }
+    switch (solver_result) {
     case z3::unsat:
       return std::nullopt; // No solution found
     case z3::sat: {
@@ -58,6 +56,19 @@ public:
   }
 
 private:
+  z3::expr to_z3_conjunction(const std::vector<SymVal> &conditions) {
+    z3::expr conjunction = z3_ctx.bool_val(true);
+    for (const auto &cond : conditions) {
+      auto z3_cond = build_z3_expr(cond);
+      conjunction = conjunction && z3_cond != z3_ctx.bv_val(0, 32);
+    }
+#ifdef DEBUG
+    std::cout << "Symbolic conditions size: " << conditions.size() << std::endl;
+    std::cout << "Solving conditions: " << conjunction << std::endl;
+#endif
+    return conjunction;
+  }
+
   z3::context z3_ctx;
   z3::expr build_z3_expr(const SymVal &sym_val);
 };

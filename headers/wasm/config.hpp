@@ -3,12 +3,20 @@
 
 // This file contains configuration settings for the concolic execution
 
-// If ENABLE_PROFILE defined, the compiled program will collect and print
-// profiling information
-#ifdef ENABLE_PROFILE
-const bool PROFILE_ENABLED = true;
+// If ENABLE_PROFILE_STEP defined, the compiled program will collect and print
+// profiling how much steps of each data structure's operations are executed
+#ifdef ENABLE_PROFILE_STEP
+const bool PROFILE_STEP = true;
 #else
-const bool PROFILE_ENABLED = false;
+const bool PROFILE_STEP = false;
+#endif
+
+// If ENABLE_PROFILE_TIME defined, the compiled program will collect and print
+// the profile of time spent in main loop and constraint solving
+#ifdef ENABLE_PROFILE_TIME
+const bool PROFILE_TIME = true;
+#else
+const bool PROFILE_TIME = false;
 #endif
 
 // This variable define when concolic execution will stop

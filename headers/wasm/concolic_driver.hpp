@@ -100,10 +100,9 @@ inline void ConcolicDriver::main_exploration_loop() {
       GENSYM_INFO(SymEnv.to_string());
       if (auto snapshot_node = dynamic_cast<SnapshotNode *>(node->node.get())) {
         assert(REUSE_SNAPSHOT);
-        auto timer = ManagedTimer();
         snapshot_node->get_snapshot().resume_execution(SymEnv, node);
       } else {
-        auto timer = ManagedTimer();
+        auto timer = ManagedTimer(TimeProfileKind::INSTR);
         reset_stacks();
         ExploreTree.reset_cursor();
         entrypoint();

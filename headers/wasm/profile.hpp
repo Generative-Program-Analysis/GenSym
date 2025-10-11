@@ -8,7 +8,7 @@
 #include <iomanip>
 #include <variant>
 
-enum class ProfileKind {
+enum class StepProfileKind {
   PUSH,
   POP,
   PEEK,
@@ -24,74 +24,100 @@ enum class ProfileKind {
                  // number of kinds of operations
 };
 
+enum class TimeProfileKind {
+  INSTR,
+  SOLVER,
+  RESUME_SNAPSHOT,
+  TimeOperationCount // keep this as the last element, this is used to get the
+                     // number of kinds of operations
+};
+
 class Profile_t {
 public:
   Profile_t() : step_count(0) {}
   std::monostate step() {
-    if (PROFILE_ENABLED)
+    if (PROFILE_STEP)
       step_count++;
     return std::monostate();
   }
-  std::monostate step(ProfileKind op) {
-    if (PROFILE_ENABLED)
+  std::monostate step(StepProfileKind op) {
+    if (PROFILE_STEP)
       op_count[static_cast<std::size_t>(op)]++;
     return std::monostate();
   }
   void print_summary() {
-    if (PROFILE_ENABLED) {
+    if (PROFILE_STEP) {
       std::cout << "Profile Summary:" << std::endl;
       std::cout << "Total PUSH operations: "
-                << op_count[static_cast<std::size_t>(ProfileKind::PUSH)]
+                << op_count[static_cast<std::size_t>(StepProfileKind::PUSH)]
                 << std::endl;
       std::cout << "Total POP operations: "
-                << op_count[static_cast<std::size_t>(ProfileKind::POP)]
+                << op_count[static_cast<std::size_t>(StepProfileKind::POP)]
                 << std::endl;
       std::cout << "Total PEEK operations: "
-                << op_count[static_cast<std::size_t>(ProfileKind::PEEK)]
+                << op_count[static_cast<std::size_t>(StepProfileKind::PEEK)]
                 << std::endl;
       std::cout << "Total SHIFT operations: "
-                << op_count[static_cast<std::size_t>(ProfileKind::SHIFT)]
+                << op_count[static_cast<std::size_t>(StepProfileKind::SHIFT)]
                 << std::endl;
       std::cout << "Total SET operations: "
-                << op_count[static_cast<std::size_t>(ProfileKind::SET)]
+                << op_count[static_cast<std::size_t>(StepProfileKind::SET)]
                 << std::endl;
       std::cout << "Total GET operations: "
-                << op_count[static_cast<std::size_t>(ProfileKind::GET)]
+                << op_count[static_cast<std::size_t>(StepProfileKind::GET)]
                 << std::endl;
       std::cout << "Total BINARY operations: "
-                << op_count[static_cast<std::size_t>(ProfileKind::BINARY)]
+                << op_count[static_cast<std::size_t>(StepProfileKind::BINARY)]
                 << std::endl;
-      std::cout << "Total TREE_FILL operations: "
-                << op_count[static_cast<std::size_t>(ProfileKind::TREE_FILL)]
-                << std::endl;
-      std::cout << "Total CURSOR_MOVE operations: "
-                << op_count[static_cast<std::size_t>(ProfileKind::CURSOR_MOVE)]
-                << std::endl;
+      std::cout
+          << "Total TREE_FILL operations: "
+          << op_count[static_cast<std::size_t>(StepProfileKind::TREE_FILL)]
+          << std::endl;
+      std::cout
+          << "Total CURSOR_MOVE operations: "
+          << op_count[static_cast<std::size_t>(StepProfileKind::CURSOR_MOVE)]
+          << std::endl;
       std::cout << "Total other instructions executed: " << step_count
                 << std::endl;
       std::cout << "Total MEM_GROW operations: "
-                << op_count[static_cast<std::size_t>(ProfileKind::MEM_GROW)]
+                << op_count[static_cast<std::size_t>(StepProfileKind::MEM_GROW)]
                 << std::endl;
-      std::cout
-          << "Total SNAPSHOT_CREATE operations: "
-          << op_count[static_cast<std::size_t>(ProfileKind::SNAPSHOT_CREATE)]
-          << std::endl;
+      std::cout << "Total SNAPSHOT_CREATE operations: "
+                << op_count[static_cast<std::size_t>(
+                       StepProfileKind::SNAPSHOT_CREATE)]
+                << std::endl;
       std::cout << "Total time for instruction execution (s): "
                 << std::setprecision(15) << execution_time << std::endl;
+    }
+    if (PROFILE_TIME) {
+      std::cout << "Time Profile Summary:" << std::endl;
+      std::cout << "Total time in instruction execution (s): "
+                << std::setprecision(15)
+                << time_count[static_cast<std::size_t>(TimeProfileKind::INSTR)]
+                << std::endl;
+      std::cout << "Total time in solver (s): " << std::setprecision(15)
+                << time_count[static_cast<std::size_t>(TimeProfileKind::SOLVER)]
+                << std::endl;
+      std::cout << "Total time in resuming from snapshot (s): "
+                << std::setprecision(15)
+                << time_count[static_cast<std::size_t>(
+                       TimeProfileKind::RESUME_SNAPSHOT)]
+                << std::endl;
     }
   }
 
   // record the time spent in main instruction execution, in seconds
-  void add_instruction_time(double time) {
-#ifdef ENABLE_PROFILE
-    execution_time += time;
-#endif
+  void add_instruction_time(TimeProfileKind kind, double time) {
+    time_count[static_cast<std::size_t>(kind)] += time;
   }
 
 private:
   int step_count;
-  std::array<int, static_cast<std::size_t>(ProfileKind::OperationCount)>
+  std::array<int, static_cast<std::size_t>(StepProfileKind::OperationCount)>
       op_count;
+  std::array<double,
+             static_cast<std::size_t>(TimeProfileKind::TimeOperationCount)>
+      time_count;
   double execution_time = 0.0;
 };
 
@@ -99,14 +125,18 @@ static Profile_t Profile;
 
 class ManagedTimer {
 public:
-  ManagedTimer() { start = std::chrono::high_resolution_clock::now(); }
+  ManagedTimer() = delete;
+  ManagedTimer(TimeProfileKind kind) : kind(kind) {
+    start = std::chrono::high_resolution_clock::now();
+  }
   ~ManagedTimer() {
     auto end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> elapsed = end - start;
-    Profile.add_instruction_time(elapsed.count());
+    Profile.add_instruction_time(kind, elapsed.count());
   }
 
 private:
+  TimeProfileKind kind;
   std::chrono::high_resolution_clock::time_point start;
 };
 

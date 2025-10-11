@@ -60,21 +60,21 @@ public:
   }
 
   std::monostate push(Num &&num) {
-    Profile.step(ProfileKind::PUSH);
+    Profile.step(StepProfileKind::PUSH);
     stack_ptr[count] = num;
     count++;
     return std::monostate{};
   }
 
   std::monostate push(Num &num) {
-    Profile.step(ProfileKind::PUSH);
+    Profile.step(StepProfileKind::PUSH);
     stack_ptr[count] = num;
     count++;
     return std::monostate{};
   }
 
   Num pop() {
-    Profile.step(ProfileKind::POP);
+    Profile.step(StepProfileKind::POP);
 #ifdef DEBUG
     assert(count > 0 && "Stack underflow");
     printf("[Debug] popping a value %ld from stack, size of concrete stack is: "
@@ -87,7 +87,7 @@ public:
   }
 
   Num peek() {
-    Profile.step(ProfileKind::PEEK);
+    Profile.step(StepProfileKind::PEEK);
 #ifdef DEBUG
     if (count == 0) {
       throw std::runtime_error("Stack underflow");
@@ -99,7 +99,7 @@ public:
   int32_t size() { return count; }
 
   void shift(int32_t offset, int32_t size) {
-    Profile.step(ProfileKind::SHIFT);
+    Profile.step(StepProfileKind::SHIFT);
 #ifdef DEBUG
     if (offset < 0) {
       throw std::out_of_range("Invalid offset: " + std::to_string(offset));
@@ -168,13 +168,13 @@ public:
   }
 
   Num get(std::int32_t index) {
-    Profile.step(ProfileKind::GET);
+    Profile.step(StepProfileKind::GET);
     auto ret = stack_ptr[count - 1 - index];
     return ret;
   }
 
   void set(std::int32_t index, Num num) {
-    Profile.step(ProfileKind::SET);
+    Profile.step(StepProfileKind::SET);
     stack_ptr[count - 1 - index] = num;
   }
 
@@ -273,7 +273,7 @@ struct Memory_t {
   // grow memory by delta bytes when bytes > 0. return -1 if failed, return old
   // size when success
   int32_t grow(int32_t delta) {
-    Profile.step(ProfileKind::MEM_GROW);
+    Profile.step(StepProfileKind::MEM_GROW);
     if (delta <= 0) {
       return page_count * pagesize;
     }

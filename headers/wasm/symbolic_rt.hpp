@@ -761,7 +761,7 @@ inline Snapshot_t::Snapshot_t(Cont_t cont, MCont_t mcont, SymStack_t stack,
                               SymFrames_t frames, SymMemory_t memory)
     : stack(std::move(stack)), frames(std::move(frames)),
       memory(std::move(memory)), cont(cont), mcont(mcont) {
-  Profile.step(ProfileKind::SNAPSHOT_CREATE);
+  Profile.step(StepProfileKind::SNAPSHOT_CREATE);
 #ifdef DEBUG
   std::cout << "Creating snapshot of size " << stack.size() << std::endl;
 #endif
@@ -806,7 +806,7 @@ public:
   }
 
   std::monostate moveCursor(bool branch, Snapshot_t snapshot) {
-    Profile.step(ProfileKind::CURSOR_MOVE);
+    Profile.step(StepProfileKind::CURSOR_MOVE);
     assert(cursor != nullptr);
     auto if_else_node = dynamic_cast<IfElseNode *>(cursor->node.get());
     assert(
@@ -1074,9 +1074,13 @@ inline std::monostate Snapshot_t::resume_execution(SymEnv_t &sym_env,
   SymStack = stack;
   SymFrames = frames;
   SymMemory = memory;
-  // Restore the concrete states from the symbolic states
-  resume_conc_states(stack, frames, memory, Stack, Frames, Memory, sym_env);
+  {
+    auto timer = ManagedTimer(TimeProfileKind::RESUME_SNAPSHOT);
+    // Restore the concrete states from the symbolic states
+    resume_conc_states(stack, frames, memory, Stack, Frames, Memory, sym_env);
+  }
   // Resume execution from the continuation
+  auto timer = ManagedTimer(TimeProfileKind::INSTR);
   return cont(mcont);
 }
 
