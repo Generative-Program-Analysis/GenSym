@@ -49,4 +49,10 @@ static const bool IMMUTABLE_SYMS = true;
 static const bool IMMUTABLE_SYMS = false;
 #endif
 
+#ifdef INTERACTIVE
+static const bool INTERACTIVE_MODE = true;
+#else
+static const bool INTERACTIVE_MODE = false;
+#endif
+
 #endif // CONFIG_HPP

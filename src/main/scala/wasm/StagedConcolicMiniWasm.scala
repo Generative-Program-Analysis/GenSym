@@ -136,14 +136,20 @@ trait StagedWasmEvaluator extends SAIOps {
     })
   }
 
+  trait Control
 
-  // TODO: maybe we don't need concern snapshot at compile time at all
-  trait Snapshot
-
-  // Create a snapshot of the symbolic execution, we should ensure that current symstack is in use
+  // Save the current control information into a structure Control
   // We need to store the control information, so we can resume the execution later
-  def makeSnapshot(kont: Rep[Cont[Unit]], mkont: Rep[MCont[Unit]]): Rep[Snapshot] = {
-    "snapshot-make".reflectCtrlWith[Snapshot](kont, mkont)
+  def makeControl(kont: Rep[Cont[Unit]], mkont: Rep[MCont[Unit]]): Rep[Control] = {
+    "control-make".reflectCtrlWith[Control](kont, mkont)
+  }
+
+  var instrCost: Int = 0
+
+  def addInstrCost(): Rep[Unit] = {
+    "add-instr-cost".reflectCtrlWith[Unit](instrCost)
+    instrCost = 0
+    ()
   }
 
   def eval(insts: List[Instr],
@@ -152,7 +158,7 @@ trait StagedWasmEvaluator extends SAIOps {
            trail: Trail[Unit])
           (implicit ctx: Context): Rep[Unit] = {
     if (insts.isEmpty) return kont(ctx)(mkont)
-
+    instrCost += 1
     // Predef.println(s"[DEBUG] Evaluating instructions: ${insts.mkString(", ")}")
     // Predef.println(s"[DEBUG] Current context: $ctx")
 
@@ -352,19 +358,21 @@ trait StagedWasmEvaluator extends SAIOps {
           eval(els, restK _, mk, restK _ :: trail)(newCtx)
         })
         if (cond.toInt != 0) {
-          val snapshot = makeSnapshot(elsK, mkont)
-          ExploreTree.moveCursor(true, snapshot)
+          val control = makeControl(elsK, mkont)
+          ExploreTree.moveCursor(true, control)
           thnK(mkont)
         } else {
-          val snapshot = makeSnapshot(thnK, mkont)
-          ExploreTree.moveCursor(false, snapshot)
+          val control = makeControl(thnK, mkont)
+          ExploreTree.moveCursor(false, control)
           elsK(mkont)
         }
         ()
       case Br(label) =>
         info(s"Jump to $label")
+        addInstrCost()
         trail(label)(ctx)(mkont)
       case BrIf(label) =>
+        addInstrCost()
         val (ty, newCtx) = ctx.pop()
         val cond = Stack.popC(ty)
         val symCond = Stack.popS(ty)
@@ -379,17 +387,18 @@ trait StagedWasmEvaluator extends SAIOps {
         })
         if (cond.toInt != 0) {
           info(s"Jump to $label")
-          val snapshot = makeSnapshot(elsK, mkont)
-          ExploreTree.moveCursor(true, snapshot)
+          val control = makeControl(elsK, mkont)
+          ExploreTree.moveCursor(true, control)
           thnK(mkont)
         } else {
           info(s"Continue")
-          val snapshot = makeSnapshot(thnK, mkont)
-          ExploreTree.moveCursor(false, snapshot)
+          val control = makeControl(thnK, mkont)
+          ExploreTree.moveCursor(false, control)
           elsK(mkont)
         }
         ()
       case BrTable(labels, default) =>
+        addInstrCost()
         val (ty, newCtx) = ctx.pop()
         def aux(choices: List[Int], idx: Int, mkont: Rep[MCont[Unit]]): Rep[Unit] = {
           if (choices.isEmpty) {
@@ -417,13 +426,13 @@ trait StagedWasmEvaluator extends SAIOps {
               aux(choices.tail, idx + 1, mk)
             })
             if (cond.toInt != 0) {
-              val snapshot = makeSnapshot(elsK, mkont)
-              ExploreTree.moveCursor(true, snapshot)
+              val control = makeControl(elsK, mkont)
+              ExploreTree.moveCursor(true, control)
               thnK(mkont)
             }
             else {
-              val snapshot = makeSnapshot(thnK, mkont)
-              ExploreTree.moveCursor(false, snapshot)
+              val control = makeControl(thnK, mkont)
+              ExploreTree.moveCursor(false, control)
               elsK(mkont)
             }
           }
@@ -451,6 +460,8 @@ trait StagedWasmEvaluator extends SAIOps {
     module.funcs(funcIndex) match {
       case FuncDef(_, FuncBodyDef(ty, _, bodyLocals, body)) =>
         val locals = bodyLocals ++ ty.inps
+        instrCost += locals.size * 2 - 1
+        addInstrCost()
         val callee =
           if (compileCache.contains(funcIndex)) {
             compileCache(funcIndex)
@@ -505,12 +516,14 @@ trait StagedWasmEvaluator extends SAIOps {
       case Import("console", "log", _)
          | Import("spectest", "print_i32", _) =>
         //println(s"[DEBUG] current stack: $stack")
+        addInstrCost()
         val (ty, newCtx) = ctx.pop()
         val v = Stack.popC(ty)
         Stack.popS(ty)
         println(v.toInt)
         eval(rest, kont, mkont, trail)(newCtx)
       case Import("console", "assert", _) =>
+        addInstrCost()
         val (ty, newCtx) = ctx.pop()
         val v = Stack.popC(ty)
         // TODO: We should also add s into exploration tree
@@ -858,9 +871,9 @@ trait StagedWasmEvaluator extends SAIOps {
       "tree-fill-finished".reflectCtrlWith[Unit]()
     }
 
-    def moveCursor(branch: Boolean, snapshot: Rep[Snapshot]): Rep[Unit] = {
+    def moveCursor(branch: Boolean, control: Rep[Control]): Rep[Unit] = {
       // when moving cursor from to an unexplored node, we need to change the reuse state
-      "tree-move-cursor".reflectCtrlWith[Unit](branch, snapshot)
+      "tree-move-cursor".reflectCtrlWith[Unit](branch, control)
     }
 
     def print(): Rep[Unit] = {
@@ -1388,8 +1401,8 @@ trait StagedWasmCppGen extends CGenBase with CppSAICodeGenBase {
       emit("Stack.pop()")
     case Node(_, "sym-stack-pop", _, _) =>
       emit("SymStack.pop()")
-    case Node(_, "snapshot-make", List(k, mk), _) =>
-      emit("makeSnapshot("); shallow(k); emit(", "); shallow(mk); emit(")")
+    case Node(_, "control-make", List(k, mk), _) =>
+      emit("makeControl("); shallow(k); emit(", "); shallow(mk); emit(")")
     case Node(_, "frame-pop", List(i), _) =>
       emit("Frames.popFrame("); shallow(i); emit(")")
     case Node(_, "sym-frame-pop", List(i), _) =>
@@ -1511,6 +1524,8 @@ trait StagedWasmCppGen extends CGenBase with CppSAICodeGenBase {
       emit("ExploreTree.fillFinishedNode()")
     case Node(_, "tree-move-cursor", List(b, snapshot), _) =>
       emit("ExploreTree.moveCursor("); shallow(b); emit(", "); shallow(snapshot); emit(")")
+    case Node(_, "add-instr-cost", List(n), _) =>
+    emit("CostManager.add_instr_cost("); shallow(n); emit(")")
     case Node(_, "tree-print", List(), _) =>
       emit("ExploreTree.print()")
     case Node(_, "tree-dump-graphviz", List(f), _) =>

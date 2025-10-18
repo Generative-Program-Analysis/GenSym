@@ -84,6 +84,11 @@ inline void ConcolicDriver::main_exploration_loop() {
       continue;
     }
 
+    if (INTERACTIVE_MODE) {
+      std::cout << "Press Enter to continue to the next path..." << std::endl;
+      std::cin.get();
+    }
+
     auto cond = node->collect_path_conds();
     auto result = solver.solve(cond);
     if (!result.has_value()) {
@@ -98,15 +103,7 @@ inline void ConcolicDriver::main_exploration_loop() {
     try {
       GENSYM_INFO("Now execute the program with symbolic environment: ");
       GENSYM_INFO(SymEnv.to_string());
-      if (auto snapshot_node = dynamic_cast<SnapshotNode *>(node->node.get())) {
-        assert(REUSE_SNAPSHOT);
-        snapshot_node->get_snapshot().resume_execution(SymEnv, node);
-      } else {
-        auto timer = ManagedTimer(TimeProfileKind::INSTR);
-        reset_stacks();
-        ExploreTree.reset_cursor();
-        entrypoint();
-      }
+      { node->reach_here(entrypoint); }
 
       GENSYM_INFO("Execution finished successfully with symbolic environment:");
       GENSYM_INFO(SymEnv.to_string());
@@ -138,17 +135,6 @@ inline void ConcolicDriver::main_exploration_loop() {
 inline void ConcolicDriver::run() {
   main_exploration_loop();
   Profile.print_summary();
-}
-
-static std::monostate reset_stacks() {
-  Stack.reset();
-  SymStack.reset();
-  Frames.reset();
-  SymFrames.reset();
-  Memory.reset();
-  SymMemory.reset();
-  initRand();
-  return std::monostate{};
 }
 
 static void start_concolic_execution_with(

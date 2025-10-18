@@ -27,8 +27,9 @@
 
 class Symbolic {
 public:
-  Symbolic() {}                  // TODO: remove this default constructor later
+  Symbolic() {}
   virtual ~Symbolic() = default; // Make Symbolic polymorphic
+  virtual int size() = 0;
 };
 
 static int max_id = 0;
@@ -39,6 +40,7 @@ public:
   // for now we just assume that only i32 will be used
   Symbol(int id) : id(id) { max_id = std::max(max_id, id); }
   int get_id() const { return id; }
+  int size() override { return 1; }
 
 private:
   int id;
@@ -48,16 +50,18 @@ class SymConcrete : public Symbolic {
 public:
   Num value;
   SymConcrete(Num num) : value(num) {}
+  int size() override { return 1; }
 };
 
 class SmallBV : public Symbolic {
 public:
-  SmallBV(int size, int64_t value) : size(size), value(value) {}
-  int get_size() const { return size; }
+  SmallBV(int width, int64_t value) : width(width), value(value) {}
+  int get_size() const { return width; }
   int64_t get_value() const { return value; }
+  int size() override { return 1; }
 
 private:
-  int size; // in bits
+  int width; // in bits
   int64_t value;
 };
 struct SymBinary;
@@ -111,6 +115,7 @@ struct SymVal {
   // TODO: add bitwise operations, and use the underlying bitvector theory
 
   bool is_concrete() const;
+  int size() const { return symptr->size(); }
 
 private:
   static SymVal make_binary(Operation op, const SymVal &lhs, const SymVal &rhs);
@@ -142,6 +147,7 @@ struct SymExtract : Symbolic {
 
   SymExtract(SymVal value, int high, int low)
       : value(value), high(high), low(low) {}
+  int size() override { return 1 + value.size(); }
 };
 
 struct SymBinary : Symbolic {
@@ -151,6 +157,7 @@ struct SymBinary : Symbolic {
 
   SymBinary(Operation op, SymVal lhs, SymVal rhs)
       : op(op), lhs(lhs), rhs(rhs) {}
+  int size() override { return 1 + lhs.size() + rhs.size(); }
 };
 
 inline SymVal SymVal::add(const SymVal &other) const {
@@ -293,6 +300,14 @@ public:
 
   SymVal operator[](size_t index) const { return stack[index]; }
 
+  int cost_of_copy() const {
+    int cost = 0;
+    for (size_t i = 0; i < stack.size(); ++i) {
+      cost += stack[i].size();
+    }
+    return cost;
+  }
+
 private:
 #ifdef USE_IMM
   immer::vector_transient<SymVal> stack;
@@ -356,6 +371,14 @@ public:
   size_t size() const { return stack.size(); }
 
   SymVal operator[](size_t index) const { return stack[index]; }
+
+  int cost_of_copy() const {
+    int cost = 0;
+    for (size_t i = 0; i < stack.size(); ++i) {
+      cost += stack[i].size();
+    }
+    return cost;
+  }
 
 private:
 #ifdef USE_IMM
@@ -456,6 +479,15 @@ public:
 #endif
     return std::monostate{};
   }
+
+  int cost_of_copy() const {
+#ifdef USE_IMM
+    // If we use immer, the copy cost should be negligible
+    return 0;
+#else
+    return memory.size();
+#endif
+  }
 };
 
 static SymMemory_t SymMemory;
@@ -471,7 +503,9 @@ public:
   SymFrames_t get_frames() const { return frames; }
   SymMemory_t get_memory() const { return memory; }
 
-  std::monostate resume_execution(SymEnv_t &sym_env, NodeBox *node) const;
+  std::monostate resume_execution(NodeBox *node) const;
+
+  static int cost_of_snapshot();
 
 private:
   SymStack_t stack;
@@ -485,13 +519,14 @@ private:
 static SymFrames_t SymFrames;
 static SymFrames_t SymGlobals;
 
-static Snapshot_t makeSnapshot(Cont_t cont, MCont_t mcont) {
-  if (REUSE_SNAPSHOT) {
-    return Snapshot_t(cont, mcont, SymStack, SymFrames, SymMemory);
-  } else {
-    // create a dummy snapshot, which will not be used
-    return Snapshot_t();
-  }
+static Control makeControl(Cont_t cont, MCont_t mcont) {
+  return Control(cont, mcont);
+}
+
+static Snapshot_t makeSnapshot(Control control) {
+  // create a snapshot from the current symbolic states and the control
+  return Snapshot_t(control.cont, control.mcont, SymStack, SymFrames,
+                    SymMemory);
 }
 
 struct Node;
@@ -500,6 +535,8 @@ struct NodeBox {
   explicit NodeBox(NodeBox *parent);
   std::unique_ptr<Node> node;
   NodeBox *parent;
+  int cost;
+  int instr_cost;
 
   bool fillIfElseNode(SymVal cond, int id);
   std::monostate fillFinishedNode();
@@ -508,6 +545,8 @@ struct NodeBox {
   std::monostate fillSnapshotNode(Snapshot_t snapshot);
   bool isUnexplored() const;
   std::vector<SymVal> collect_path_conds();
+  int min_cost_of_reaching_here();
+  void reach_here(std::function<void()>);
 };
 
 struct Node {
@@ -555,10 +594,17 @@ struct IfElseNode : Node {
   std::unique_ptr<NodeBox> true_branch;
   std::unique_ptr<NodeBox> false_branch;
   int id;
+  std::optional<Snapshot_t> snapshot;
 
   IfElseNode(SymVal cond, NodeBox *parent, int id)
       : cond(cond), true_branch(std::make_unique<NodeBox>(parent)),
-        false_branch(std::make_unique<NodeBox>(parent)), id(id) {}
+        false_branch(std::make_unique<NodeBox>(parent)), id(id),
+        snapshot(std::nullopt) {}
+
+  IfElseNode(SymVal cond, NodeBox *parent, int id, Snapshot_t snapshot)
+      : cond(cond), true_branch(std::make_unique<NodeBox>(parent)),
+        false_branch(std::make_unique<NodeBox>(parent)), id(id),
+        snapshot(snapshot) {}
 
   std::string to_string() override {
     std::string result = "IfElseNode {\n";
@@ -622,6 +668,7 @@ struct SnapshotNode : Node {
   SnapshotNode(Snapshot_t snapshot) : snapshot(snapshot) {}
   std::string to_string() override { return "SnapshotNode"; }
   const Snapshot_t &get_snapshot() const { return snapshot; }
+  Snapshot_t move_out_snapshot() { return std::move(snapshot); }
 
 protected:
   void generate_dot(std::ostream &os, int parent_dot_id,
@@ -689,11 +736,15 @@ protected:
 inline NodeBox::NodeBox(NodeBox *parent)
     : node(std::make_unique<UnExploredNode>()),
       /* TODO: avoid allocation of unexplored node */
-      parent(parent) {}
+      parent(parent), cost(-1), instr_cost(0) {}
 
 inline bool NodeBox::fillIfElseNode(SymVal cond, int id) {
   // fill the current NodeBox with an ifelse branch node when it's unexplored
-  if (this->isUnexplored()) {
+  if (auto ptr = dynamic_cast<SnapshotNode *>(node.get())) {
+    node =
+        std::make_unique<IfElseNode>(cond, this, id, ptr->move_out_snapshot());
+    return true;
+  } else if (dynamic_cast<UnExploredNode *>(node.get())) {
     node = std::make_unique<IfElseNode>(cond, this, id);
     return true;
   }
@@ -738,8 +789,14 @@ inline std::monostate NodeBox::fillUnreachableNode() {
 }
 
 inline bool NodeBox::isUnexplored() const {
-  return dynamic_cast<UnExploredNode *>(node.get()) != nullptr ||
-         dynamic_cast<SnapshotNode *>(node.get()) != nullptr;
+  assert(node != nullptr);
+  if (dynamic_cast<UnExploredNode *>(node.get()) != nullptr) {
+    return true;
+  }
+  if (dynamic_cast<SnapshotNode *>(node.get()) != nullptr) {
+    return true;
+  }
+  return false;
 }
 
 inline std::vector<SymVal> NodeBox::collect_path_conds() {
@@ -765,6 +822,25 @@ inline std::vector<SymVal> NodeBox::collect_path_conds() {
   return result;
 }
 
+inline int NodeBox::min_cost_of_reaching_here() {
+  if (cost != -1) {
+    return cost;
+  }
+
+  if (auto snapshot = dynamic_cast<SnapshotNode *>(node.get())) {
+    cost = snapshot->get_snapshot().cost_of_snapshot();
+    return cost;
+  }
+
+  if (parent != nullptr) {
+    auto parent_cost = parent->min_cost_of_reaching_here();
+    cost = parent_cost + instr_cost;
+    return cost;
+  }
+  cost = instr_cost;
+  return cost;
+}
+
 inline Snapshot_t::Snapshot_t(Cont_t cont, MCont_t mcont, SymStack_t stack,
                               SymFrames_t frames, SymMemory_t memory)
     : stack(std::move(stack)), frames(std::move(frames)),
@@ -775,6 +851,12 @@ inline Snapshot_t::Snapshot_t(Cont_t cont, MCont_t mcont, SymStack_t stack,
 #endif
 }
 
+inline int Snapshot_t::cost_of_snapshot() {
+  auto cost_of_stack_copy = SymStack.cost_of_copy();
+  auto cost_of_frame_copy = SymFrames.cost_of_copy();
+  auto cost_of_memory_copy = SymMemory.cost_of_copy();
+  return cost_of_stack_copy + cost_of_frame_copy + cost_of_memory_copy;
+}
 class ExploreTree_t {
 public:
   explicit ExploreTree_t()
@@ -813,17 +895,37 @@ public:
     return std::monostate();
   }
 
-  std::monostate moveCursor(bool branch, Snapshot_t snapshot) {
+  bool worth_to_create_snapshot() {
+    // find out the best way to reach the current position via our cost model
+    auto snapshot_cost = Snapshot_t::cost_of_snapshot();
+    auto parent_cost =
+        cursor->parent ? cursor->parent->min_cost_of_reaching_here() : 0;
+    auto exec_from_parent_cost =
+        cursor->min_cost_of_reaching_here() + cursor->instr_cost;
+    // TODO: return a random result to test the infrastructure, replace this to the
+    // real cost model later
+    if (std::rand() % 2 == 0) {
+      return true;
+    } else {
+      return false;
+    }
+  }
+
+  std::monostate moveCursor(bool branch, Control control) {
     Profile.step(StepProfileKind::CURSOR_MOVE);
     assert(cursor != nullptr);
     auto if_else_node = dynamic_cast<IfElseNode *>(cursor->node.get());
     assert(
         if_else_node != nullptr &&
         "Can't move cursor when the branch node is not initialized correctly!");
+    int cost_from_parent = CostManager.dump_instr_cost();
     if (branch) {
       true_branch_cov_map[if_else_node->id] = true;
       if (REUSE_SNAPSHOT) {
-        if_else_node->false_branch->fillSnapshotNode(snapshot);
+        if (worth_to_create_snapshot()) {
+          auto snapshot = makeSnapshot(control);
+          if_else_node->false_branch->fillSnapshotNode(snapshot);
+        }
       } else {
         // Do nothing, the initial value of the branch is an unexplored node
       }
@@ -831,7 +933,10 @@ public:
     } else {
       false_branch_cov_map[if_else_node->id] = true;
       if (REUSE_SNAPSHOT) {
-        if_else_node->true_branch->fillSnapshotNode(snapshot);
+        if (worth_to_create_snapshot()) {
+          auto snapshot = makeSnapshot(control);
+          if_else_node->true_branch->fillSnapshotNode(snapshot);
+        }
       } else {
         // Do nothing, the initial value of the branch is an unexplored node
       }
@@ -955,6 +1060,41 @@ private:
 
 static SymEnv_t SymEnv;
 
+static std::monostate reset_stacks() {
+  Stack.reset();
+  SymStack.reset();
+  Frames.reset();
+  SymFrames.reset();
+  Memory.reset();
+  SymMemory.reset();
+  initRand();
+  return std::monostate{};
+}
+
+inline void NodeBox::reach_here(std::function<void()> entrypoint) {
+  // reach the node of exploration tree with given input (symbolic environment)
+  if (auto snapshot = dynamic_cast<SnapshotNode *>(node.get())) {
+    assert(REUSE_SNAPSHOT);
+    auto snap = snapshot->get_snapshot();
+    snap.resume_execution(this);
+  }
+  if (parent == nullptr) {
+    // if it's the root node, the only way to reach here is to reset everything
+    // and start a new execution
+    assert(this == ExploreTree.get_root() &&
+           "Only the root node can have no parent");
+    auto timer = ManagedTimer(TimeProfileKind::INSTR);
+    ExploreTree.reset_cursor();
+    reset_stacks();
+    entrypoint();
+    return;
+  }
+  // Reach the parent node, then from the parent node, we can reach here
+  // TODO: short circuit the lookup
+  parent->reach_here(entrypoint);
+  return;
+}
+
 struct EvalRes {
   Num value;
   int width; // in bits
@@ -1072,8 +1212,7 @@ static void resume_conc_states(const SymStack_t &sym_stack,
   resume_conc_memory(sym_memory, memory, sym_env);
 }
 
-inline std::monostate Snapshot_t::resume_execution(SymEnv_t &sym_env,
-                                                   NodeBox *node) const {
+inline std::monostate Snapshot_t::resume_execution(NodeBox *node) const {
   // Reset explore tree's cursor
   ExploreTree.set_cursor(node);
 
@@ -1085,8 +1224,22 @@ inline std::monostate Snapshot_t::resume_execution(SymEnv_t &sym_env,
   {
     auto timer = ManagedTimer(TimeProfileKind::RESUME_SNAPSHOT);
     // Restore the concrete states from the symbolic states
-    resume_conc_states(stack, frames, memory, Stack, Frames, Memory, sym_env);
+    resume_conc_states(stack, frames, memory, Stack, Frames, Memory, SymEnv);
   }
+  int sym_size = 0;
+  {
+    auto timer = ManagedTimer(TimeProfileKind::COUNT_SYM_SIZE);
+    for (size_t i = 0; i < stack.size(); ++i) {
+      sym_size += stack[i].size();
+    }
+    for (size_t i = 0; i < frames.size(); ++i) {
+      sym_size += frames[i].size();
+    }
+  }
+  std::cout << "[Info] Resumed symbolic execution from snapshot, total "
+               "symbolic expression and frame size: "
+            << sym_size << std::endl;
+
   // Resume execution from the continuation
   auto timer = ManagedTimer(TimeProfileKind::INSTR);
   return cont(mcont);

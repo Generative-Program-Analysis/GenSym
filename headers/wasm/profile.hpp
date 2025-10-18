@@ -28,6 +28,7 @@ enum class TimeProfileKind {
   INSTR,
   SOLVER,
   RESUME_SNAPSHOT,
+  COUNT_SYM_SIZE,
   TimeOperationCount // keep this as the last element, this is used to get the
                      // number of kinds of operations
 };
@@ -103,6 +104,11 @@ public:
                 << time_count[static_cast<std::size_t>(
                        TimeProfileKind::RESUME_SNAPSHOT)]
                 << std::endl;
+      std::cout << "Total time in counting symbolic size (s): "
+                << std::setprecision(15)
+                << time_count[static_cast<std::size_t>(
+                       TimeProfileKind::COUNT_SYM_SIZE)]
+                << std::endl;
     }
   }
 
@@ -139,5 +145,26 @@ private:
   TimeProfileKind kind;
   std::chrono::high_resolution_clock::time_point start;
 };
+
+struct CostManager_t {
+  int instr_cost;
+
+  CostManager_t() : instr_cost(0) {}
+
+  std::monostate add_instr_cost(int n) {
+    instr_cost += n;
+    return {};
+  }
+
+  int dump_instr_cost() {
+    auto cost = instr_cost;
+    instr_cost = 0;
+    return normalize_cost(cost);
+  }
+
+  int normalize_cost(int cost) { return 1 * cost; }
+};
+
+static CostManager_t CostManager;
 
 #endif // PROFILE_HPP
