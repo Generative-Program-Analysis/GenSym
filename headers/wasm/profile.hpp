@@ -20,6 +20,7 @@ enum class StepProfileKind {
   CURSOR_MOVE,
   MEM_GROW,
   SNAPSHOT_CREATE,
+  SYM_EVAL,
   OperationCount // keep this as the last element, this is used to get the
                  // number of kinds of operations
 };
@@ -86,6 +87,9 @@ public:
       std::cout << "Total SNAPSHOT_CREATE operations: "
                 << op_count[static_cast<std::size_t>(
                        StepProfileKind::SNAPSHOT_CREATE)]
+                << std::endl;
+      std::cout << "Total SYM_EVAL operations: "
+                << op_count[static_cast<std::size_t>(StepProfileKind::SYM_EVAL)]
                 << std::endl;
       std::cout << "Total time for instruction execution (s): "
                 << std::setprecision(15) << execution_time << std::endl;

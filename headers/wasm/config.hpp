@@ -55,4 +55,10 @@ static const bool INTERACTIVE_MODE = true;
 static const bool INTERACTIVE_MODE = false;
 #endif
 
+#ifdef USE_COST_MODEL
+static const bool ENABLE_COST_MODEL = true;
+#else
+static const bool ENABLE_COST_MODEL = false;
+#endif
+
 #endif // CONFIG_HPP

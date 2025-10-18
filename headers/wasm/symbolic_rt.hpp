@@ -855,7 +855,8 @@ inline int Snapshot_t::cost_of_snapshot() {
   auto cost_of_stack_copy = SymStack.cost_of_copy();
   auto cost_of_frame_copy = SymFrames.cost_of_copy();
   auto cost_of_memory_copy = SymMemory.cost_of_copy();
-  return cost_of_stack_copy + cost_of_frame_copy + cost_of_memory_copy;
+  return 5.336 *
+         (cost_of_stack_copy + cost_of_frame_copy + cost_of_memory_copy);
 }
 class ExploreTree_t {
 public:
@@ -896,19 +897,23 @@ public:
   }
 
   bool worth_to_create_snapshot() {
+    if (!ENABLE_COST_MODEL) {
+      return REUSE_SNAPSHOT;
+    }
     // find out the best way to reach the current position via our cost model
     auto snapshot_cost = Snapshot_t::cost_of_snapshot();
+    int reach_parent_cost = 0;
+    if (cursor->parent) {
+      reach_parent_cost = cursor->parent->min_cost_of_reaching_here();
+    } else {
+      reach_parent_cost = 0;
+    }
     auto parent_cost =
         cursor->parent ? cursor->parent->min_cost_of_reaching_here() : 0;
-    auto exec_from_parent_cost =
-        cursor->min_cost_of_reaching_here() + cursor->instr_cost;
-    // TODO: return a random result to test the infrastructure, replace this to the
-    // real cost model later
-    if (std::rand() % 2 == 0) {
-      return true;
-    } else {
-      return false;
-    }
+    auto exec_from_parent_cost = reach_parent_cost + cursor->instr_cost;
+    GENSYM_INFO("The score of snapshot tendency: " + std::to_string(exec_from_parent_cost -
+                snapshot_cost));
+    return snapshot_cost <= exec_from_parent_cost;
   }
 
   std::monostate moveCursor(bool branch, Control control) {
@@ -921,22 +926,18 @@ public:
     int cost_from_parent = CostManager.dump_instr_cost();
     if (branch) {
       true_branch_cov_map[if_else_node->id] = true;
-      if (REUSE_SNAPSHOT) {
-        if (worth_to_create_snapshot()) {
-          auto snapshot = makeSnapshot(control);
-          if_else_node->false_branch->fillSnapshotNode(snapshot);
-        }
+      if (worth_to_create_snapshot()) {
+        auto snapshot = makeSnapshot(control);
+        if_else_node->false_branch->fillSnapshotNode(snapshot);
       } else {
         // Do nothing, the initial value of the branch is an unexplored node
       }
       cursor = if_else_node->true_branch.get();
     } else {
       false_branch_cov_map[if_else_node->id] = true;
-      if (REUSE_SNAPSHOT) {
-        if (worth_to_create_snapshot()) {
-          auto snapshot = makeSnapshot(control);
-          if_else_node->true_branch->fillSnapshotNode(snapshot);
-        }
+      if (worth_to_create_snapshot()) {
+        auto snapshot = makeSnapshot(control);
+        if_else_node->true_branch->fillSnapshotNode(snapshot);
       } else {
         // Do nothing, the initial value of the branch is an unexplored node
       }
@@ -1077,8 +1078,8 @@ inline void NodeBox::reach_here(std::function<void()> entrypoint) {
     assert(REUSE_SNAPSHOT);
     auto snap = snapshot->get_snapshot();
     snap.resume_execution(this);
-  }
-  if (parent == nullptr) {
+    return;
+  } else if (parent == nullptr) {
     // if it's the root node, the only way to reach here is to reset everything
     // and start a new execution
     assert(this == ExploreTree.get_root() &&
@@ -1104,6 +1105,7 @@ struct EvalRes {
 // TODO: reduce the re-computation of the same symbolic expression, it's better
 // if it can be done by the smt solver
 static EvalRes eval_sym_expr(const SymVal &sym, SymEnv_t &sym_env) {
+  Profile.step(StepProfileKind::SYM_EVAL);
   assert(sym.symptr != nullptr && "Symbolic expression is null");
   if (auto concrete = dynamic_cast<SymConcrete *>(sym.symptr.get())) {
     return EvalRes(concrete->value, 32);
