@@ -3691,4 +3691,4 @@
 	(export "main" (func $main))
 	(data $0 (i32.const 1024) "a\00b\00h\00i\00")
 )
-(invoke "main")
+
