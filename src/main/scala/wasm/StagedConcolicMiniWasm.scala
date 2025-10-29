@@ -152,6 +152,21 @@ trait StagedWasmEvaluator extends SAIOps {
     ()
   }
 
+  def evalSymbolic(ty: ValueType,
+                   rest: List[Instr],
+                   kont: Context => Rep[Cont[Unit]],
+                   mkont: Rep[MCont[Unit]],
+                   trail: Trail[Unit])(implicit ctx: Context) = {
+      Stack.popC(ty)
+      val id = Stack.popS(ty)
+      val symVal = id.makeSymbolic(ty)
+      val num = SymEnv.read(symVal.s)
+      Stack.pushC(StagedConcreteNum(ty, num))
+      Stack.pushS(symVal)
+      val newCtx = ctx.pop()._2.push(ty)
+      eval(rest, kont, mkont, trail)(newCtx)
+  }
+
   def eval(insts: List[Instr],
            kont: Context => Rep[Cont[Unit]],
            mkont: Rep[MCont[Unit]],
@@ -174,15 +189,7 @@ trait StagedWasmEvaluator extends SAIOps {
         Stack.pushS(toStagedSymbolicNum(num))
         val newCtx = ctx.push(num.tipe(module))
         eval(rest, kont, mkont, trail)(newCtx)
-      case Symbolic(ty) =>
-        Stack.popC(ty)
-        val id = Stack.popS(ty)
-        val symVal = id.makeSymbolic(ty)
-        val num = SymEnv.read(symVal.s)
-        Stack.pushC(StagedConcreteNum(ty, num))
-        Stack.pushS(symVal)
-        val newCtx = ctx.pop()._2.push(ty)
-        eval(rest, kont, mkont, trail)(newCtx)
+      case Symbolic(ty) => evalSymbolic(ty, rest, kont, mkont, trail)(ctx)
       case LocalGet(i) =>
         Stack.pushC(Frames.getC(i))
         Stack.pushS(Frames.getS(i))
@@ -530,7 +537,15 @@ trait StagedWasmEvaluator extends SAIOps {
         val s = Stack.popS(ty)
         runtimeAssert(v.toInt != 0)
         eval(rest, kont, mkont, trail)(newCtx)
-      case Import(_, _, _) => throw new Exception(s"Unknown import at $funcIndex")
+      case Import("i32", "symbolic", _) =>
+        evalSymbolic(NumType(I32Type), rest, kont, mkont, trail)(ctx)
+      case Import("i32", "sym_assume", _) =>
+        // TODO: implement sym_assume
+        eval(rest, kont, mkont, trail)(ctx.pop()._2)
+      case Import("i32", "sym_assert", _) =>
+        // TODO: implement sym_assert
+        eval(rest, kont, mkont, trail)(ctx.pop()._2)
+      case Import(m, f, _) => throw new Exception(s"Unknown import $m.$f at $funcIndex")
       case _               => throw new Exception(s"Definition at $funcIndex is not callable")
     }
   }
