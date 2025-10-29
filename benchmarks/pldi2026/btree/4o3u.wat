@@ -3690,7 +3690,7 @@
 		(i32.and)
 		(i32.and)
 		(i32.and)
-		(sym_assume)
+		(call $i32.sym_assume)
 
 		;; insert variables
 		(get_sym_int32 "a")
