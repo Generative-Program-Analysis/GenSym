@@ -1,7 +1,15 @@
 (module 
+		(import "i32" "symbolic" (func $i32.symbolic (param i32) (result i32)))
+
+		(import "i32" "sym_assume" (func $i32.sym_assume (param i32)))
+
+		(import "i32" "sym_assert" (func $i32.sym_assert (param i32)))
+
+		(import "sym" "get_sym_int32" (func $get_sym_int32 (param i32) (result i32)))
+
     (memory $0 1)
 
-    
+
     (func $createBtree (param i32) (result i32) ;; createBtree(t), where t: degree of the btree
     	(i32.const 0)
     	(local.get 0)
@@ -3548,14 +3556,16 @@
 		;; 2 symbolic variables w/ order
 		;; a and b
 		(i32.const 1024)
-		(i32.symbolic)
+		(call $i32.symbolic)
 		(i32.const 1026)
-		(i32.symbolic)
-		(i32.ne)		
+		(call $i32.symbolic)
+		(i32.ne)
 
 		;; logical order: a>b
-		(get_sym_int32 "a")
-		(get_sym_int32 "b")
+		(i32.const 1024)
+		(call $i32.symbolic)
+		(i32.const 1026)
+		(call $i32.symbolic)
 		(i32.gt_s)
 
 		(i32.and)
@@ -3563,46 +3573,55 @@
 		;; 1 symbolic variable w/o order
 		;; h
 		(i32.const 1028)
-		(i32.symbolic)
-		(get_sym_int32 "a")
+		(call $i32.symbolic)
+		(i32.const 1024)
+		(call $i32.symbolic)
 		(i32.ne)
 
-		(get_sym_int32 "h")
-		(get_sym_int32 "b")
+		(i32.const 1028)
+		(call $i32.symbolic)
+		(i32.const 1026)
+		(call $i32.symbolic)
 		(i32.ne)
 
 		(i32.and)
 		(i32.and)
-		(sym_assume)
+		(call $i32.sym_assume)
 
 		;; insert variables
-		(get_sym_int32 "a")
+		(i32.const 1024)
+		(call $i32.symbolic)
 		(call $btreeInsert)
 		(local.set 0)
-		(get_sym_int32 "b")
+		(i32.const 1026)
+		(call $i32.symbolic)
 		(call $btreeInsert)
 		(local.set 0)
-		(get_sym_int32 "h")
+		(i32.const 1028)
+		(call $i32.symbolic)
 		(call $btreeInsert)
 		(local.set 0)
 		
-		(print_btree)
+		;; (print_btree)
 
 		;; search for variables & check that they were inserted
 		(local.get 0)
-		(get_sym_int32 "a")
+		(i32.const 1024)
+		(call $i32.symbolic)
 		(call $btreeSearch)
 		(i32.const -1)
 		(i32.ne)
 
 		(local.get 0)
-		(get_sym_int32 "b")
+		(i32.const 1026)
+		(call $i32.symbolic)
 		(call $btreeSearch)
 		(i32.const -1)
 		(i32.ne)
 
 		(local.get 0)
-		(get_sym_int32 "h")
+		(i32.const 1028)
+		(call $i32.symbolic)
 		(call $btreeSearch)
 		(i32.const -1)
 		(i32.ne)
@@ -3613,43 +3632,46 @@
 		;; delete & check that it was deleted
 		;; a
 		(local.get 0)
-		(get_sym_int32 "a")
+		(i32.const 1024)
+		(call $i32.symbolic)
 		(call $btreeDelete)
 		(local.set 0)
 
 		(local.get 0)
-		(get_sym_int32 "a")
+		(i32.const 1024)
+		(call $i32.symbolic)
 		(call $btreeSearch)
-		(print_stack)
+		;; (print_stack)
 		(i32.const -1)
 		(i32.eq)
-		(print_stack)
+		;; (print_stack)
 
 		;; b
 		(local.get 0)
-		(get_sym_int32 "b")
+		(i32.const 1026)
+		(call $i32.symbolic)
 		(call $btreeDelete)
 		(local.set 0)
 
 		(local.get 0)
-		(get_sym_int32 "b")
+		(i32.const 1026)
+		(call $i32.symbolic)
 		(call $btreeSearch)
-		(print_stack)
+		;; (print_stack)
 		(i32.const -1)
 		(i32.eq)
-		(print_stack)
+		;; (print_stack)
 
 
-		(print_btree)
+		;; (print_btree)
 		
 		(i32.and)
 		(i32.and)
 		
-		(sym_assert)
+		(call $i32.sym_assert)
 
 
 
     )
 	(export "main" (func $main))
 	(data $0 (i32.const 1024) "a\00b\00h\00"))
-(invoke "main")
