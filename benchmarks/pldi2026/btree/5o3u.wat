@@ -3818,7 +3818,7 @@
 		(i32.and)
 		(i32.and)
 		(i32.and)
-		(sym_assert)
+		(call $i32.sym_assert)
 
 		;; delete & check that it was deleted
 		;; a
@@ -3914,7 +3914,7 @@
 		(i32.and)
 		(i32.and)
 		
-		(sym_assert)
+		(call $i32.sym_assert)
     )
 	(export "main" (func $main))
 	(data $0 (i32.const 1024) "a\00b\00c\00d\00e\00h\00i\00j\00")

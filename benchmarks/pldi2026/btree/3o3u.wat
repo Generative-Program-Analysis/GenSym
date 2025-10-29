@@ -3720,7 +3720,7 @@
 		(i32.and)
 		(i32.and)
 		(i32.and)
-		(sym_assert)
+		(call $i32.sym_assert)
 
 		;; delete & check that it was deleted
 		;; a
@@ -3791,7 +3791,7 @@
 		(i32.and)
 		(i32.and)
 		
-		(sym_assert)
+		(call $i32.sym_assert)
 
 
 
