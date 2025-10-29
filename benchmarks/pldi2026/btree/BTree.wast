@@ -3865,7 +3865,7 @@
 		(call $btreeInsert)
 		(local.set 0)
 		
-		(print_btree)
+		;; (print_btree)
 
 		;; search for variables & check that they were inserted
 		(local.get 0)
@@ -4063,7 +4063,7 @@
 		(i32.eq)
 
 
-		(print_btree)
+		;; (print_btree)
 		
 		(i32.and)
 		(i32.and)
