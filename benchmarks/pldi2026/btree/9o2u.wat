@@ -3555,14 +3555,14 @@
 		;; 9 symbolic variables w/ order
 		;; a and b
 		(i32.const 1024)
-		(i32.symbolic)
+		(call $i32.symbolic)
 		(i32.const 1026)
-		(i32.symbolic)
+		(call $i32.symbolic)
 		(i32.ne)
 
 		;;c
 		(i32.const 1028)
-		(i32.symbolic)
+		(call $i32.symbolic)
 		(get_sym_int32 "a")
 		(i32.ne)
 
@@ -3572,7 +3572,7 @@
 
 		;;d
 		(i32.const 1030)
-		(i32.symbolic)
+		(call $i32.symbolic)
 		(get_sym_int32 "a")
 		(i32.ne)
 
@@ -3586,7 +3586,7 @@
 
 		;;e
 		(i32.const 1032)
-		(i32.symbolic)
+		(call $i32.symbolic)
 		(get_sym_int32 "a")
 		(i32.ne)
 
@@ -3604,7 +3604,7 @@
 
 		;; f
 		(i32.const 1034)
-		(i32.symbolic)
+		(call $i32.symbolic)
 		(get_sym_int32 "a")
 		(i32.ne)
 
@@ -3626,7 +3626,7 @@
 
 		;; g
 		(i32.const 1036)
-		(i32.symbolic)
+		(call $i32.symbolic)
 		(get_sym_int32 "a")
 		(i32.ne)
 
@@ -3652,7 +3652,7 @@
 
 		;; x
 		(i32.const 1044)
-		(i32.symbolic)
+		(call $i32.symbolic)
 		(get_sym_int32 "a")
 		(i32.ne)
 
@@ -3682,7 +3682,7 @@
 
 		;; y
 		(i32.const 1046)
-		(i32.symbolic)
+		(call $i32.symbolic)
 		(get_sym_int32 "a")
 		(i32.ne)
 
@@ -3795,7 +3795,7 @@
 		;; 2 symbolic variables w/o order
 		;; h
 		(i32.const 1038)
-		(i32.symbolic)
+		(call $i32.symbolic)
 		(get_sym_int32 "a")
 		(i32.ne)
 
@@ -3833,7 +3833,7 @@
 
 		;; i
 		(i32.const 1040)
-		(i32.symbolic)
+		(call $i32.symbolic)
 		(get_sym_int32 "a")
 		(i32.ne)
 

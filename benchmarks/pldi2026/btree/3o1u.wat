@@ -3555,14 +3555,14 @@
 		;; 3 symbolic variables w/ order
 		;; a and b
 		(i32.const 1024)
-		(i32.symbolic)
+		(call $i32.symbolic)
 		(i32.const 1026)
-		(i32.symbolic)
+		(call $i32.symbolic)
 		(i32.ne)
 
 		;;c
 		(i32.const 1028)
-		(i32.symbolic)
+		(call $i32.symbolic)
 		(get_sym_int32 "a")
 		(i32.ne)
 
@@ -3588,7 +3588,7 @@
 		;; 1 symbolic variable w/o order
 		;; h
 		(i32.const 1030)
-		(i32.symbolic)
+		(call $i32.symbolic)
 		(get_sym_int32 "a")
 		(i32.ne)
 
