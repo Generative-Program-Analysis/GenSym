@@ -7,7 +7,7 @@
   (import "i32" "symbolic" (func (;0;) (type 0)))
   (import "i32" "sym_assume" (func (;1;) (type 1)))
   (import "i32" "sym_assert" (func (;2;) (type 1)))
-  (import "sym" "get_sym_int32" (func (;3;) (type 0)))
+  ;; (import "sym" "get_sym_int32" (func (;3;) (type 0)))
   (func (;4;) (type 0) (param i32) (result i32)
     i32.const 0
     local.get 0
