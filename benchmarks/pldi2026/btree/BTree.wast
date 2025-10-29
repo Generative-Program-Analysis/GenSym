@@ -3554,25 +3554,21 @@
 
 		;; 5 symbolic variables w/ order
 		;; a and b
-		(i32.const 1024)
-		(i32.symbolic)
-		(i32.const 1026)
-		(i32.symbolic)
+		(sym_int32 "a")
+		(sym_int32 "b")
 		(i32.ne)
 
-		;;c
-		(i32.const 1028)
-		(i32.symbolic)
+		(;);;c
+		(sym_int32 "c")
 		(get_sym_int32 "a")
 		(i32.ne)
 
 		(get_sym_int32 "c")
 		(get_sym_int32 "b")
-		(i32.ne)
+		(i32.ne);)
 
-		;;d
-		(i32.const 1030)
-		(i32.symbolic)
+		(;);;d
+		(sym_int32 "d")
 		(get_sym_int32 "a")
 		(i32.ne)
 
@@ -3582,11 +3578,10 @@
 
 		(get_sym_int32 "d")
 		(get_sym_int32 "c")
-		(i32.ne)
+		(i32.ne);)
 
-		;;e
-		(i32.const 1032)
-		(i32.symbolic)
+		(;;;e
+		(sym_int32 "e")
 		(get_sym_int32 "a")
 		(i32.ne)
 
@@ -3600,11 +3595,10 @@
 
 		(get_sym_int32 "e")
 		(get_sym_int32 "d")
-		(i32.ne)
+		(i32.ne);)
 
-		;; f
-		(i32.const 1034)
-		(i32.symbolic)
+		(;);; f
+		(sym_int32 "f")
 		(get_sym_int32 "a")
 		(i32.ne)
 
@@ -3625,8 +3619,7 @@
 		(i32.ne)
 
 		;; g
-		(i32.const 1036)
-		(i32.symbolic)
+		(sym_int32 "g")
 		(get_sym_int32 "a")
 		(i32.ne)
 
@@ -3650,24 +3643,55 @@
 		(get_sym_int32 "f")
 		(i32.ne)
 
-		;; logical order: a>b>c>d>e>f>g
+		;; z
+		(sym_int32 "z")
+		(get_sym_int32 "a")
+		(i32.ne)
+
+		(get_sym_int32 "z")
+		(get_sym_int32 "b")
+		(i32.ne)
+
+		(get_sym_int32 "z")
+		(get_sym_int32 "c")
+		(i32.ne)
+
+		(get_sym_int32 "z")
+		(get_sym_int32 "d")
+		(i32.ne)
+
+		(get_sym_int32 "z")
+		(get_sym_int32 "e")
+		(i32.ne)
+
+		(get_sym_int32 "z")
+		(get_sym_int32 "f")
+		(i32.ne)
+
+		(get_sym_int32 "z")
+		(get_sym_int32 "g")
+		(i32.ne);)
+
+		
+
+		;; logical order: a>b>c>d>e>f>g>z
 		(get_sym_int32 "a")
 		(get_sym_int32 "b")
 		(i32.gt_s)
 
-		(get_sym_int32 "b")
+		(;(get_sym_int32 "b")
 		(get_sym_int32 "c")
-		(i32.gt_s)
+		(i32.gt_s);)
 
-		(get_sym_int32 "c")
+		(;(get_sym_int32 "c")
 		(get_sym_int32 "d")
-		(i32.gt_s)
+		(i32.gt_s);)
 
-		(get_sym_int32 "d")
+		(;(get_sym_int32 "d")
 		(get_sym_int32 "e")
-		(i32.gt_s)
+		(i32.gt_s);)
 
-		(get_sym_int32 "e")
+		(;(get_sym_int32 "e")
 		(get_sym_int32 "f")
 		(i32.gt_s)
 
@@ -3675,69 +3699,51 @@
 		(get_sym_int32 "g")
 		(i32.gt_s)
 
+		(get_sym_int32 "g")
+		(get_sym_int32 "z")
+		(i32.gt_s);)
+
 
 		(i32.and)
-		(i32.and)
-		(i32.and)
-		(i32.and)
-		(i32.and)
-		(i32.and)
-		(i32.and)
-		(i32.and)
-		(i32.and)
-		(i32.and)
-		(i32.and)
-		(i32.and)
-		(i32.and)
-		(i32.and)
-		(i32.and)
-		(i32.and)
-		(i32.and)
-		(i32.and)
-		(i32.and)
-		(i32.and)
-		(i32.and)
-		(i32.and)
-		(i32.and)
-		(i32.and)
-		(i32.and)
-		(i32.and)
 
-		;; 3 symbolic variables w/o order
+		;; 2 symbolic variables w/o order
 		;; h
-		(i32.const 1038)
-		(i32.symbolic)
-		(get_sym_int32 "a")
+		(sym_int32 "h")
+		(sym_int32 "a")
 		(i32.ne)
 
 		(get_sym_int32 "h")
 		(get_sym_int32 "b")
 		(i32.ne)
 
-		(get_sym_int32 "h")
+		(;(get_sym_int32 "h")
 		(get_sym_int32 "c")
-		(i32.ne)
+		(i32.ne);)
 
-		(get_sym_int32 "h")
+		(;(get_sym_int32 "h")
 		(get_sym_int32 "d")
-		(i32.ne)
+		(i32.ne);)
 
-		(get_sym_int32 "h")
+		(;(get_sym_int32 "h")
 		(get_sym_int32 "e")
-		(i32.ne)
+		(i32.ne);)
 
-		(get_sym_int32 "h")
+		(;(get_sym_int32 "h")
 		(get_sym_int32 "f")
 		(i32.ne)
 		
 		(get_sym_int32 "h")
 		(get_sym_int32 "g")
 		(i32.ne)
+
+		(get_sym_int32 "h")
+		(get_sym_int32 "z")
+		(i32.ne);)
+
 
 
 		;; i
-		(i32.const 1040)
-		(i32.symbolic)
+		(sym_int32 "i")
 		(get_sym_int32 "a")
 		(i32.ne)
 
@@ -3745,33 +3751,38 @@
 		(get_sym_int32 "b")
 		(i32.ne)
 
-		(get_sym_int32 "i")
+		(;(get_sym_int32 "i")
 		(get_sym_int32 "c")
-		(i32.ne)
+		(i32.ne);)
 
-		(get_sym_int32 "i")
+		(;(get_sym_int32 "i")
 		(get_sym_int32 "d")
-		(i32.ne)
+		(i32.ne);)
 
-		(get_sym_int32 "i")
+		(;(get_sym_int32 "i")
 		(get_sym_int32 "e")
-		(i32.ne)
+		(i32.ne);)
 
-		(get_sym_int32 "i")
+		(;(get_sym_int32 "i")
 		(get_sym_int32 "f")
 		(i32.ne)
-		
+
 		(get_sym_int32 "i")
 		(get_sym_int32 "g")
 		(i32.ne)
 
 		(get_sym_int32 "i")
+		(get_sym_int32 "z")
+		(i32.ne);)
+
+
+		(get_sym_int32 "i")
 		(get_sym_int32 "h")
 		(i32.ne)
 
-		;; i
-		(i32.const 1042)
-		(i32.symbolic)
+
+		;; j
+		(sym_int32 "j")
 		(get_sym_int32 "a")
 		(i32.ne)
 
@@ -3779,25 +3790,25 @@
 		(get_sym_int32 "b")
 		(i32.ne)
 
-		(get_sym_int32 "j")
+		(;(get_sym_int32 "j")
 		(get_sym_int32 "c")
-		(i32.ne)
+		(i32.ne);)
 
-		(get_sym_int32 "j")
+		(;(get_sym_int32 "j")
 		(get_sym_int32 "d")
-		(i32.ne)
+		(i32.ne);)
 
-		(get_sym_int32 "j")
+		(;(get_sym_int32 "j")
 		(get_sym_int32 "e")
-		(i32.ne)
+		(i32.ne);)
 
-		(get_sym_int32 "j")
+		(;(get_sym_int32 "j")
 		(get_sym_int32 "f")
 		(i32.ne)
-		
-		(get_sym_int32 "j")
+
+		(;(get_sym_int32 "j")
 		(get_sym_int32 "g")
-		(i32.ne)
+		(i32.ne););)
 
 		(get_sym_int32 "j")
 		(get_sym_int32 "h")
@@ -3808,21 +3819,6 @@
 		(i32.ne)
 
 
-		(i32.and)
-		(i32.and)
-		(i32.and)
-		(i32.and)
-		(i32.and)
-		(i32.and)
-		(i32.and)
-		(i32.and)
-		(i32.and)
-		(i32.and)
-		(i32.and)
-		(i32.and)
-		(i32.and)
-		(i32.and)
-		(i32.and)
 		(i32.and)
 		(i32.and)
 		(i32.and)
@@ -3841,21 +3837,24 @@
 		(get_sym_int32 "b")
 		(call $btreeInsert)
 		(local.set 0)
-		(get_sym_int32 "c")
+		(;(get_sym_int32 "c")
 		(call $btreeInsert)
-		(local.set 0)
-		(get_sym_int32 "d")
+		(local.set 0);)
+		(;(get_sym_int32 "d")
 		(call $btreeInsert)
-		(local.set 0)
-		(get_sym_int32 "e")
+		(local.set 0);)
+		(;(get_sym_int32 "e")
 		(call $btreeInsert)
-		(local.set 0)
-		(get_sym_int32 "f")
+		(local.set 0);)
+		(;(get_sym_int32 "f")
 		(call $btreeInsert)
 		(local.set 0)
 		(get_sym_int32 "g")
 		(call $btreeInsert)
 		(local.set 0)
+		(get_sym_int32 "z")
+		(call $btreeInsert)
+		(local.set 0);)
 		(get_sym_int32 "h")
 		(call $btreeInsert)
 		(local.set 0)
@@ -3881,25 +3880,25 @@
 		(i32.const -1)
 		(i32.ne)
 
-		(local.get 0)
+		(;(local.get 0)
 		(get_sym_int32 "c")
 		(call $btreeSearch)
 		(i32.const -1)
-		(i32.ne)
+		(i32.ne);)
 
-		(local.get 0)
+		(;(local.get 0)
 		(get_sym_int32 "d")
 		(call $btreeSearch)
 		(i32.const -1)
-		(i32.ne)
+		(i32.ne);)
 
-		(local.get 0)
+		(;(local.get 0)
 		(get_sym_int32 "e")
 		(call $btreeSearch)
 		(i32.const -1)
-		(i32.ne)
+		(i32.ne);)
 
-		(local.get 0)
+		(;(local.get 0)
 		(get_sym_int32 "f")
 		(call $btreeSearch)
 		(i32.const -1)
@@ -3910,6 +3909,13 @@
 		(call $btreeSearch)
 		(i32.const -1)
 		(i32.ne)
+
+		(local.get 0)
+		(get_sym_int32 "z")
+		(call $btreeSearch)
+		(i32.const -1)
+		(i32.ne);)
+
 
 		(local.get 0)
 		(get_sym_int32 "h")
@@ -3929,11 +3935,6 @@
 		(i32.const -1)
 		(i32.ne)
 
-		(i32.and)
-		(i32.and)
-		(i32.and)
-		(i32.and)
-		(i32.and)
 		(i32.and)
 		(i32.and)
 		(i32.and)
@@ -3965,7 +3966,7 @@
 		(i32.const -1)
 		(i32.eq)
 
-		;; c
+		(;);; c
 		(local.get 0)
 		(get_sym_int32 "c")
 		(call $btreeDelete)
@@ -3975,9 +3976,9 @@
 		(get_sym_int32 "c")
 		(call $btreeSearch)
 		(i32.const -1)
-		(i32.eq)
+		(i32.eq);)
 
-		;; d
+		(;);; d
 		(local.get 0)
 		(get_sym_int32 "d")
 		(call $btreeDelete)
@@ -3987,10 +3988,10 @@
 		(get_sym_int32 "d")
 		(call $btreeSearch)
 		(i32.const -1)
-		(i32.eq)
+		(i32.eq);)
 
 		;; e
-		(local.get 0)
+		(;(local.get 0)
 		(get_sym_int32 "e")
 		(call $btreeDelete)
 		(local.set 0)
@@ -3999,9 +4000,9 @@
 		(get_sym_int32 "e")
 		(call $btreeSearch)
 		(i32.const -1)
-		(i32.eq)
+		(i32.eq);)
 
-		;; f
+		(;);; f
 		(local.get 0)
 		(get_sym_int32 "f")
 		(call $btreeDelete)
@@ -4024,6 +4025,18 @@
 		(call $btreeSearch)
 		(i32.const -1)
 		(i32.eq)
+
+		;; z
+		(local.get 0)
+		(get_sym_int32 "z")
+		(call $btreeDelete)
+		(local.set 0)
+
+		(local.get 0)
+		(get_sym_int32 "z")
+		(call $btreeSearch)
+		(i32.const -1)
+		(i32.eq);)
 
 		;; h
 		(local.get 0)
@@ -4055,11 +4068,6 @@
 		(i32.and)
 		(i32.and)
 		(i32.and)
-		(i32.and)
-		(i32.and)
-		(i32.and)
-		(i32.and)
-		(i32.and)
 		
 		(sym_assert)
 
@@ -4067,6 +4075,6 @@
 
     )
 	(export "main" (func $main))
-	(data $0 (i32.const 1024) "a\00b\00c\00d\00e\00f\00g\00h\00i\00j\00")
-)
 
+)
+(invoke "main")

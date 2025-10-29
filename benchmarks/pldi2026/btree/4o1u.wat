@@ -1,4 +1,11 @@
 (module 
+		(import "i32" "symbolic" (func $i32.symbolic (param i32) (result i32)))
+
+		(import "i32" "sym_assume" (func $i32.sym_assume (param i32)))
+
+		(import "i32" "sym_assert" (func $i32.sym_assert (param i32)))
+
+		(import "sym" "get_sym_int32" (func $get_sym_int32 (param i32) (result i32)))
     (memory $0 1)
 
     
