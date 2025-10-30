@@ -37,27 +37,6 @@ class TestBenchmarkBtree extends FunSuite {
     }
   }
 
-  // only test concrete execution and its result
-  def testFileConcreteCpp(filename: String, main: Option[String] = None, expect: Option[List[Float]] = None) = {
-    val moduleInst = ModuleInstance(Parser.parseFile(filename))
-    val cppFile = s"$filename.cpp"
-    val exe = s"$cppFile.exe"
-    WasmToCppCompiler.compileToExe(moduleInst, main, cppFile, exe, true, optimizeLevel=0, "NO_INFO", "RUN_ONCE", "USE_IMM")
-
-    import sys.process._
-    val result = s"./$exe".!!
-    println(result)
-
-    expect.map(vs => {
-      val stackValues = result
-        .split("Stack contents: \n")(1)
-        .split("\n")
-        .map(_.toFloat)
-        .toList
-      assert(vs == stackValues)
-    })
-  }
-
   test("compile-btree-benchmarks") { compileDirToCpp("./benchmarks/pldi2026/btree/", Some("main")) }
 
 }
