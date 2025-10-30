@@ -119,14 +119,12 @@ trait StagedWasmEvaluator extends SAIOps {
     }
   }
 
-  type MCont[A] = Unit => A
+  class MCont[A]
   type Cont[A] = (MCont[A]) => A
   type Trail[A] = List[Context => Rep[Cont[A]]]
 
   // a cache storing the compiled code for each function, to reduce re-compilation
   val compileCache = new HashMap[Int, Rep[(MCont[Unit]) => Unit]]
-
-  def makeDummy: Rep[Unit] = "dummy".reflectCtrlWith[Unit]()
 
   def funHere[A:Manifest,B:Manifest](f: Rep[A] => Rep[B], dummy: Rep[Unit]): Rep[A => B] = {
     // to avoid LMS lifting a function, we create a dummy node and read it inside function
@@ -134,6 +132,20 @@ trait StagedWasmEvaluator extends SAIOps {
       "dummy-op".reflectCtrlWith[Unit](dummy)
       f(x)
     })
+  }
+
+  def makeInitMCont[A:Manifest](f: Rep[Unit => A]): Rep[MCont[A]] = {
+    "make-init-mcont".reflectCtrlWith[MCont[A]](f)
+  }
+
+  implicit class MContOps[A:Manifest](mk: Rep[MCont[A]]) {
+    def prependCont(k: Rep[Cont[A]]): Rep[MCont[A]] = {
+      "mcont-prepend".reflectCtrlWith[MCont[A]](mk, k)
+    }
+
+    def enter(): Rep[A] = {
+      "mcont-enter".reflectCtrlWith[A](mk)
+    }
   }
 
   trait Control
@@ -308,7 +320,6 @@ trait StagedWasmEvaluator extends SAIOps {
         // the type system guarantees that we will never take more than the input size from the stack
         val funcTy = ty.funcType
         val exitSize = ctx.stackTypes.size - funcTy.inps.size + funcTy.out.size
-        val dummy = makeDummy
         def restK(restCtx: Context): Rep[Cont[Unit]] = topFun((mk: Rep[MCont[Unit]]) => {
           info(s"Exiting the block, stackSize =", Stack.size)
           val offset = restCtx.stackTypes.size - exitSize
@@ -321,7 +332,6 @@ trait StagedWasmEvaluator extends SAIOps {
       case Loop(ty, inner) =>
         val funcTy = ty.funcType
         val exitSize = ctx.stackTypes.size - funcTy.inps.size + funcTy.out.size
-        val dummy = makeDummy
         def restK(restCtx: Context): Rep[Cont[Unit]] = topFun((mk: Rep[MCont[Unit]]) => {
           info(s"Exiting the loop, stackSize =", Stack.size)
           val offset = restCtx.stackTypes.size - exitSize
@@ -454,7 +464,7 @@ trait StagedWasmEvaluator extends SAIOps {
     }
   }
 
-  def forwardKont: Rep[Cont[Unit]] = topFun((mk: Rep[MCont[Unit]]) => mk(()))
+  def forwardKont: Rep[Cont[Unit]] = topFun((mk: Rep[MCont[Unit]]) => mk.enter())
 
 
   def evalCall(rest: List[Instr],
@@ -481,7 +491,7 @@ trait StagedWasmEvaluator extends SAIOps {
                 val offset = ctx.stackTypes.size - ty.out.size
                 Stack.shiftC(offset, ty.out.size)
                 Stack.shiftS(offset, ty.out.size)
-                mk(())
+                mk.enter()
               })
               eval(body, retK _, mk, retK _::Nil)(Context(Nil, locals))
             })
@@ -510,10 +520,7 @@ trait StagedWasmEvaluator extends SAIOps {
             Frames.popFrameS(locals.size)
             eval(rest, kont, mk, trail)(newCtx.copy(stackTypes = ty.out.reverse ++ ctx.stackTypes.drop(ty.inps.size)))
           })
-          val dummy = makeDummy
-          val newMKont: Rep[MCont[Unit]] = funHere((_u: Rep[Unit]) => {
-            restK(mkont)
-          }, dummy)
+          val newMKont: Rep[MCont[Unit]] = mkont.prependCont(restK)
           Frames.pushFrameC(locals)
           Frames.pushFrameS(locals)
           Frames.putAllC(argsC)
@@ -672,7 +679,7 @@ trait StagedWasmEvaluator extends SAIOps {
       ExploreTree.fillWithFinished()
       "no-op".reflectCtrlWith[Unit]()
     }
-    val temp: Rep[MCont[Unit]] = topFun(haltK)
+    val temp: Rep[MCont[Unit]] = makeInitMCont(topFun(haltK))
     evalTop(temp, main)
   }
 
@@ -1356,6 +1363,7 @@ trait StagedWasmCppGen extends CGenBase with CppSAICodeGenBase {
     else if (m.toString.endsWith("I64V")) "I64V"
     else if (m.toString.endsWith("SymVal")) "SymVal"
     else if (m.toString.endsWith("Snapshot")) "Snapshot_t"
+    else if (m.toString.endsWith("MCont[Unit]")) "MCont_t"
     else super.remap(m)
   }
 
@@ -1547,6 +1555,12 @@ trait StagedWasmCppGen extends CGenBase with CppSAICodeGenBase {
       emit("ExploreTree.dump_graphviz("); shallow(f); emit(")")
     case Node(_, "sym-not", List(s), _) =>
       shallow(s); emit(".negate()")
+    case Node(_, "make-init-mcont", List(haltK), _) =>
+      emit("MCont_t("); shallow(haltK); emit(")")
+    case Node(_, "mcont-prepend", List(mkont, kont), _) =>
+      emit("prependCont(");  shallow(kont); emit(", "); shallow(mkont); emit(")")
+    case Node(_, "mcont-enter", List(mkont), _) =>
+      shallow(mkont); emit(".enter()")
     case Node(_, "dummy", _, _) => emit("std::monostate()")
     case Node(_, "dummy-op", _, _) => emit("std::monostate()")
     case Node(_, "no-op", _, _) =>
