@@ -178,4 +178,9 @@ class TestStagedConcolicEval extends FunSuite {
   test("small-snapshot-concrete") {
     testFileConcreteCpp("./benchmarks/wasm/compare_wasp/small-snapshot.wat", Some("main"))
   }
+
+  // test("diverge") {
+  //   testFileConcolicCpp("./benchmarks/wasm/diverge.wat", Some("main"))
+  // }
+
 }
