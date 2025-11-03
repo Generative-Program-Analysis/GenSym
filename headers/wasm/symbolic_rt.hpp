@@ -14,6 +14,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstdio>
+#include <filesystem>
 #include <fstream>
 #include <iterator>
 #include <memory>
@@ -884,6 +885,24 @@ inline int Snapshot_t::cost_of_snapshot() {
   return 5.336 *
          (cost_of_stack_copy + cost_of_frame_copy + cost_of_memory_copy);
 }
+
+struct OverallResult {
+  int unexplored_count = 0;
+  int finished_count = 0;
+  int failed_count = 0;
+  int not_to_explore_count = 0;
+  int unreachable_count = 0;
+
+  void print() {
+    std::cout << "Explore Tree Overall Result:" << std::endl;
+    std::cout << "  Unexplored paths: " << unexplored_count << std::endl;
+    std::cout << "  Finished paths: " << finished_count << std::endl;
+    std::cout << "  Failed paths: " << failed_count << std::endl;
+    std::cout << "  Unreachable paths: " << unreachable_count << std::endl;
+    std::cout << "  NotToExplore paths: " << not_to_explore_count << std::endl;
+  }
+};
+
 class ExploreTree_t {
 public:
   explicit ExploreTree_t()
@@ -1009,6 +1028,16 @@ public:
   }
 
   std::monostate dump_graphviz(std::string filepath) {
+    std::filesystem::path out_path(filepath);
+    auto parent = out_path.parent_path();
+    if (!parent.empty()) {
+      std::error_code ec;
+      std::filesystem::create_directories(parent, ec);
+      if (ec) {
+        throw std::runtime_error("Failed to create output directory: " +
+                                 ec.message());
+      }
+    }
     std::ofstream ofs(filepath);
     if (!ofs.is_open()) {
       throw std::runtime_error("Failed to open " + filepath + "  for writing");
@@ -1017,44 +1046,34 @@ public:
     return std::monostate();
   }
 
-  std::monostate print_overall_result() {
-    // Print how many paths have been explored, how many paths are unreachable,
-    // how many paths are failed, how many paths are finished successfully
-    int unexplored_count = 0;
-    int finished_count = 0;
-    int failed_count = 0;
-    int not_to_explore_count = 0;
-    int unreachable_count = 0;
+  OverallResult read_current_overall_result() {
+    OverallResult result;
     std::function<void(NodeBox *)> dfs = [&](NodeBox *node) {
       if (auto if_else_node = dynamic_cast<IfElseNode *>(node->node.get())) {
         dfs(if_else_node->true_branch.get());
         dfs(if_else_node->false_branch.get());
       } else if (dynamic_cast<UnExploredNode *>(node->node.get())) {
-        unexplored_count += 1;
+        result.unexplored_count += 1;
       } else if (dynamic_cast<Finished *>(node->node.get())) {
-        finished_count += 1;
+        result.finished_count += 1;
       } else if (dynamic_cast<Failed *>(node->node.get())) {
-        failed_count += 1;
+        result.failed_count += 1;
       } else if (dynamic_cast<Unreachable *>(node->node.get())) {
-        unreachable_count += 1;
+        result.unreachable_count += 1;
       } else if (dynamic_cast<SnapshotNode *>(node->node.get())) {
         // Snapshot node is considered unexplored
-        unexplored_count += 1;
+        result.unexplored_count += 1;
       } else if (dynamic_cast<NotToExploreNode *>(node->node.get())) {
-        not_to_explore_count += 1;
+        result.not_to_explore_count += 1;
       } else {
         throw std::runtime_error("Unknown node type in explore tree");
       }
     };
     dfs(root.get());
-    std::cout << "Explore Tree Overall Result:" << std::endl;
-    std::cout << "  Unexplored paths: " << unexplored_count << std::endl;
-    std::cout << "  Finished paths: " << finished_count << std::endl;
-    std::cout << "  Failed paths: " << failed_count << std::endl;
-    std::cout << "  Unreachable paths: " << unreachable_count << std::endl;
-    std::cout << "  NotToExplore paths: " << not_to_explore_count << std::endl;
-    return std::monostate();
+    return result;
   }
+
+  std::monostate print_overall_result() {}
 
   NodeBox *pick_unexplored() {
     // Pick an unexplored node from the tree

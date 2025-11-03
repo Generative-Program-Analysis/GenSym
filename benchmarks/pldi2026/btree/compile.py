@@ -45,6 +45,8 @@ def compile_all(cpp_files=None, flags=None):
         cmd = ["g++", str(cpp), "-o", str(out)] + flags
         print("Compiling:", cpp.name)
         try:
+            print("  Executing command:")
+            print("   ", " ".join(cmd))
             proc = subprocess.run(cmd, capture_output=True, text=True)
         except FileNotFoundError:
             print("Error: g++ not found. Install a C++ compiler.")

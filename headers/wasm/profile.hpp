@@ -116,12 +116,70 @@ public:
     }
   }
 
+  void write_as_json(std::ostream &os) const {
+    os << "  \"profile_summary\": {\n";
+    if (PROFILE_STEP) {
+      os << "    \"total_push_operations\": "
+         << op_count[static_cast<std::size_t>(StepProfileKind::PUSH)] << ",\n";
+      os << "    \"total_pop_operations\": "
+         << op_count[static_cast<std::size_t>(StepProfileKind::POP)] << ",\n";
+      os << "    \"total_peek_operations\": "
+         << op_count[static_cast<std::size_t>(StepProfileKind::PEEK)] << ",\n";
+      os << "    \"total_shift_operations\": "
+         << op_count[static_cast<std::size_t>(StepProfileKind::SHIFT)] << ",\n";
+      os << "    \"total_set_operations\": "
+         << op_count[static_cast<std::size_t>(StepProfileKind::SET)] << ",\n";
+      os << "    \"total_get_operations\": "
+         << op_count[static_cast<std::size_t>(StepProfileKind::GET)] << ",\n";
+      os << "    \"total_binary_operations\": "
+         << op_count[static_cast<std::size_t>(StepProfileKind::BINARY)]
+         << ",\n";
+      os << "    \"total_tree_fill_operations\": "
+         << op_count[static_cast<std::size_t>(StepProfileKind::TREE_FILL)]
+         << ",\n";
+      os << "    \"total_cursor_move_operations\": "
+         << op_count[static_cast<std::size_t>(StepProfileKind::CURSOR_MOVE)]
+         << ",\n";
+      os << "    \"total_other_instructions_executed\": " << step_count
+         << ",\n";
+      os << "    \"total_mem_grow_operations\": "
+         << op_count[static_cast<std::size_t>(StepProfileKind::MEM_GROW)]
+         << ",\n";
+      os << "    \"total_snapshot_create_operations\": "
+         << op_count[static_cast<std::size_t>(StepProfileKind::SNAPSHOT_CREATE)]
+         << ",\n";
+      os << "    \"total_sym_eval_operations\": "
+         << op_count[static_cast<std::size_t>(StepProfileKind::SYM_EVAL)]
+         << "\n";
+    }
+    if (PROFILE_TIME) {
+      os << "    \"total_time_instruction_execution_s\": "
+         << std::setprecision(15)
+         << time_count[static_cast<std::size_t>(TimeProfileKind::INSTR)]
+         << ",\n";
+      os << "    \"total_time_solver_s\": "
+         << std::setprecision(15)
+         << time_count[static_cast<std::size_t>(TimeProfileKind::SOLVER)]
+         << ",\n";
+      os << "    \"total_time_resuming_from_snapshot_s\": "
+         << std::setprecision(15)
+         << time_count[static_cast<std::size_t>(
+                TimeProfileKind::RESUME_SNAPSHOT)]
+         << ",\n";
+      os << "    \"total_time_counting_symbolic_size_s\": "
+         << std::setprecision(15)
+         << time_count[static_cast<std::size_t>(
+                TimeProfileKind::COUNT_SYM_SIZE)]
+         << "\n";
+    }
+    os << "  }\n";
+  }
+
   // record the time spent in main instruction execution, in seconds
   void add_instruction_time(TimeProfileKind kind, double time) {
     time_count[static_cast<std::size_t>(kind)] += time;
   }
 
-private:
   int step_count;
   std::array<int, static_cast<std::size_t>(StepProfileKind::OperationCount)>
       op_count;

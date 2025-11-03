@@ -7,6 +7,7 @@
 #include "smt_solver.hpp"
 #include "symbolic_rt.hpp"
 #include "utils.hpp"
+#include "output_report.hpp"
 #include <cassert>
 #include <chrono>
 #include <functional>
@@ -48,7 +49,7 @@ public:
     if (driver.tree_file.has_value())
       ExploreTree.dump_graphviz(driver.tree_file.value());
 
-      // Clear the symbol bookkeeper
+    // Clear the symbol bookkeeper
     SymBookKeeper.clear();
   }
 };
@@ -134,8 +135,10 @@ inline void ConcolicDriver::main_exploration_loop() {
 
 inline void ConcolicDriver::run() {
   main_exploration_loop();
-  ExploreTree.print_overall_result();
+  auto overall = ExploreTree.read_current_overall_result();
+  overall.print();
   Profile.print_summary();
+  dump_all_summary_json(Profile, overall);
 }
 
 static void start_concolic_execution_with(
