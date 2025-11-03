@@ -48,7 +48,7 @@ public:
     if (driver.tree_file.has_value())
       ExploreTree.dump_graphviz(driver.tree_file.value());
 
-    // Clear the symbol bookkeeper
+      // Clear the symbol bookkeeper
     SymBookKeeper.clear();
   }
 };
@@ -134,6 +134,7 @@ inline void ConcolicDriver::main_exploration_loop() {
 
 inline void ConcolicDriver::run() {
   main_exploration_loop();
+  ExploreTree.print_overall_result();
   Profile.print_summary();
 }
 

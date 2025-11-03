@@ -543,6 +543,7 @@ struct NodeBox {
   std::monostate fillFailedNode();
   std::monostate fillUnreachableNode();
   std::monostate fillSnapshotNode(Snapshot_t snapshot);
+  std::monostate fillNotToExploreNode();
   bool isUnexplored() const;
   std::vector<SymVal> collect_path_conds();
   int min_cost_of_reaching_here();
@@ -664,6 +665,22 @@ protected:
   }
 };
 
+struct NotToExploreNode : Node {
+  NotToExploreNode() {}
+  std::string to_string() override { return "NotToExploreNode"; }
+
+protected:
+  void generate_dot(std::ostream &os, int parent_dot_id,
+                    const std::string &edge_label) override {
+    int current_node_dot_id = current_id++;
+    graphviz_node(os, current_node_dot_id, "NotToExplore", "box", "grey");
+
+    if (parent_dot_id != -1) {
+      graphviz_edge(os, parent_dot_id, current_node_dot_id, edge_label);
+    }
+  }
+};
+
 struct SnapshotNode : Node {
   SnapshotNode(Snapshot_t snapshot) : snapshot(snapshot) {}
   std::string to_string() override { return "SnapshotNode"; }
@@ -757,6 +774,15 @@ inline bool NodeBox::fillIfElseNode(SymVal cond, int id) {
 inline std::monostate NodeBox::fillSnapshotNode(Snapshot_t snapshot) {
   if (this->isUnexplored()) {
     node = std::make_unique<SnapshotNode>(snapshot);
+  }
+  return std::monostate();
+}
+
+inline std::monostate NodeBox::fillNotToExploreNode() {
+  if (this->isUnexplored()) {
+    node = std::make_unique<NotToExploreNode>();
+  } else {
+    assert(dynamic_cast<NotToExploreNode *>(node.get()) != nullptr);
   }
   return std::monostate();
 }
@@ -896,6 +922,10 @@ public:
     return std::monostate();
   }
 
+  std::monostate fillNotToExploredNode() {
+    return cursor->fillNotToExploreNode();
+  }
+
   bool worth_to_create_snapshot() {
     if (!ENABLE_COST_MODEL) {
       return REUSE_SNAPSHOT;
@@ -911,8 +941,8 @@ public:
     auto parent_cost =
         cursor->parent ? cursor->parent->min_cost_of_reaching_here() : 0;
     auto exec_from_parent_cost = reach_parent_cost + cursor->instr_cost;
-    GENSYM_INFO("The score of snapshot tendency: " + std::to_string(exec_from_parent_cost -
-                snapshot_cost));
+    GENSYM_INFO("The score of snapshot tendency: " +
+                std::to_string(exec_from_parent_cost - snapshot_cost));
     return snapshot_cost <= exec_from_parent_cost;
   }
 
@@ -924,6 +954,7 @@ public:
         if_else_node != nullptr &&
         "Can't move cursor when the branch node is not initialized correctly!");
     int cost_from_parent = CostManager.dump_instr_cost();
+    cursor->instr_cost = cost_from_parent;
     if (branch) {
       true_branch_cov_map[if_else_node->id] = true;
       if (worth_to_create_snapshot()) {
@@ -947,6 +978,26 @@ public:
     return std::monostate();
   }
 
+  std::monostate moveCursorNoControl(bool branch) {
+    Profile.step(StepProfileKind::CURSOR_MOVE);
+    assert(cursor != nullptr);
+    auto if_else_node = dynamic_cast<IfElseNode *>(cursor->node.get());
+    assert(
+        if_else_node != nullptr &&
+        "Can't move cursor when the branch node is not initialized correctly!");
+    int cost_from_parent = CostManager.dump_instr_cost();
+    cursor->instr_cost = cost_from_parent;
+    if (branch) {
+      true_branch_cov_map[if_else_node->id] = true;
+      if_else_node->false_branch->fillNotToExploreNode();
+      cursor = if_else_node->true_branch.get();
+    } else {
+      assert(false &&
+             "moveCursorNoControl should not be used for false branch");
+    }
+    return std::monostate();
+  }
+
   std::monostate print() {
     std::cout << root->node->to_string() << std::endl;
     return std::monostate();
@@ -963,6 +1014,45 @@ public:
       throw std::runtime_error("Failed to open " + filepath + "  for writing");
     }
     to_graphviz(ofs);
+    return std::monostate();
+  }
+
+  std::monostate print_overall_result() {
+    // Print how many paths have been explored, how many paths are unreachable,
+    // how many paths are failed, how many paths are finished successfully
+    int unexplored_count = 0;
+    int finished_count = 0;
+    int failed_count = 0;
+    int not_to_explore_count = 0;
+    int unreachable_count = 0;
+    std::function<void(NodeBox *)> dfs = [&](NodeBox *node) {
+      if (auto if_else_node = dynamic_cast<IfElseNode *>(node->node.get())) {
+        dfs(if_else_node->true_branch.get());
+        dfs(if_else_node->false_branch.get());
+      } else if (dynamic_cast<UnExploredNode *>(node->node.get())) {
+        unexplored_count += 1;
+      } else if (dynamic_cast<Finished *>(node->node.get())) {
+        finished_count += 1;
+      } else if (dynamic_cast<Failed *>(node->node.get())) {
+        failed_count += 1;
+      } else if (dynamic_cast<Unreachable *>(node->node.get())) {
+        unreachable_count += 1;
+      } else if (dynamic_cast<SnapshotNode *>(node->node.get())) {
+        // Snapshot node is considered unexplored
+        unexplored_count += 1;
+      } else if (dynamic_cast<NotToExploreNode *>(node->node.get())) {
+        not_to_explore_count += 1;
+      } else {
+        throw std::runtime_error("Unknown node type in explore tree");
+      }
+    };
+    dfs(root.get());
+    std::cout << "Explore Tree Overall Result:" << std::endl;
+    std::cout << "  Unexplored paths: " << unexplored_count << std::endl;
+    std::cout << "  Finished paths: " << finished_count << std::endl;
+    std::cout << "  Failed paths: " << failed_count << std::endl;
+    std::cout << "  Unreachable paths: " << unreachable_count << std::endl;
+    std::cout << "  NotToExplore paths: " << not_to_explore_count << std::endl;
     return std::monostate();
   }
 

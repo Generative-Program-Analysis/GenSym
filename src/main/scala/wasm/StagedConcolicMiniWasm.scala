@@ -31,6 +31,12 @@ object Counter {
     dict.clear()
   }
 
+  def getId(): Int = {
+    val id = currentId
+    currentId += 1
+    id
+  }
+
   def getId(wir: WIR, nth: Int = 0): Int = {
     if (dict.contains((wir, nth))) {
       dict((wir, nth))
@@ -547,8 +553,28 @@ trait StagedWasmEvaluator extends SAIOps {
       case Import("i32", "symbolic", _) =>
         evalSymbolic(NumType(I32Type), rest, kont, mkont, trail)(ctx)
       case Import("i32", "sym_assume", _) =>
-        // TODO: implement sym_assume
-        eval(rest, kont, mkont, trail)(ctx.pop()._2)
+        // symbolic assume is just like an if else that only has one branch, while another
+        // is marked as not-to-explore
+        val (condTy, newCtx) = ctx.pop()
+        Predef.assert(condTy == NumType(I32Type), s"sym_assume only supports i32 condition, get $condTy")
+        val cond = Stack.popC(condTy)
+        val symCond = Stack.popS(condTy)
+        val id = Counter.getId()
+        ExploreTree.fillWithIfElse(symCond.s, id)
+        def thnK: Rep[Cont[Unit]] = topFun((mk: Rep[MCont[Unit]]) => {
+          info(s"Successfully assumed condition at $id")
+          eval(rest, kont, mk, trail)(newCtx)
+        })
+        if (cond.toInt != 0) {
+          ExploreTree.moveCursor(true)
+          eval(rest, kont, mkont, trail)(newCtx)
+        } else {
+          val control = makeControl(thnK, mkont)
+          ExploreTree.moveCursor(false, control)
+          // just stop the execution at here
+          ExploreTree.fillWithNotToExplore()
+        }
+        ()
       case Import("i32", "sym_assert", _) =>
         // TODO: implement sym_assert
         eval(rest, kont, mkont, trail)(ctx.pop()._2)
@@ -637,6 +663,8 @@ trait StagedWasmEvaluator extends SAIOps {
 
   def evalTop(mkont: Rep[MCont[Unit]], main: Option[String]): Rep[Unit] = {
     Counter.reset()
+    Predef.println("[DEBUG]" + module)
+    Predef.println("[DEBUG] module.defs: " + module.defs)
     val funBody: FuncBodyDef = main match {
       case Some(func_name) =>
         module.defs.flatMap({
@@ -889,6 +917,10 @@ trait StagedWasmEvaluator extends SAIOps {
       "tree-fill-if-else".reflectCtrlWith[Unit](s, id)
     }
 
+    def fillWithNotToExplore(): Rep[Unit] = {
+      "tree-fill-not-to-explore".reflectCtrlWith[Unit]()
+    }
+
     def fillWithFinished(): Rep[Unit] = {
       "tree-fill-finished".reflectCtrlWith[Unit]()
     }
@@ -896,6 +928,11 @@ trait StagedWasmEvaluator extends SAIOps {
     def moveCursor(branch: Boolean, control: Rep[Control]): Rep[Unit] = {
       // when moving cursor from to an unexplored node, we need to change the reuse state
       "tree-move-cursor".reflectCtrlWith[Unit](branch, control)
+    }
+
+    def moveCursor(branch: Boolean): Rep[Unit] = {
+      // when moving cursor from to an unexplored node, we need to change the reuse state
+      "tree-move-cursor-no-control".reflectCtrlWith[Unit](branch)
     }
 
     def print(): Rep[Unit] = {
@@ -1543,10 +1580,14 @@ trait StagedWasmCppGen extends CGenBase with CppSAICodeGenBase {
       emit("GENSYM_ASSERT("); shallow(cond); emit(")")
     case Node(_, "tree-fill-if-else", List(sym, id), _) =>
       emit("ExploreTree.fillIfElseNode("); shallow(sym); emit(", "); emit(id.toString); emit(")")
+    case Node(_, "tree-fill-not-to-explore", List(), _) =>
+      emit("ExploreTree.fillNotToExploredNode()")
     case Node(_, "tree-fill-finished", List(), _) =>
       emit("ExploreTree.fillFinishedNode()")
     case Node(_, "tree-move-cursor", List(b, snapshot), _) =>
       emit("ExploreTree.moveCursor("); shallow(b); emit(", "); shallow(snapshot); emit(")")
+    case Node(_, "tree-move-cursor-no-control", List(b), _) =>
+      emit("ExploreTree.moveCursorNoControl("); shallow(b); emit(")")
     case Node(_, "add-instr-cost", List(n), _) =>
     emit("CostManager.add_instr_cost("); shallow(n); emit(")")
     case Node(_, "tree-print", List(), _) =>
