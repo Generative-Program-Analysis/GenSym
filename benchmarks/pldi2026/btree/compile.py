@@ -17,7 +17,7 @@ if not CPP_FILES:
 DEFAULT_FLAGS = [
     "-std=c++17",
     "-g",
-    "-O0",
+    "-O3",
     "-Wall",
     "-Wextra",
     "-DUSE_IMM",

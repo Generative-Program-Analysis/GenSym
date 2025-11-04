@@ -10,6 +10,7 @@
 #include "immer/vector_transient.hpp"
 #include "profile.hpp"
 #include "utils.hpp"
+#include "z3++.h"
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
@@ -90,6 +91,7 @@ static std::shared_ptr<SmallBV> ZeroByte =
 
 struct SymVal {
   std::shared_ptr<Symbolic> symptr;
+  std::shared_ptr<z3::expr> z3_expr;
 
   SymVal() : symptr(ZERO) {}
   SymVal(std::shared_ptr<Symbolic> symptr) : symptr(symptr) {}
@@ -226,11 +228,21 @@ inline SymVal SymVal::make_binary(Operation op, const SymVal &lhs,
   assert(lhs.symptr != nullptr && rhs.symptr != nullptr);
   return SymVal(SymBookKeeper.allocate<SymBinary>(op, lhs, rhs));
 }
+static std::unordered_map<int, SymVal> SymbolCache;
+
 inline SymVal SymVal::makeSymbolic() const {
   auto concrete = dynamic_cast<SymConcrete *>(symptr.get());
   if (concrete) {
     // If the symbolic value is a concrete value, use it to create a symbol
-    return SymVal(SymBookKeeper.allocate<Symbol>(concrete->value.toInt()));
+    auto id = concrete->value.toInt();
+    auto it = SymbolCache.find(id);
+    if (it != SymbolCache.end()) {
+      return it->second;
+    }
+    auto sym = Symbol(id);
+    auto ptr = SymBookKeeper.allocate<Symbol>(sym);
+    return SymVal(ptr);
+
   } else {
     throw std::runtime_error(
         "Cannot make symbolic a non-concrete symbolic value");

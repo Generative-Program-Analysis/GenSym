@@ -7,6 +7,7 @@
 #include "wasm/profile.hpp"
 #include "z3++.h"
 #include <array>
+#include <memory>
 #include <set>
 #include <string>
 #include <tuple>
@@ -15,15 +16,16 @@
 class Solver {
 public:
   Solver() {}
-  std::optional<NumMap> solve(const std::vector<SymVal> &conditions) {
+  std::optional<NumMap> solve(std::vector<SymVal> &conditions) {
     z3::solver z3_solver(z3_ctx);
     z3::check_result solver_result;
     {
+      auto timer = ManagedTimer(TimeProfileKind::SOLVER);
       // make an conjunction of all conditions
       auto conjunction = to_z3_conjunction(conditions);
       // call z3 to solve the condition
-      auto timer = ManagedTimer(TimeProfileKind::SOLVER);
-      z3_solver.add(conjunction); // NOTE: half of the solver time is spent in solver.add
+      // NOTE: half of the solver time is spent in solver.add
+      z3_solver.add(conjunction);
       solver_result = z3_solver.check();
     }
     switch (solver_result) {
@@ -56,9 +58,9 @@ public:
   }
 
 private:
-  z3::expr to_z3_conjunction(const std::vector<SymVal> &conditions) {
+  z3::expr to_z3_conjunction(std::vector<SymVal> &conditions) {
     z3::expr conjunction = z3_ctx.bool_val(true);
-    for (const auto &cond : conditions) {
+    for (auto &cond : conditions) {
       auto z3_cond = build_z3_expr(cond);
       conjunction = conjunction && z3_cond != z3_ctx.bv_val(0, 32);
     }
@@ -70,10 +72,13 @@ private:
   }
 
   z3::context z3_ctx;
-  z3::expr build_z3_expr(const SymVal &sym_val);
+  z3::expr build_z3_expr(SymVal &sym_val);
+
+private:
+  z3::expr build_z3_expr_aux(SymVal &sym_val);
 };
 
-inline z3::expr Solver::build_z3_expr(const SymVal &sym_val) {
+inline z3::expr Solver::build_z3_expr_aux(SymVal &sym_val) {
   if (auto sym = std::dynamic_pointer_cast<Symbol>(sym_val.symptr)) {
     return z3_ctx.bv_const(("s_" + std::to_string(sym->get_id())).c_str(), 32);
   } else if (auto concrete =
@@ -149,5 +154,14 @@ inline z3::expr Solver::build_z3_expr(const SymVal &sym_val) {
     return res;
   }
   throw std::runtime_error("Unsupported symbolic value type");
+}
+
+inline z3::expr Solver::build_z3_expr(SymVal &sym_val) {
+  if (sym_val.z3_expr) {
+    return *sym_val.z3_expr;
+  }
+  auto e = build_z3_expr_aux(sym_val);
+  sym_val.z3_expr = std::make_shared<z3::expr>(e);
+  return e;
 }
 #endif // SMT_SOLVER_HPP

@@ -23,6 +23,8 @@ def run_all(targets: list[Path], action):
             continue
         file_name = file_path.name.removesuffix(".exe")
         output_path = f"{file_name}.output"
+        if Path(output_path).exists():
+            continue
         if action == "run":
             env = os.environ.copy()
             env.update({"OUTPUT_DIR": output_path})
