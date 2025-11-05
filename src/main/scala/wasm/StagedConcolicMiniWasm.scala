@@ -576,7 +576,11 @@ trait StagedWasmEvaluator extends SAIOps {
         }
         ()
       case Import("i32", "sym_assert", _) =>
-        // TODO: implement sym_assert
+        val (condTy, newCtx) = ctx.pop()
+        val v = Stack.popC(condTy)
+        val s = Stack.popS(condTy)
+        runtimeSymAssert(s)
+        runtimeAssert(v.toInt != 0)
         eval(rest, kont, mkont, trail)(ctx.pop()._2)
       case Import(m, f, _) => throw new Exception(s"Unknown import $m.$f at $funcIndex")
       case _               => throw new Exception(s"Definition at $funcIndex is not callable")
@@ -713,6 +717,10 @@ trait StagedWasmEvaluator extends SAIOps {
 
   def runtimeAssert(b: Rep[Boolean]): Rep[Unit] = {
     "assert-true".reflectCtrlWith[Unit](b)
+  }
+
+  def runtimeSymAssert(s: StagedSymbolicNum): Rep[Unit] = {
+    "sym-assert-true".reflectCtrlWith[Unit](s.s)
   }
 
   // stack operations
@@ -1578,6 +1586,8 @@ trait StagedWasmCppGen extends CGenBase with CppSAICodeGenBase {
       emit("SymEnv.read("); shallow(sym); emit(")")
     case Node(_, "assert-true", List(cond), _) =>
       emit("GENSYM_ASSERT("); shallow(cond); emit(")")
+    case Node(_, "sym-assert-true", List(s_cond), _) =>
+      emit("GENSYM_SYM_ASSERT("); shallow(s_cond); emit(")")
     case Node(_, "tree-fill-if-else", List(sym, id), _) =>
       emit("ExploreTree.fillIfElseNode("); shallow(sym); emit(", "); emit(id.toString); emit(")")
     case Node(_, "tree-fill-not-to-explore", List(), _) =>

@@ -31,7 +31,6 @@ public:
 
 private:
   void main_exploration_loop();
-  Solver solver;
   std::function<void()> entrypoint;
   std::optional<std::string> tree_file;
   std::vector<NodeBox *> work_list;

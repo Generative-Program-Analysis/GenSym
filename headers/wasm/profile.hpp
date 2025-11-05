@@ -7,6 +7,7 @@
 #include <chrono>
 #include <iomanip>
 #include <variant>
+#include <vector>
 
 enum class StepProfileKind {
   PUSH,
@@ -157,8 +158,7 @@ public:
          << std::setprecision(15)
          << time_count[static_cast<std::size_t>(TimeProfileKind::INSTR)]
          << ",\n";
-      os << "    \"total_time_solver_s\": "
-         << std::setprecision(15)
+      os << "    \"total_time_solver_s\": " << std::setprecision(15)
          << time_count[static_cast<std::size_t>(TimeProfileKind::SOLVER)]
          << ",\n";
       os << "    \"total_time_resuming_from_snapshot_s\": "
@@ -191,21 +191,48 @@ public:
 
 static Profile_t Profile;
 
+class Timer {
+public:
+  Timer() = delete;
+  Timer(TimeProfileKind kind) : kind(kind) {
+    elapsed = std::chrono::duration<double>::zero();
+    start = std::chrono::high_resolution_clock::now();
+  }
+  ~Timer() {
+    auto end = std::chrono::high_resolution_clock::now();
+    elapsed += end - start;
+    Profile.add_instruction_time(kind, elapsed.count());
+  }
+  void stop() { elapsed += std::chrono::high_resolution_clock::now() - start; }
+  void resume() { start = std::chrono::high_resolution_clock::now(); }
+
+private:
+  std::chrono::duration<double> elapsed;
+  TimeProfileKind kind;
+  std::chrono::high_resolution_clock::time_point start;
+};
+
+static std::vector<Timer> TimerStack = []() {
+  std::vector<Timer> v;
+  v.reserve(3); // initial capacity
+  return v;
+}();
+
 class ManagedTimer {
 public:
   ManagedTimer() = delete;
-  ManagedTimer(TimeProfileKind kind) : kind(kind) {
-    start = std::chrono::high_resolution_clock::now();
+  ManagedTimer(TimeProfileKind kind) {
+    if (TimerStack.size() > 0) {
+      TimerStack.back().stop();
+    }
+    TimerStack.emplace_back(kind);
   }
   ~ManagedTimer() {
-    auto end = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<double> elapsed = end - start;
-    Profile.add_instruction_time(kind, elapsed.count());
+    TimerStack.pop_back();
+    if (TimerStack.size() > 0) {
+      TimerStack.back().resume();
+    }
   }
-
-private:
-  TimeProfileKind kind;
-  std::chrono::high_resolution_clock::time_point start;
 };
 
 struct CostManager_t {

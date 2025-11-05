@@ -957,6 +957,10 @@ public:
     return cursor->fillNotToExploreNode();
   }
 
+  std::vector<SymVal> collect_current_path_conds() {
+    return cursor->collect_path_conds();
+  }
+
   bool worth_to_create_snapshot() {
     if (!ENABLE_COST_MODEL) {
       return REUSE_SNAPSHOT;

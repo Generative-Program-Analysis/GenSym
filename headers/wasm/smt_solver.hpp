@@ -11,6 +11,7 @@
 #include <set>
 #include <string>
 #include <tuple>
+#include <variant>
 #include <vector>
 
 class Solver {
@@ -73,10 +74,10 @@ private:
 
   z3::context z3_ctx;
   z3::expr build_z3_expr(SymVal &sym_val);
-
-private:
   z3::expr build_z3_expr_aux(SymVal &sym_val);
 };
+
+static Solver solver;
 
 inline z3::expr Solver::build_z3_expr_aux(SymVal &sym_val) {
   if (auto sym = std::dynamic_pointer_cast<Symbol>(sym_val.symptr)) {
@@ -164,4 +165,16 @@ inline z3::expr Solver::build_z3_expr(SymVal &sym_val) {
   sym_val.z3_expr = std::make_shared<z3::expr>(e);
   return e;
 }
+
+inline std::monostate GENSYM_SYM_ASSERT(SymVal &sym_cond) {
+  std::vector<SymVal> conds = ExploreTree.collect_current_path_conds();
+  conds.push_back(sym_cond.negate());
+  auto result = solver.solve(conds);
+  if (result.has_value()) {
+    std::cout << "Symbolic assertion failed" << std::endl;
+    throw std::runtime_error("Symbolic assertion failed");
+  }
+  return std::monostate{};
+}
+
 #endif // SMT_SOLVER_HPP
