@@ -581,7 +581,7 @@ trait StagedWasmEvaluator extends SAIOps {
         val s = Stack.popS(condTy)
         runtimeSymAssert(s)
         runtimeAssert(v.toInt != 0)
-        eval(rest, kont, mkont, trail)(ctx.pop()._2)
+        eval(rest, kont, mkont, trail)(newCtx)
       case Import(m, f, _) => throw new Exception(s"Unknown import $m.$f at $funcIndex")
       case _               => throw new Exception(s"Definition at $funcIndex is not callable")
     }
@@ -667,8 +667,6 @@ trait StagedWasmEvaluator extends SAIOps {
 
   def evalTop(mkont: Rep[MCont[Unit]], main: Option[String]): Rep[Unit] = {
     Counter.reset()
-    Predef.println("[DEBUG]" + module)
-    Predef.println("[DEBUG] module.defs: " + module.defs)
     val funBody: FuncBodyDef = main match {
       case Some(func_name) =>
         module.defs.flatMap({
@@ -1096,9 +1094,9 @@ trait StagedWasmEvaluator extends SAIOps {
     def <(rhs: StagedConcreteNum): StagedConcreteNum = {
       (num.tipe, rhs.tipe) match {
         case (NumType(I32Type), NumType(I32Type)) =>
-          StagedConcreteNum(NumType(I32Type), "relation-lt".reflectCtrlWith[Num](num.i, rhs.i))
+          StagedConcreteNum(NumType(I32Type), "relation-lts".reflectCtrlWith[Num](num.i, rhs.i))
         case (NumType(I64Type), NumType(I64Type)) =>
-          StagedConcreteNum(NumType(I32Type), "relation-lt".reflectCtrlWith[Num](num.i, rhs.i))
+          StagedConcreteNum(NumType(I32Type), "relation-lts".reflectCtrlWith[Num](num.i, rhs.i))
       }
     }
 
@@ -1132,9 +1130,9 @@ trait StagedWasmEvaluator extends SAIOps {
     def <=(rhs: StagedConcreteNum): StagedConcreteNum = {
       (num.tipe, rhs.tipe) match {
         case (NumType(I32Type), NumType(I32Type)) =>
-          StagedConcreteNum(NumType(I32Type), "relation-le".reflectCtrlWith[Num](num.i, rhs.i))
+          StagedConcreteNum(NumType(I32Type), "relation-les".reflectCtrlWith[Num](num.i, rhs.i))
         case (NumType(I64Type), NumType(I64Type)) =>
-          StagedConcreteNum(NumType(I32Type), "relation-le".reflectCtrlWith[Num](num.i, rhs.i))
+          StagedConcreteNum(NumType(I32Type), "relation-les".reflectCtrlWith[Num](num.i, rhs.i))
       }
     }
 
@@ -1150,9 +1148,9 @@ trait StagedWasmEvaluator extends SAIOps {
     def >=(rhs: StagedConcreteNum): StagedConcreteNum = {
       (num.tipe, rhs.tipe) match {
         case (NumType(I32Type), NumType(I32Type)) =>
-          StagedConcreteNum(NumType(I32Type), "relation-ge".reflectCtrlWith[Num](num.i, rhs.i))
+          StagedConcreteNum(NumType(I32Type), "relation-ges".reflectCtrlWith[Num](num.i, rhs.i))
         case (NumType(I64Type), NumType(I64Type)) =>
-          StagedConcreteNum(NumType(I32Type), "relation-ge".reflectCtrlWith[Num](num.i, rhs.i))
+          StagedConcreteNum(NumType(I32Type), "relation-ges".reflectCtrlWith[Num](num.i, rhs.i))
       }
     }
 
@@ -1303,9 +1301,9 @@ trait StagedWasmEvaluator extends SAIOps {
     def <(rhs: StagedSymbolicNum): StagedSymbolicNum = {
       (num.tipe, rhs.tipe) match {
         case (NumType(I32Type), NumType(I32Type)) =>
-          StagedSymbolicNum(NumType(I32Type), "sym-relation-lt".reflectCtrlWith[SymVal](num.s, rhs.s))
+          StagedSymbolicNum(NumType(I32Type), "sym-relation-lts".reflectCtrlWith[SymVal](num.s, rhs.s))
         case (NumType(I64Type), NumType(I64Type)) =>
-          StagedSymbolicNum(NumType(I32Type), "sym-relation-lt".reflectCtrlWith[SymVal](num.s, rhs.s))
+          StagedSymbolicNum(NumType(I32Type), "sym-relation-lts".reflectCtrlWith[SymVal](num.s, rhs.s))
       }
     }
 
@@ -1339,9 +1337,9 @@ trait StagedWasmEvaluator extends SAIOps {
     def <=(rhs: StagedSymbolicNum): StagedSymbolicNum = {
       (num.tipe, rhs.tipe) match {
         case (NumType(I32Type), NumType(I32Type)) =>
-          StagedSymbolicNum(NumType(I32Type), "sym-relation-le".reflectCtrlWith[SymVal](num.s, rhs.s))
+          StagedSymbolicNum(NumType(I32Type), "sym-relation-les".reflectCtrlWith[SymVal](num.s, rhs.s))
         case (NumType(I64Type), NumType(I64Type)) =>
-          StagedSymbolicNum(NumType(I32Type), "sym-relation-le".reflectCtrlWith[SymVal](num.s, rhs.s))
+          StagedSymbolicNum(NumType(I32Type), "sym-relation-les".reflectCtrlWith[SymVal](num.s, rhs.s))
       }
     }
 
@@ -1357,9 +1355,9 @@ trait StagedWasmEvaluator extends SAIOps {
     def >=(rhs: StagedSymbolicNum): StagedSymbolicNum = {
       (num.tipe, rhs.tipe) match {
         case (NumType(I32Type), NumType(I32Type)) =>
-          StagedSymbolicNum(NumType(I32Type), "sym-relation-ge".reflectCtrlWith[SymVal](num.s, rhs.s))
+          StagedSymbolicNum(NumType(I32Type), "sym-relation-ges".reflectCtrlWith[SymVal](num.s, rhs.s))
         case (NumType(I64Type), NumType(I64Type)) =>
-          StagedSymbolicNum(NumType(I32Type), "sym-relation-ge".reflectCtrlWith[SymVal](num.s, rhs.s))
+          StagedSymbolicNum(NumType(I32Type), "sym-relation-ges".reflectCtrlWith[SymVal](num.s, rhs.s))
       }
     }
 
@@ -1516,40 +1514,39 @@ trait StagedWasmCppGen extends CGenBase with CppSAICodeGenBase {
     case Node(_, "sym-is-zero", List(s_num), _) =>
       shallow(s_num); emit(".is_zero()")
     case Node(_, "binary-add", List(lhs, rhs), _) =>
-      shallow(lhs); emit(" + "); shallow(rhs)
+      shallow(lhs); emit(".i32_add("); shallow(rhs); emit(")")
     case Node(_, "binary-sub", List(lhs, rhs), _) =>
-      // todo: avoid using c++ operator, use explicit method call so operator's precedence issues won't exist
-      emit("("); shallow(lhs); emit(" - "); shallow(rhs); emit(")")
+      shallow(lhs); emit(".i32_sub("); shallow(rhs); emit(")")
     case Node(_, "binary-mul", List(lhs, rhs), _) =>
-      shallow(lhs); emit(" * "); shallow(rhs)
+      shallow(lhs); emit(".i32_mul("); shallow(rhs); emit(")")
     case Node(_, "binary-div", List(lhs, rhs), _) =>
-      shallow(lhs); emit(" / "); shallow(rhs)
+      shallow(lhs); emit(".i32_div_s("); shallow(rhs); emit(")")
     case Node(_, "binary-shl", List(lhs, rhs), _) =>
-      shallow(lhs); emit(" << "); shallow(rhs)
+      shallow(lhs); emit(".i32_shl("); shallow(rhs); emit(")")
     case Node(_, "binary-shr", List(lhs, rhs), _) =>
-      shallow(lhs); emit(" >> "); shallow(rhs)
+      shallow(lhs); emit(".i32_shr("); shallow(rhs); emit(")")
     case Node(_, "binary-and", List(lhs, rhs), _) =>
-      shallow(lhs); emit(" & "); shallow(rhs)
+      shallow(lhs); emit(".i32_and("); shallow(rhs); emit(")")
     case Node(_, "relation-eq", List(lhs, rhs), _) =>
-      shallow(lhs); emit(" == "); shallow(rhs)
+      shallow(lhs); emit(".i32_eq("); shallow(rhs); emit(")")
     case Node(_, "relation-ne", List(lhs, rhs), _) =>
-      shallow(lhs); emit(" != "); shallow(rhs)
-    case Node(_, "relation-lt", List(lhs, rhs), _) =>
-      shallow(lhs); emit(" < "); shallow(rhs)
+      shallow(lhs); emit(".i32_ne("); shallow(rhs); emit(")")
+    case Node(_, "relation-lts", List(lhs, rhs), _) =>
+      shallow(lhs); emit(".i32_lt_s("); shallow(rhs); emit(")")
     case Node(_, "relation-ltu", List(lhs, rhs), _) =>
-      shallow(lhs); emit(" < "); shallow(rhs)
+      shallow(lhs); emit(".i32_lt_u("); shallow(rhs); emit(")")
     case Node(_, "relation-gt", List(lhs, rhs), _) =>
-      shallow(lhs); emit(" > "); shallow(rhs)
+      shallow(lhs); emit(".i32_gt_s("); shallow(rhs); emit(")")
     case Node(_, "relation-gtu", List(lhs, rhs), _) =>
-      shallow(lhs); emit(" > "); shallow(rhs)
-    case Node(_, "relation-le", List(lhs, rhs), _) =>
-      shallow(lhs); emit(" <= "); shallow(rhs)
+      shallow(lhs); emit(".i32_gt_u("); shallow(rhs); emit(")")
+    case Node(_, "relation-les", List(lhs, rhs), _) =>
+      shallow(lhs); emit(".i32_le_s("); shallow(rhs); emit(")")
     case Node(_, "relation-leu", List(lhs, rhs), _) =>
-      shallow(lhs); emit(" <= "); shallow(rhs)
-    case Node(_, "relation-ge", List(lhs, rhs), _) =>
-      shallow(lhs); emit(" >= "); shallow(rhs)
+      shallow(lhs); emit(".i32_le_u("); shallow(rhs); emit(")")
+    case Node(_, "relation-ges", List(lhs, rhs), _) =>
+      shallow(lhs); emit(".i32_ge_s("); shallow(rhs); emit(")")
     case Node(_, "relation-geu", List(lhs, rhs), _) =>
-      shallow(lhs); emit(" >= "); shallow(rhs)
+      shallow(lhs); emit(".i32_ge_u("); shallow(rhs); emit(")")
     case Node(_, "sym-binary-add", List(lhs, rhs), _) =>
       shallow(lhs); emit(".add("); shallow(rhs); emit(")")
     case Node(_, "sym-binary-sub", List(lhs, rhs), _) =>
@@ -1560,13 +1557,13 @@ trait StagedWasmCppGen extends CGenBase with CppSAICodeGenBase {
       shallow(lhs); emit(".div("); shallow(rhs); emit(")")
     case Node(_, "sym-binary-and", List(lhs, rhs), _) =>
       shallow(lhs); emit(".bitwise_and("); shallow(rhs); emit(")")
-    case Node(_, "sym-relation-le", List(lhs, rhs), _) =>
+    case Node(_, "sym-relation-les", List(lhs, rhs), _) =>
       shallow(lhs); emit(".le("); shallow(rhs); emit(")")
     case Node(_, "sym-relation-leu", List(lhs, rhs), _) =>
       shallow(lhs); emit(".leu("); shallow(rhs); emit(")")
-    case Node(_, "sym-relation-lt", List(lhs, rhs), _) =>
+    case Node(_, "sym-relation-lts", List(lhs, rhs), _) =>
       shallow(lhs); emit(".lt("); shallow(rhs); emit(")")
-    case Node(_, "sym-relation-ge", List(lhs, rhs), _) =>
+    case Node(_, "sym-relation-ges", List(lhs, rhs), _) =>
       shallow(lhs); emit(".ge("); shallow(rhs); emit(")")
     case Node(_, "sym-relation-geu", List(lhs, rhs), _) =>
       shallow(lhs); emit(".geu("); shallow(rhs); emit(")")

@@ -1251,29 +1251,75 @@ static EvalRes eval_sym_expr(const SymVal &sym, SymEnv_t &sym_env) {
     auto rhs_res = eval_sym_expr(operation->rhs, sym_env);
     auto lhs = lhs_res.value;
     auto rhs = rhs_res.value;
+    auto lhs_width = lhs_res.width;
+    auto rhs_width = rhs_res.width;
     switch (operation->op) {
     case ADD:
-      return EvalRes(lhs + rhs, 32);
+      if (lhs_width == 32 && rhs_width == 32) {
+        return EvalRes(lhs.i32_add(rhs), 32);
+      } else {
+        assert(false && "TODO");
+      }
     case SUB:
-      return EvalRes(lhs - rhs, 32);
+      if (lhs_width == 32 && rhs_width == 32) {
+        return EvalRes(lhs.i32_sub(rhs), 32);
+      } else {
+        assert(false && "TODO");
+      }
     case MUL:
-      return EvalRes(lhs * rhs, 32);
+      if (lhs_width == 32 && rhs_width == 32) {
+        return EvalRes(lhs.i32_mul(rhs), 32);
+      } else {
+        assert(false && "TODO");
+      }
     case DIV:
-      return EvalRes(lhs / rhs, 32);
+      if (lhs_width == 32 && rhs_width == 32) {
+        return EvalRes(lhs.i32_div_s(rhs), 32);
+      } else {
+        assert(false && "TODO");
+      }
     case LT:
-      return EvalRes(lhs < rhs, 32);
+      if (lhs_width == 32 && rhs_width == 32) {
+        return EvalRes(lhs.i32_lt_s(rhs), 32);
+      } else {
+        assert(false && "TODO");
+      }
     case LEQ:
-      return EvalRes(lhs <= rhs, 32);
+      if (lhs_width == 32 && rhs_width == 32) {
+        return EvalRes(lhs.i32_le_s(rhs), 32);
+      } else {
+        assert(false && "TODO");
+      }
     case GT:
-      return EvalRes(lhs > rhs, 32);
+      if (lhs_width == 32 && rhs_width == 32) {
+        return EvalRes(lhs.i32_gt_s(rhs), 32);
+      } else {
+        assert(false && "TODO");
+      }
     case GEQ:
-      return EvalRes(lhs >= rhs, 32);
+      if (lhs_width == 32 && rhs_width == 32) {
+        return EvalRes(lhs.i32_ge_s(rhs), 32);
+      } else {
+        assert(false && "TODO");
+      }
     case NEQ:
-      return EvalRes(lhs != rhs, 32);
+      if (lhs_width == 32 && rhs_width == 32) {
+        return EvalRes(lhs.i32_ne(rhs), 32);
+      } else {
+        assert(false && "TODO");
+      }
     case EQ:
-      return EvalRes(lhs == rhs, 32);
+      if (lhs_width == 32 && rhs_width == 32) {
+        return EvalRes(lhs.i32_eq(rhs), 32);
+      } else {
+        assert(false && "TODO");
+      }
     case B_AND:
-      return EvalRes(Num(I64V(lhs.value & rhs.value)), 32);
+      if (lhs_width == 32 && rhs_width == 32) {
+        return EvalRes(lhs.i32_and(rhs), 32);
+      } else {
+        assert(false && "TODO");
+      }
     case CONCAT: {
       auto lhs_width = lhs_res.width;
       auto rhs_width = rhs_res.width;
