@@ -21,75 +21,115 @@ struct Num {
   int32_t toInt() const { return static_cast<int32_t>(value); }
   uint32_t toUInt() const { return static_cast<uint32_t>(value); }
 
+  // debug printer: enabled only when -DDEBUG
+  static inline void debug_print(const char *op, const Num &a, const Num &b,
+                                 const Num &res) {
+#ifdef DEBUG_OP
+    std::cout << "[Debug] " << op << ": lhs=" << static_cast<int32_t>(a.value)
+              << " rhs=" << static_cast<int32_t>(b.value)
+              << " -> res=" << static_cast<int32_t>(res.value) << std::endl;
+#endif
+  }
+
   // Helper to create a Wasm Boolean result (1 or 0 as Num)
-  Num WasmBool(bool condition) const { return Num(condition ? 1 : 0); }
+  Num WasmBool(bool condition) const {
+    Num res(condition ? 1 : 0);
+    debug_print("WasmBool", *this, *this, res);
+    return res;
+  }
   // TODO: support different bit width operations, for now we just assume all
   // oprands are i32
   // i32.eq (Equals): *this == other
   inline Num i32_eq(const Num &other) const {
-    return WasmBool(this->toUInt() == other.toUInt());
+    Num res = WasmBool(this->toUInt() == other.toUInt());
+    debug_print("i32.eq", *this, other, res);
+    return res;
   }
 
   // i32.ne (Not Equals): *this != other
   inline Num i32_ne(const Num &other) const {
-    return WasmBool(this->toUInt() != other.toUInt());
+    Num res = WasmBool(this->toUInt() != other.toUInt());
+    debug_print("i32.ne", *this, other, res);
+    return res;
   }
 
   // i32.lt_s (Signed Less Than): *this < other
   inline Num i32_lt_s(const Num &other) const {
-    return WasmBool(this->toInt() < other.toInt());
+    Num res = WasmBool(this->toInt() < other.toInt());
+    debug_print("i32.lt_s", *this, other, res);
+    return res;
   }
 
   // i32.lt_u (Unsigned Less Than): *this < other (unsigned)
   inline Num i32_lt_u(const Num &other) const {
-    return WasmBool(this->toUInt() < other.toUInt());
+    Num res = WasmBool(this->toUInt() < other.toUInt());
+    debug_print("i32.lt_u", *this, other, res);
+    return res;
   }
 
   // i32.le_s (Signed Less Than or Equal): *this <= other
   inline Num i32_le_s(const Num &other) const {
-    return WasmBool(this->toInt() <= other.toInt());
+    Num res = WasmBool(this->toInt() <= other.toInt());
+    debug_print("i32.le_s", *this, other, res);
+    return res;
   }
   // i32.le_u (Unsigned Less Than or Equal): *this <= other (unsigned)
   inline Num i32_le_u(const Num &other) const {
-    return WasmBool(this->toUInt() <= other.toUInt());
+    Num res = WasmBool(this->toUInt() <= other.toUInt());
+    debug_print("i32.le_u", *this, other, res);
+    return res;
   }
 
   // i32.gt_s (Signed Greater Than): *this > other
   inline Num i32_gt_s(const Num &other) const {
-    return WasmBool(this->toInt() > other.toInt());
+    Num res = WasmBool(this->toInt() > other.toInt());
+    debug_print("i32.gt_s", *this, other, res);
+    return res;
   }
 
   // i32.gt_u (Unsigned Greater Than): *this > other (unsigned)
   inline Num i32_gt_u(const Num &other) const {
-    return WasmBool(this->toUInt() > other.toUInt());
+    Num res = WasmBool(this->toUInt() > other.toUInt());
+    debug_print("i32.gt_u", *this, other, res);
+    return res;
   }
 
   // i32.ge_s (Signed Greater Than or Equal): *this >= other
   inline Num i32_ge_s(const Num &other) const {
-    return WasmBool(this->toInt() >= other.toInt());
+    Num res = WasmBool(this->toInt() >= other.toInt());
+    debug_print("i32.ge_s", *this, other, res);
+    return res;
   }
 
   // i32.ge_u (Unsigned Greater Than or Equal): *this >= other (unsigned)
   inline Num i32_ge_u(const Num &other) const {
-    return WasmBool(this->toUInt() >= other.toUInt());
+    Num res = WasmBool(this->toUInt() >= other.toUInt());
+    debug_print("i32.ge_u", *this, other, res);
+    return res;
   }
 
   // i32.add (Wrapping addition)
   inline Num i32_add(const Num &other) const {
     uint32_t result_u = this->toUInt() + other.toUInt();
-    return Num(static_cast<int32_t>(result_u));
+    Num res(static_cast<int32_t>(result_u));
+    debug_print("i32.add", *this, other, res);
+    return res;
   }
 
   // i32.sub (Wrapping subtraction)
   inline Num i32_sub(const Num &other) const {
     uint32_t result_u = this->toUInt() - other.toUInt();
-    return Num(static_cast<int32_t>(result_u));
+    Num res(static_cast<int32_t>(result_u));
+    debug_print("i32.sub", *this, other, res);
+    return res;
   }
 
   // i32.mul (Wrapping multiplication)
   inline Num i32_mul(const Num &other) const {
     uint32_t result_u = this->toUInt() * other.toUInt();
-    return Num(static_cast<int32_t>(result_u));
+    Num res(static_cast<int32_t>(result_u));
+    debug_print("i32.mul", *this, other, res);
+    return res;
   }
 
   // i32.div_s (Signed division with traps)
@@ -101,14 +141,18 @@ struct Num {
       throw std::runtime_error("i32.div_s: Division by zero");
     }
 
-    return Num(dividend / divisor);
+    Num res(dividend / divisor);
+    debug_print("i32.div_s", *this, other, res);
+    return res;
   }
 
   // i32.shl (Shift Left): *this << other (shift count masked by 31)
   inline Num i32_shl(const Num &other) const {
     uint32_t shift_amount = other.toUInt() & 0x1F;
     uint32_t result_u = toUInt() << shift_amount;
-    return Num(static_cast<int32_t>(result_u));
+    Num res(static_cast<int32_t>(result_u));
+    debug_print("i32.shl", *this, other, res);
+    return res;
   }
 
   // i32.shr_s (Signed Shift Right): *this >> other (Arithmetic shift)
@@ -116,7 +160,9 @@ struct Num {
     // Wasm masks the shift amount by 31 (0x1F)
     uint32_t shift_amount = other.toUInt() & 0x1F;
     int32_t result_s = toInt() >> shift_amount;
-    return Num(result_s);
+    Num res(result_s);
+    debug_print("i32.shr_s", *this, other, res);
+    return res;
   }
 
   // i32.shr_u (Unsigned Shift Right): *this >>> other (Logical shift)
@@ -124,13 +170,17 @@ struct Num {
     // Wasm masks the shift amount by 31 (0x1F)
     uint32_t shift_amount = other.toUInt() & 0x1F;
     uint32_t result_u = toUInt() >> shift_amount;
-    return Num(static_cast<int32_t>(result_u));
+    Num res(static_cast<int32_t>(result_u));
+    debug_print("i32.shr_u", *this, other, res);
+    return res;
   }
 
   // i32.and (Bitwise AND)
   inline Num i32_and(const Num &other) const {
     uint32_t result_u = this->toUInt() & other.toUInt();
-    return Num(static_cast<int32_t>(result_u));
+    Num res(static_cast<int32_t>(result_u));
+    debug_print("i32.and", *this, other, res);
+    return res;
   }
 };
 
@@ -272,6 +322,10 @@ public:
   void pushFrame(std::int32_t size) {
     assert(size >= 0);
     count += size;
+    // Zero-initialize the new stack frames.
+    for (std::int32_t i = 0; i < size; ++i) {
+      stack_ptr[count - 1 - i] = Num(0);
+    }
   }
 
   void reset() { count = 0; }

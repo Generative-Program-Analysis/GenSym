@@ -777,7 +777,12 @@ inline bool NodeBox::fillIfElseNode(SymVal cond, int id) {
   } else if (dynamic_cast<UnExploredNode *>(node.get())) {
     node = std::make_unique<IfElseNode>(cond, this, id);
     return true;
+  } else if (dynamic_cast<NotToExploreNode *>(node.get()) != nullptr) {
+    assert(false &&
+           "Unexpected traversal: arrived at a node marked 'NotToExplore'.");
+    return false;
   }
+
   assert(
       dynamic_cast<IfElseNode *>(node.get()) != nullptr &&
       "Current node is not an Unexplored nor an IfElseNode, cannot fill it!");

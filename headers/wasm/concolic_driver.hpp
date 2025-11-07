@@ -3,11 +3,11 @@
 
 #include "concrete_rt.hpp"
 #include "config.hpp"
+#include "output_report.hpp"
 #include "profile.hpp"
 #include "smt_solver.hpp"
 #include "symbolic_rt.hpp"
 #include "utils.hpp"
-#include "output_report.hpp"
 #include <cassert>
 #include <chrono>
 #include <functional>
@@ -103,13 +103,26 @@ inline void ConcolicDriver::main_exploration_loop() {
     try {
       GENSYM_INFO("Now execute the program with symbolic environment: ");
       GENSYM_INFO(SymEnv.to_string());
-      { node->reach_here(entrypoint); }
+      if (REUSE_SNAPSHOT) {
+        node->reach_here(entrypoint);
+      } else {
+        auto timer = ManagedTimer(TimeProfileKind::INSTR);
+        ExploreTree.reset_cursor();
+        reset_stacks();
+        entrypoint();
+      }
 
       GENSYM_INFO("Execution finished successfully with symbolic environment:");
       GENSYM_INFO(SymEnv.to_string());
     } catch (std::runtime_error &e) {
       std::cout << "Caught runtime error: " << e.what() << std::endl;
       ExploreTree.fillFailedNode();
+
+      if (std::string(e.what()) == "Symbolic assertion failed") {
+        GENSYM_INFO("Symbolic assertion failed, continuing to next path...");
+        continue;
+      }
+
       GENSYM_INFO("Caught runtime error with symbolic environment:");
       GENSYM_INFO(SymEnv.to_string());
       switch (EXPLORE_MODE) {
