@@ -170,7 +170,8 @@ inline z3::expr Solver::build_z3_expr(SymVal &sym_val) {
 
 inline EvalRes eval_sym_expr_by_model(const SymVal &sym, z3::model &model) {
   auto expr = solver.build_z3_expr(const_cast<SymVal &>(sym));
-  z3::expr value = model.eval(expr, false);
+  // let z3 decide the value of symbols that are not in the model
+  z3::expr value = model.eval(expr, true);
   // every value is bitvector
   int width = expr.get_sort().bv_size();
   return EvalRes(Num(value.get_numeral_int64()), width);
