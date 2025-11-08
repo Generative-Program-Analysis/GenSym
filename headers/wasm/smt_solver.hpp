@@ -17,7 +17,8 @@
 class Solver {
 public:
   Solver() {}
-  std::optional<NumMap> solve(std::vector<SymVal> &conditions) {
+  std::optional<std::pair<NumMap, z3::model>>
+  solve(std::vector<SymVal> &conditions) {
     z3::solver z3_solver(z3_ctx);
     z3::check_result solver_result;
     {
@@ -50,13 +51,15 @@ public:
           GENSYM_INFO("Find a variable that is not created by GenSym: " + name);
         }
       }
-      return result;
+      return std::optional<std::pair<NumMap, z3::model>>(
+          std::in_place, std::move(result), std::move(model));
     }
     case z3::unknown:
       throw std::runtime_error("Z3 solver returned unknown status");
     }
     return std::nullopt; // Should not reach here
   }
+  z3::expr build_z3_expr(SymVal &sym_val);
 
 private:
   z3::expr to_z3_conjunction(std::vector<SymVal> &conditions) {
@@ -73,7 +76,6 @@ private:
   }
 
   z3::context z3_ctx;
-  z3::expr build_z3_expr(SymVal &sym_val);
   z3::expr build_z3_expr_aux(SymVal &sym_val);
 };
 
@@ -158,12 +160,20 @@ inline z3::expr Solver::build_z3_expr_aux(SymVal &sym_val) {
 }
 
 inline z3::expr Solver::build_z3_expr(SymVal &sym_val) {
-  if (sym_val.z3_expr) {
-    return *sym_val.z3_expr;
+  if (sym_val.symptr->z3_expr()) {
+    return *sym_val.symptr->z3_expr();
   }
   auto e = build_z3_expr_aux(sym_val);
-  sym_val.z3_expr = std::make_shared<z3::expr>(e);
+  sym_val.symptr->update_z3_expr(e);
   return e;
+}
+
+inline EvalRes eval_sym_expr_by_model(const SymVal &sym, z3::model &model) {
+  auto expr = solver.build_z3_expr(const_cast<SymVal &>(sym));
+  z3::expr value = model.eval(expr, false);
+  // every value is bitvector
+  int width = expr.get_sort().bv_size();
+  return EvalRes(Num(value.get_numeral_int64()), width);
 }
 
 inline std::monostate GENSYM_SYM_ASSERT(SymVal &sym_cond) {

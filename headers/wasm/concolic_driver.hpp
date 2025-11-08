@@ -96,7 +96,8 @@ inline void ConcolicDriver::main_exploration_loop() {
       node->fillUnreachableNode();
       continue;
     }
-    auto new_env = result.value();
+    auto &new_env = result.value().first;
+    auto &model = result.value().second;
 
     // update global symbolic environment from SMT solved model
     SymEnv.update(std::move(new_env));
@@ -104,7 +105,18 @@ inline void ConcolicDriver::main_exploration_loop() {
       GENSYM_INFO("Now execute the program with symbolic environment: ");
       GENSYM_INFO(SymEnv.to_string());
       if (REUSE_SNAPSHOT) {
-        node->reach_here(entrypoint);
+        if (auto snapshot = dynamic_cast<SnapshotNode *>(node->node.get())) {
+          assert(REUSE_SNAPSHOT);
+          auto snap = snapshot->get_snapshot();
+          std::cout << "Model \n"
+                    << model << std::endl;
+          snap.resume_execution_by_model(node, model);
+        } else {
+          auto timer = ManagedTimer(TimeProfileKind::INSTR);
+          ExploreTree.reset_cursor();
+          reset_stacks();
+          entrypoint();
+        }
       } else {
         auto timer = ManagedTimer(TimeProfileKind::INSTR);
         ExploreTree.reset_cursor();

@@ -32,6 +32,11 @@ public:
   Symbolic() {}
   virtual ~Symbolic() = default; // Make Symbolic polymorphic
   virtual int size() = 0;
+  virtual std::optional<z3::expr> z3_expr() { return _z3_expr; }
+  virtual void update_z3_expr(z3::expr expr) { _z3_expr = expr; }
+
+private:
+  std::optional<z3::expr> _z3_expr;
 };
 
 static int max_id = 0;
@@ -91,7 +96,6 @@ static std::shared_ptr<SmallBV> ZeroByte =
 
 struct SymVal {
   std::shared_ptr<Symbolic> symptr;
-  std::shared_ptr<z3::expr> z3_expr;
 
   SymVal() : symptr(ZERO) {}
   SymVal(std::shared_ptr<Symbolic> symptr) : symptr(symptr) {}
@@ -147,20 +151,34 @@ struct SymExtract : Symbolic {
   SymVal value;
   int high;
   int low;
+  int size_cache = -1;
 
   SymExtract(SymVal value, int high, int low)
       : value(value), high(high), low(low) {}
-  int size() override { return 1 + value.size(); }
+  int size() override {
+    if (size_cache != -1) {
+      return size_cache;
+    }
+    size_cache = 1 + value.size();
+    return size_cache;
+  }
 };
 
 struct SymBinary : Symbolic {
   Operation op;
   SymVal lhs;
   SymVal rhs;
+  int size_cache = -1;
 
   SymBinary(Operation op, SymVal lhs, SymVal rhs)
       : op(op), lhs(lhs), rhs(rhs) {}
-  int size() override { return 1 + lhs.size() + rhs.size(); }
+  int size() override {
+    if (size_cache != -1) {
+      return size_cache;
+    }
+    size_cache = 1 + lhs.size() + rhs.size();
+    return size_cache;
+  }
 };
 
 inline SymVal SymVal::add(const SymVal &other) const {
@@ -517,6 +535,8 @@ public:
   SymMemory_t get_memory() const { return memory; }
 
   std::monostate resume_execution(NodeBox *node) const;
+  std::monostate resume_execution_by_model(NodeBox *node,
+                                           z3::model &model) const;
 
   static int cost_of_snapshot();
 
@@ -527,6 +547,7 @@ private:
   // The continuation at the snapshot point
   Cont_t cont;
   MCont_t mcont;
+  void restore_states_to_global() const;
 };
 
 static SymFrames_t SymFrames;
@@ -899,7 +920,10 @@ inline int Snapshot_t::cost_of_snapshot() {
   auto cost_of_stack_copy = SymStack.cost_of_copy();
   auto cost_of_frame_copy = SymFrames.cost_of_copy();
   auto cost_of_memory_copy = SymMemory.cost_of_copy();
-  return 5.336 *
+  // The speed ratio between symbolic expression instantiation and WebAssembly
+  // instruction execution, given by benchmark results
+  auto ratio = 5.336;
+  return ratio *
          (cost_of_stack_copy + cost_of_frame_copy + cost_of_memory_copy);
 }
 
@@ -968,22 +992,16 @@ public:
 
   bool worth_to_create_snapshot() {
     if (!ENABLE_COST_MODEL) {
+      // If we are not using cost model, always create snapshot
       return REUSE_SNAPSHOT;
     }
     // find out the best way to reach the current position via our cost model
     auto snapshot_cost = Snapshot_t::cost_of_snapshot();
-    int reach_parent_cost = 0;
-    if (cursor->parent) {
-      reach_parent_cost = cursor->parent->min_cost_of_reaching_here();
-    } else {
-      reach_parent_cost = 0;
+    int re_execution_cost = cursor->instr_cost;
+    if (snapshot_cost <= re_execution_cost) {
+      GENSYM_INFO("Snapshot is worth to create");
     }
-    auto parent_cost =
-        cursor->parent ? cursor->parent->min_cost_of_reaching_here() : 0;
-    auto exec_from_parent_cost = reach_parent_cost + cursor->instr_cost;
-    GENSYM_INFO("The score of snapshot tendency: " +
-                std::to_string(exec_from_parent_cost - snapshot_cost));
-    return snapshot_cost <= exec_from_parent_cost;
+    return snapshot_cost <= re_execution_cost;
   }
 
   std::monostate moveCursor(bool branch, Control control) {
@@ -994,7 +1012,9 @@ public:
         if_else_node != nullptr &&
         "Can't move cursor when the branch node is not initialized correctly!");
     int cost_from_parent = CostManager.dump_instr_cost();
-    cursor->instr_cost = cost_from_parent;
+    int cost_from_root =
+        cost_from_parent + (cursor->parent ? cursor->parent->instr_cost : 0);
+    cursor->instr_cost = cost_from_root;
     if (branch) {
       true_branch_cov_map[if_else_node->id] = true;
       if (worth_to_create_snapshot()) {
@@ -1026,7 +1046,9 @@ public:
         if_else_node != nullptr &&
         "Can't move cursor when the branch node is not initialized correctly!");
     int cost_from_parent = CostManager.dump_instr_cost();
-    cursor->instr_cost = cost_from_parent;
+    int cost_from_root =
+        cost_from_parent + (cursor->parent ? cursor->parent->instr_cost : 0);
+    cursor->instr_cost = cost_from_root;
     if (branch) {
       true_branch_cov_map[if_else_node->id] = true;
       if_else_node->false_branch->fillNotToExploreNode();
@@ -1343,6 +1365,8 @@ static EvalRes eval_sym_expr(const SymVal &sym, SymEnv_t &sym_env) {
   throw std::runtime_error("Not supported symbolic expression");
 }
 
+inline EvalRes eval_sym_expr_by_model(const SymVal &sym, z3::model &model);
+
 static void resume_conc_stack(const SymStack_t &sym_stack, Stack_t &stack,
                               SymEnv_t &sym_env) {
   stack.resize(sym_stack.size());
@@ -1354,8 +1378,21 @@ static void resume_conc_stack(const SymStack_t &sym_stack, Stack_t &stack,
   }
 }
 
+static void resume_conc_stack_by_model(const SymStack_t &sym_stack,
+                                       Stack_t &stack, z3::model &model) {
+  GENSYM_INFO("Restoring concrete stack from symbolic stack");
+  stack.resize(sym_stack.size());
+  for (size_t i = 0; i < sym_stack.size(); ++i) {
+    auto sym = sym_stack[i];
+    auto res = eval_sym_expr_by_model(sym, model);
+    auto conc = res.value;
+    stack.set_from_front(i, conc);
+  }
+}
+
 static void resume_conc_frames(const SymFrames_t &sym_frame, Frames_t &frames,
                                SymEnv_t &sym_env) {
+  GENSYM_INFO("Restoring concrete frames from symbolic frames");
   frames.resize(sym_frame.size());
   for (size_t i = 0; i < sym_frame.size(); ++i) {
     auto sym = sym_frame[i];
@@ -1366,14 +1403,43 @@ static void resume_conc_frames(const SymFrames_t &sym_frame, Frames_t &frames,
   }
 }
 
+static void resume_conc_frames_by_model(const SymFrames_t &sym_frame,
+                                        Frames_t &frames, z3::model &model) {
+  GENSYM_INFO("Restoring concrete frames from symbolic frames");
+  frames.resize(sym_frame.size());
+  for (size_t i = 0; i < sym_frame.size(); ++i) {
+    auto sym = sym_frame[i];
+    assert(sym.symptr != nullptr);
+    auto res = eval_sym_expr_by_model(sym, model);
+    auto conc = res.value;
+    frames.set_from_front(i, conc);
+  }
+}
+
 static void resume_conc_memory(const SymMemory_t &sym_memory, Memory_t &memory,
                                SymEnv_t &sym_env) {
+  GENSYM_INFO("Restoring concrete memory from symbolic memory");
   memory.reset();
   for (const auto &pair : sym_memory.memory) {
     int32_t addr = pair.first;
     SymVal sym = pair.second;
     assert(sym.symptr != nullptr);
     auto res = eval_sym_expr(sym, sym_env);
+    auto conc = res.value;
+    assert(res.width == 8 && "Memory should only store bytes");
+    memory.store_byte(addr, conc.value & 0xFF);
+  }
+}
+
+static void resume_conc_memory_by_model(const SymMemory_t &sym_memory,
+                                        Memory_t &memory, z3::model &model) {
+  GENSYM_INFO("Restoring concrete memory from symbolic memory");
+  memory.reset();
+  for (const auto &pair : sym_memory.memory) {
+    int32_t addr = pair.first;
+    SymVal sym = pair.second;
+    assert(sym.symptr != nullptr);
+    auto res = eval_sym_expr_by_model(sym, model);
     auto conc = res.value;
     assert(res.width == 8 && "Memory should only store bytes");
     memory.store_byte(addr, conc.value & 0xFF);
@@ -1390,33 +1456,51 @@ static void resume_conc_states(const SymStack_t &sym_stack,
   resume_conc_memory(sym_memory, memory, sym_env);
 }
 
-inline std::monostate Snapshot_t::resume_execution(NodeBox *node) const {
-  // Reset explore tree's cursor
-  ExploreTree.set_cursor(node);
+static void resume_conc_states_by_model(const SymStack_t &sym_stack,
+                                        const SymFrames_t &sym_frame,
+                                        const SymMemory_t &sym_memory,
+                                        Stack_t &stack, Frames_t &frames,
+                                        Memory_t &memory, z3::model &model) {
+  resume_conc_stack_by_model(sym_stack, stack, model);
+  resume_conc_frames_by_model(sym_frame, frames, model);
+  resume_conc_memory_by_model(sym_memory, memory, model);
+}
 
+inline void Snapshot_t::restore_states_to_global() const {
   // Restore the symbolic state from the snapshot
   GENSYM_INFO("Reusing symbolic state from snapshot");
   SymStack = stack;
   SymFrames = frames;
   SymMemory = memory;
+}
+
+inline std::monostate
+Snapshot_t::resume_execution_by_model(NodeBox *node, z3::model &model) const {
+  // Reset explore tree's cursor and restore symbolic states
+  ExploreTree.set_cursor(node);
+  restore_states_to_global();
+
+  {
+    auto timer = ManagedTimer(TimeProfileKind::RESUME_SNAPSHOT);
+    // Restore the concrete states from the symbolic states
+    resume_conc_states_by_model(stack, frames, memory, Stack, Frames, Memory,
+                                model);
+  }
+  // Resume execution from the continuation
+  auto timer = ManagedTimer(TimeProfileKind::INSTR);
+  return cont(mcont);
+}
+
+[[deprecated]]
+inline std::monostate Snapshot_t::resume_execution(NodeBox *node) const {
+  // Reset explore tree's cursor and restore symbolic states
+  ExploreTree.set_cursor(node);
+  restore_states_to_global();
   {
     auto timer = ManagedTimer(TimeProfileKind::RESUME_SNAPSHOT);
     // Restore the concrete states from the symbolic states
     resume_conc_states(stack, frames, memory, Stack, Frames, Memory, SymEnv);
   }
-  int sym_size = 0;
-  {
-    auto timer = ManagedTimer(TimeProfileKind::COUNT_SYM_SIZE);
-    for (size_t i = 0; i < stack.size(); ++i) {
-      sym_size += stack[i].size();
-    }
-    for (size_t i = 0; i < frames.size(); ++i) {
-      sym_size += frames[i].size();
-    }
-  }
-  std::cout << "[Info] Resumed symbolic execution from snapshot, total "
-               "symbolic expression and frame size: "
-            << sym_size << std::endl;
 
   // Resume execution from the continuation
   auto timer = ManagedTimer(TimeProfileKind::INSTR);
