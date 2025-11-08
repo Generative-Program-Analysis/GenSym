@@ -265,6 +265,7 @@ public:
     for (int32_t i = 0; i < count; ++i) {
       std::cout << stack_ptr[count - i - 1].value << std::endl;
     }
+    std::cout << "End of Stack contents" << std::endl;
   }
 
   void initialize() {

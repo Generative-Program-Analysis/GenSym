@@ -36,11 +36,17 @@ class TestStagedEval extends FunSuite {
     println(result)
 
     expect.map(vs => {
-      val stackValues = result
-        .split("Stack contents: \n")(1)
-        .split("\n")
-        .map(_.toFloat)
-        .toList
+      val stackValues = {
+        val startMarker = "Stack contents: \n"
+        val endMarker = "End of Stack contents"
+        val start = result.indexOf(startMarker)
+        val end = if (start >= 0) result.indexOf(endMarker, start + startMarker.length) else -1
+        require(start >= 0 && end >= 0, s"Could not find markers '$startMarker' and '$endMarker' in output")
+        result.substring(start + startMarker.length, end).trim
+          .split("\n")
+          .map(_.toFloat)
+          .toList
+      }
       assert(vs == stackValues)
     })
   }

@@ -73,11 +73,17 @@ class TestStagedConcolicEval extends FunSuite {
     println(result)
 
     expect.map(vs => {
-      val stackValues = result
-        .split("Stack contents: \n")(1)
-        .split("\n")
-        .map(_.toFloat)
-        .toList
+      val stackValues = {
+        val startMarker = "Stack contents: \n"
+        val endMarker = "End of Stack contents"
+        val start = result.indexOf(startMarker)
+        val end = if (start >= 0) result.indexOf(endMarker, start + startMarker.length) else -1
+        require(start >= 0 && end >= 0, s"Could not find markers '$startMarker' and '$endMarker' in output")
+        result.substring(start + startMarker.length, end).trim
+          .split("\n")
+          .map(_.toFloat)
+          .toList
+      }
       assert(vs == stackValues)
     })
   }
@@ -113,10 +119,11 @@ class TestStagedConcolicEval extends FunSuite {
   }
   test("btree-bug-finding-concolic") { testFileConcolicCpp("./benchmarks/wasm/btree/2o1u-unlabeled.wat", exitByCoverage = true) }
 
-  test("long-trivial-execution-concrete") {
-    // This is a example to show how much performance improvement we can get by immutable data structure
-    testFileConcreteCpp("./benchmarks/wasm/staged/long-trivial-execution.wat", None)
-  }
+  // Don't run this test by default since it takes too long and is only for performance comparison
+  // test("long-trivial-execution-concrete") {
+  //   // This is a example to show how much performance improvement we can get by immutable data structure
+  //   testFileConcreteCpp("./benchmarks/wasm/staged/long-trivial-execution.wat", None)
+  // }
 
   test("return-poly - concrete") {
     testFileConcreteCpp("./benchmarks/wasm/staged/return_poly.wat", Some("$real_main"), expect=Some(List(42)))
