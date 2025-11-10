@@ -16,14 +16,32 @@ def is_executable(path: Path) -> bool:
     # executable bit or .exe suffix
     return os.access(str(path), os.X_OK) or path.suffix.lower() == ".exe"
 
+def is_snapshot_executable(path: Path) -> bool:
+    if not path.is_file():
+        return False
+
+    return path.name.endswith(".snapshot.exe")
+
+def is_cost_model_executable(path: Path) -> bool:
+    if not path.is_file():
+        return False
+
+    return path.name.endswith(".costmodel.exe")
 
 def run_all(targets: list[Path], action):
     for file_path in targets:
         if not is_executable(file_path):
             continue
         file_name = file_path.name.removesuffix(".exe")
-        output_path = f"{file_name}.output"
+        if is_snapshot_executable(file_path):
+            output_path = "Snapshot" + f"/{file_name}.output"
+        elif is_cost_model_executable(file_path):
+            output_path = "CostModel" + f"/{file_name}.output"
+        else:
+            output_path = "NoConfig" + f"/{file_name}.output"
+
         if Path(output_path).exists():
+            print(f"Output path {output_path} already exists, skipping...")
             continue
         if action == "run":
             env = os.environ.copy()
@@ -64,7 +82,69 @@ def main():
         parser.print_help()
         return 0
 
-    targets = list(sorted(list(Path(".").iterdir())))
+    # targets = list(sorted(list(Path(".").iterdir())))
+    targets = list(map(Path, [
+        "2o1u.wat.exe",
+        "2o1u.wat.snapshot.exe",
+        "2o1u.wat.costmodel.exe",
+        "3o1u.wat.exe",
+        "3o1u.wat.snapshot.exe",
+        "3o1u.wat.costmodel.exe",
+        "4o1u.wat.exe",
+        "4o1u.wat.snapshot.exe",
+        "4o1u.wat.costmodel.exe",
+        "5o1u.wat.exe",
+        "5o1u.wat.snapshot.exe",
+        "5o1u.wat.costmodel.exe",
+        "6o1u.wat.exe",
+        "6o1u.wat.snapshot.exe",
+        "6o1u.wat.costmodel.exe",
+        "7o1u.wat.exe",
+        "7o1u.wat.snapshot.exe",
+        "7o1u.wat.costmodel.exe",
+        "8o1u.wat.exe",
+        "8o1u.wat.snapshot.exe",
+        "8o1u.wat.costmodel.exe",
+        "9o1u.wat.exe",
+        "9o1u.wat.snapshot.exe",
+        "9o1u.wat.costmodel.exe",
+        "2o2u.wat.exe",
+        "2o2u.wat.snapshot.exe",
+        "2o2u.wat.costmodel.exe",
+        "3o2u.wat.exe",
+        "3o2u.wat.snapshot.exe",
+        "3o2u.wat.costmodel.exe",
+        "4o2u.wat.exe",
+        "4o2u.wat.snapshot.exe",
+        "4o2u.wat.costmodel.exe",
+        "5o2u.wat.exe",
+        "5o2u.wat.snapshot.exe",
+        "5o2u.wat.costmodel.exe",
+        "6o2u.wat.exe",
+        "6o2u.wat.snapshot.exe",
+        "6o2u.wat.costmodel.exe",
+        "7o2u.wat.exe",
+        "7o2u.wat.snapshot.exe",
+        "7o2u.wat.costmodel.exe",
+        # "8o2u.wat.exe" is not runnable even in wasp
+        # "9o2u.wat.exe",
+        "3o3u.wat.exe",
+        "3o3u.wat.snapshot.exe",
+        "3o3u.wat.costmodel.exe",
+        "4o3u.wat.exe",
+        "4o3u.wat.snapshot.exe",
+        "4o3u.wat.costmodel.exe",
+        "5o3u.wat.exe",
+        "5o3u.wat.snapshot.exe",
+        "5o3u.wat.costmodel.exe",
+        "6o3u.wat.exe",
+        "6o3u.wat.snapshot.exe",
+        "6o3u.wat.costmodel.exe",
+        "7o3u.wat.exe",
+        "7o3u.wat.snapshot.exe",
+        "7o3u.wat.costmodel.exe",
+    ]))
+    print(targets)
     if args.run_all:
         run_all(targets, action="run")
     elif args.clean:

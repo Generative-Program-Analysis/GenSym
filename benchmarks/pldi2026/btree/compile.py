@@ -14,7 +14,7 @@ if not CPP_FILES:
     print(f"No .cpp files found in {HERE}")
     sys.exit(0)
 
-DEFAULT_FLAGS = [
+BASE_FLAGS = [
     "-std=c++17",
     "-g",
     "-O3",
@@ -24,11 +24,18 @@ DEFAULT_FLAGS = [
     "-I/home/zdh/WorkSpace/GenSym/headers",
     "-lz3",
     "-DENABLE_PROFILE_TIME",
+    "-DNO_INFO"
+]
+
+TOOL_CONFIG_DEFAULT = [
     "-DNO_REUSE",
 ]
+TOOL_CONFIG_SNAPSHOT_UNIFORMLY = []
+TOOL_CONFIG_SNAPSHOT_COST_MODEL = ["-DUSE_COST_MODEL"]
 EXTRA_FLAGS = sys.argv[1:]
-FLAGS = DEFAULT_FLAGS + EXTRA_FLAGS
-
+FLAGS = BASE_FLAGS + TOOL_CONFIG_DEFAULT + EXTRA_FLAGS
+SNAPSHOT_FLAGS = BASE_FLAGS + TOOL_CONFIG_SNAPSHOT_UNIFORMLY + EXTRA_FLAGS
+SNAPSHOT_COST_MODEL_FLAGS = BASE_FLAGS + TOOL_CONFIG_SNAPSHOT_COST_MODEL + EXTRA_FLAGS
 
 def compile_all(cpp_files=None, flags=None):
     if cpp_files is None:
@@ -52,17 +59,55 @@ def compile_all(cpp_files=None, flags=None):
             print("Error: g++ not found. Install a C++ compiler.")
             sys.exit(1)
 
+        snapshot_out = cpp.with_suffix(".snapshot.exe")
+        snapshot_cmd = ["g++", str(cpp), "-o", str(snapshot_out)] + SNAPSHOT_FLAGS
+        print("Compiling snapshot version:", cpp.name)
+        try:
+            print("  Executing command:")
+            print("   ", " ".join(snapshot_cmd))
+            snapshot_proc = subprocess.run(snapshot_cmd, capture_output=True, text=True)
+        except FileNotFoundError:
+            print("Error: g++ not found. Install a C++ compiler.")
+            sys.exit(1)
+
+        snapshot_cost_model_out = cpp.with_suffix(".costmodel.exe")
+        snapshot_cost_model_cmd = ["g++", str(cpp), "-o", str(snapshot_cost_model_out)] + SNAPSHOT_COST_MODEL_FLAGS
+        print("Compiling snapshot cost model version:", cpp.name)
+        try:
+            print("  Executing command:")
+            print("   ", " ".join(snapshot_cost_model_cmd))
+            snapshot_cost_model_proc = subprocess.run(snapshot_cost_model_cmd, capture_output=True, text=True)
+        except FileNotFoundError:
+            print("Error: g++ not found. Install a C++ compiler.")
+            sys.exit(1)
+
         compiled_total += 1
-        if proc.returncode == 0:
-            compiled_success += 1
-            print("  -> OK:", out.name)
+
+        if snapshot_proc.returncode == 0:
+            print(f"  Successfully compiled snapshot {cpp.name} to {snapshot_out.name}")
         else:
+            print(f"  Failed to compile snapshot {cpp.name}")
+            print("  Compiler output:")
+            print(snapshot_proc.stdout)
+            print(snapshot_proc.stderr)
+
+        if proc.returncode == 0:
+            print(f"  Successfully compiled {cpp.name} to {out.name}")
+            compiled_success += 1
+        else:
+            print(f"  Failed to compile {cpp.name}")
+            print("  Compiler output:")
+            print(proc.stdout)
+            print(proc.stderr)
             compiled_failed += 1
-            print("  -> FAILED:", cpp.name)
-            if proc.stdout:
-                print(proc.stdout.strip())
-            if proc.stderr:
-                print(proc.stderr.strip())
+
+        if snapshot_cost_model_proc.returncode == 0:
+            print(f"  Successfully compiled snapshot cost model {cpp.name} to {snapshot_cost_model_out.name}")
+        else:
+            print(f"  Failed to compile snapshot cost model {cpp.name}")
+            print("  Compiler output:")
+            print(snapshot_cost_model_proc.stdout)
+            print(snapshot_cost_model_proc.stderr)
 
     print()
     print("Overall summary:")
