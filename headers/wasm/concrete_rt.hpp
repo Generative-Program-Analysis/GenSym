@@ -619,7 +619,6 @@ public:
     old_frame_bases[index] = value;
   }
 
-private:
   int32_t count;
   Num *stack_ptr;
   int32_t current_base;
