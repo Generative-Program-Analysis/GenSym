@@ -81,9 +81,13 @@ enum Operation {
   EQ,     // Equal
   NEQ,    // Not equal
   LT,     // Less than
+  LTU,    // Unsigned less than
   LEQ,    // Less than or equal
   GT,     // Greater than
+  GTU,    // Unsigned greater than
   GEQ,    // Greater than or equal
+  GEU,    // Unsigned greater than or equal
+  SHR,    // Shift right
   B_AND,  // Bitwise AND
   CONCAT, // Byte-level concatenation
 };
@@ -112,9 +116,13 @@ struct SymVal {
   SymVal eq(const SymVal &other) const;
   SymVal neq(const SymVal &other) const;
   SymVal lt(const SymVal &other) const;
+  SymVal ltu(const SymVal &other) const;
   SymVal le(const SymVal &other) const;
   SymVal gt(const SymVal &other) const;
+  SymVal gtu(const SymVal &other) const;
   SymVal ge(const SymVal &other) const;
+  SymVal geu(const SymVal &other) const;
+  SymVal shr(const SymVal &other) const;
   SymVal negate() const;
   SymVal bitwise_and(const SymVal &other) const;
   SymVal concat(const SymVal &other) const;
@@ -209,6 +217,11 @@ inline SymVal SymVal::lt(const SymVal &other) const {
   return make_binary(LT, *this, other);
 }
 
+inline SymVal SymVal::ltu(const SymVal &other) const {
+  // for now, we treat unsigned less than as signed less than
+  return make_binary(LTU, *this, other);
+}
+
 inline SymVal SymVal::le(const SymVal &other) const {
   return make_binary(LEQ, *this, other);
 }
@@ -217,8 +230,20 @@ inline SymVal SymVal::gt(const SymVal &other) const {
   return make_binary(GT, *this, other);
 }
 
+inline SymVal SymVal::gtu(const SymVal &other) const {
+  return make_binary(GTU, *this, other);
+}
+
 inline SymVal SymVal::ge(const SymVal &other) const {
   return make_binary(GEQ, *this, other);
+}
+
+inline SymVal SymVal::geu(const SymVal &other) const {
+  return make_binary(GEU, *this, other);
+}
+
+inline SymVal SymVal::shr(const SymVal &other) const {
+  return make_binary(SHR, *this, other);
 }
 
 inline SymVal SymVal::is_zero() const {

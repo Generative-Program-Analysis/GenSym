@@ -616,6 +616,24 @@ trait StagedWasmEvaluator extends SAIOps {
         runtimeSymAssert(s)
         runtimeAssert(v.toInt != 0)
         eval(rest, kont, mkont, trail)(newCtx)
+      case Import("mem", "alloc", _) =>
+        // this semantics here is not standardized in wasp, here is wasp's impl
+        // https://github.com/formalsec/wasp/blob/release/0.2.3/wasp/symbolic/concolic.ml#L449
+        val (_, newCtx1) = ctx.pop()
+        val a = Stack.popC(NumType(I32Type))
+        Stack.popS(NumType(I32Type))
+        val (_, newCtx2) = newCtx1.pop()
+        val b = Stack.popC(NumType(I32Type))
+        Stack.popS(NumType(I32Type))
+        Stack.pushC(b)
+        val s = "Concrete".reflectCtrlWith[SymVal](Values.I32V(b.toInt))
+        Stack.pushS(StagedSymbolicNum(NumType(I32Type), s))
+        eval(rest, kont, mkont, trail)(newCtx1)
+      case Import("mem", "free", _) =>
+        val (_, newCtx) = ctx.pop()
+        Stack.popC(NumType(I32Type))
+        Stack.popS(NumType(I32Type))
+        eval(rest, kont, mkont, trail)(newCtx)
       case Import(m, f, _) => throw new Exception(s"Unknown import $m.$f at $funcIndex")
       case _               => throw new Exception(s"Definition at $funcIndex is not callable")
     }
@@ -1722,7 +1740,7 @@ trait StagedWasmCppGen extends CGenBase with CppSAICodeGenBase {
     case Node(_, "i32-binary-shl", List(lhs, rhs), _) =>
       shallow(lhs); emit(".i32_shl("); shallow(rhs); emit(")")
     case Node(_, "i32-binary-shr", List(lhs, rhs), _) =>
-      shallow(lhs); emit(".i32_shr("); shallow(rhs); emit(")")
+      shallow(lhs); emit(".i32_shr_s("); shallow(rhs); emit(")")
     case Node(_, "i32-binary-and", List(lhs, rhs), _) =>
       shallow(lhs); emit(".i32_and("); shallow(rhs); emit(")")
     case Node(_, "i32-relation-eq", List(lhs, rhs), _) =>
@@ -1777,6 +1795,8 @@ trait StagedWasmCppGen extends CGenBase with CppSAICodeGenBase {
       shallow(lhs); emit(".leu("); shallow(rhs); emit(")")
     case Node(_, "sym-relation-lts", List(lhs, rhs), _) =>
       shallow(lhs); emit(".lt("); shallow(rhs); emit(")")
+    case Node(_, "relation-ltu", List(lhs, rhs), _) =>
+      shallow(lhs); emit(".ltu("); shallow(rhs); emit(")")
     case Node(_, "sym-relation-ges", List(lhs, rhs), _) =>
       shallow(lhs); emit(".ge("); shallow(rhs); emit(")")
     case Node(_, "sym-relation-geu", List(lhs, rhs), _) =>
@@ -1787,6 +1807,10 @@ trait StagedWasmCppGen extends CGenBase with CppSAICodeGenBase {
       shallow(lhs); emit(".neq("); shallow(rhs); emit(")")
     case Node(_, "sym-relation-gt", List(lhs, rhs), _) =>
       shallow(lhs); emit(".gt("); shallow(rhs); emit(")")
+    case Node(_, "sym-relation-gtu", List(lhs, rhs), _) =>
+      shallow(lhs); emit(".gtu("); shallow(rhs); emit(")")
+    case Node(_, "sym-binary-shr", List(lhs, rhs), _) =>
+      shallow(lhs); emit(".shr("); shallow(rhs); emit(")")
     case Node(_, "num-to-int", List(num), _) =>
       shallow(num); emit(".toInt()")
     case Node(_, "make-symbolic", List(num), _) =>

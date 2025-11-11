@@ -114,6 +114,10 @@ inline z3::expr Solver::build_z3_expr_aux(SymVal &sym_val) {
       auto temp_bool = left < right;
       return z3::ite(temp_bool, one_bv, zero_bv);
     }
+    case LTU: {
+      auto temp_bool = z3::ult(left, right);
+      return z3::ite(temp_bool, one_bv, zero_bv);
+    }
     case LEQ: {
       auto temp_bool = left <= right;
       return z3::ite(temp_bool, one_bv, zero_bv);
@@ -121,6 +125,17 @@ inline z3::expr Solver::build_z3_expr_aux(SymVal &sym_val) {
     case GT: {
       auto temp_bool = left > right;
       return z3::ite(temp_bool, one_bv, zero_bv);
+    }
+    case GTU: {
+      auto temp_bool = z3::ugt(left, right);
+      return z3::ite(temp_bool, one_bv, zero_bv);
+    }
+    case GEU: {
+      auto temp_bool = z3::uge(left, right);
+      return z3::ite(temp_bool, one_bv, zero_bv);
+    }
+    case SHR: {
+      return z3::lshr(left, right);
     }
     case GEQ: {
       auto temp_bool = left >= right;
