@@ -1,6 +1,7 @@
 #ifndef WASM_CONCRETE_RT_HPP
 #define WASM_CONCRETE_RT_HPP
 
+#include "controls.hpp"
 #include "wasm/profile.hpp"
 #include "wasm/utils.hpp"
 #include <cassert>
@@ -146,6 +147,18 @@ struct Num {
     return res;
   }
 
+  // i32.div_u (Unsigned division with traps)
+  inline Num i32_div_u(const Num &other) const {
+    uint32_t divisor = other.toUInt();
+    uint32_t dividend = this->toUInt();
+    if (divisor == 0) {
+      throw std::runtime_error("i32.div_u: Division by zero");
+    }
+    Num res(static_cast<int32_t>(dividend / divisor));
+    debug_print("i32.div_u", *this, other, res);
+    return res;
+  }
+
   // i32.shl (Shift Left): *this << other (shift count masked by 31)
   inline Num i32_shl(const Num &other) const {
     uint32_t shift_amount = other.toUInt() & 0x1F;
@@ -182,11 +195,246 @@ struct Num {
     debug_print("i32.and", *this, other, res);
     return res;
   }
+
+  // f32 helpers: interpret low 32 bits of value as IEEE-754 float
+  static inline float f32_from_bits(uint32_t bits) {
+    union {
+      uint32_t i;
+      float f;
+    } u;
+    u.i = bits;
+    return u.f;
+  }
+  static inline uint32_t f32_to_bits(float f) {
+    union {
+      uint32_t i;
+      float f;
+    } u;
+    u.f = f;
+    return u.i;
+  }
+  static inline bool f32_is_nan(uint32_t bits) {
+    // Exponent all ones and mantissa non-zero -> NaN for IEEE-754 single
+    return (bits & 0x7F800000u) == 0x7F800000u && (bits & 0x007FFFFFu) != 0;
+  }
+
+  // f32.add
+  inline Num f32_add(const Num &other) const {
+    uint32_t a_bits = toUInt();
+    uint32_t b_bits = other.toUInt();
+    float a = f32_from_bits(a_bits);
+    float b = f32_from_bits(b_bits);
+    float r = a + b;
+    uint32_t r_bits = f32_to_bits(r);
+    Num res(static_cast<int32_t>(r_bits));
+    debug_print("f32.add", *this, other, res);
+    return res;
+  }
+
+  // f32.sub
+  inline Num f32_sub(const Num &other) const {
+    uint32_t a_bits = toUInt();
+    uint32_t b_bits = other.toUInt();
+    float a = f32_from_bits(a_bits);
+    float b = f32_from_bits(b_bits);
+    float r = a - b;
+    uint32_t r_bits = f32_to_bits(r);
+    Num res(static_cast<int32_t>(r_bits));
+    debug_print("f32.sub", *this, other, res);
+    return res;
+  }
+
+  // f32.mul
+  inline Num f32_mul(const Num &other) const {
+    uint32_t a_bits = toUInt();
+    uint32_t b_bits = other.toUInt();
+    float a = f32_from_bits(a_bits);
+    float b = f32_from_bits(b_bits);
+    float r = a * b;
+    uint32_t r_bits = f32_to_bits(r);
+    Num res(static_cast<int32_t>(r_bits));
+    debug_print("f32.mul", *this, other, res);
+    return res;
+  }
+
+  // f32.div
+  inline Num f32_div(const Num &other) const {
+    uint32_t a_bits = toUInt();
+    uint32_t b_bits = other.toUInt();
+    float a = f32_from_bits(a_bits);
+    float b = f32_from_bits(b_bits);
+    float r = a / b;
+    uint32_t r_bits = f32_to_bits(r);
+    Num res(static_cast<int32_t>(r_bits));
+    debug_print("f32.div", *this, other, res);
+    return res;
+  }
+
+  // f32.eq : false if either is NaN
+  inline Num f32_eq(const Num &other) const {
+    uint32_t a_bits = toUInt();
+    uint32_t b_bits = other.toUInt();
+    if (f32_is_nan(a_bits) || f32_is_nan(b_bits)) {
+      Num res = WasmBool(false);
+      debug_print("f32.eq", *this, other, res);
+      return res;
+    }
+    float a = f32_from_bits(a_bits);
+    float b = f32_from_bits(b_bits);
+    Num res = WasmBool(a == b);
+    debug_print("f32.eq", *this, other, res);
+    return res;
+  }
+
+  // f32.ne : true if values are unordered or not equal (i.e., NaN makes it
+  // true)
+  inline Num f32_ne(const Num &other) const {
+    uint32_t a_bits = toUInt();
+    uint32_t b_bits = other.toUInt();
+    // per wasm: if either is NaN, f32.ne is true
+    if (f32_is_nan(a_bits) || f32_is_nan(b_bits)) {
+      Num res = WasmBool(true);
+      debug_print("f32.ne", *this, other, res);
+      return res;
+    }
+    float a = f32_from_bits(a_bits);
+    float b = f32_from_bits(b_bits);
+    Num res = WasmBool(a != b);
+    debug_print("f32.ne", *this, other, res);
+    return res;
+  }
+
+  // ordered comparisons: return false if any operand is NaN
+  inline Num f32_lt(const Num &other) const {
+    uint32_t a_bits = toUInt(), b_bits = other.toUInt();
+    if (f32_is_nan(a_bits) || f32_is_nan(b_bits))
+      return WasmBool(false);
+    float a = f32_from_bits(a_bits), b = f32_from_bits(b_bits);
+    Num res = WasmBool(a < b);
+    debug_print("f32.lt", *this, other, res);
+    return res;
+  }
+  inline Num f32_le(const Num &other) const {
+    uint32_t a_bits = toUInt(), b_bits = other.toUInt();
+    if (f32_is_nan(a_bits) || f32_is_nan(b_bits))
+      return WasmBool(false);
+    float a = f32_from_bits(a_bits), b = f32_from_bits(b_bits);
+    Num res = WasmBool(a <= b);
+    debug_print("f32.le", *this, other, res);
+    return res;
+  }
+  inline Num f32_gt(const Num &other) const {
+    uint32_t a_bits = toUInt(), b_bits = other.toUInt();
+    if (f32_is_nan(a_bits) || f32_is_nan(b_bits))
+      return WasmBool(false);
+    float a = f32_from_bits(a_bits), b = f32_from_bits(b_bits);
+    Num res = WasmBool(a > b);
+    debug_print("f32.gt", *this, other, res);
+    return res;
+  }
+  inline Num f32_ge(const Num &other) const {
+    uint32_t a_bits = toUInt(), b_bits = other.toUInt();
+    if (f32_is_nan(a_bits) || f32_is_nan(b_bits))
+      return WasmBool(false);
+    float a = f32_from_bits(a_bits), b = f32_from_bits(b_bits);
+    Num res = WasmBool(a >= b);
+    debug_print("f32.ge", *this, other, res);
+    return res;
+  }
+
+  // f32.abs: clear sign bit
+  inline Num f32_abs() const {
+    uint32_t a_bits = toUInt();
+    uint32_t r_bits = a_bits & 0x7FFFFFFFu;
+    Num res(static_cast<int32_t>(r_bits));
+    debug_print("f32.abs", *this, *this, res);
+    return res;
+  }
+
+  // f32.neg: flip sign bit
+  inline Num f32_neg() const {
+    uint32_t a_bits = toUInt();
+    uint32_t r_bits = a_bits ^ 0x80000000u;
+    Num res(static_cast<int32_t>(r_bits));
+    debug_print("f32.neg", *this, *this, res);
+    return res;
+  }
+
+  // f32.min / f32.max: follow wasm-ish semantics: if either is NaN, return NaN
+  // (propagate)
+  inline Num f32_min(const Num &other) const {
+    uint32_t a_bits = toUInt(), b_bits = other.toUInt();
+    if (f32_is_nan(a_bits))
+      return Num(static_cast<int32_t>(a_bits));
+    if (f32_is_nan(b_bits))
+      return Num(static_cast<int32_t>(b_bits));
+    float a = f32_from_bits(a_bits), b = f32_from_bits(b_bits);
+    // If values compare equal choose one to preserve signed zero: pick the one
+    // whose sign bit is set for min when both zeros (so -0 wins for min).
+    if (a == b) {
+      if ((a_bits & 0x80000000u) || (b_bits & 0x80000000u))
+        return Num(
+            static_cast<int32_t>((a_bits & 0x80000000u) ? a_bits : b_bits));
+      return Num(static_cast<int32_t>(a_bits));
+    }
+    float r = (a < b) ? a : b;
+    uint32_t r_bits = f32_to_bits(r);
+    Num res(static_cast<int32_t>(r_bits));
+    debug_print("f32.min", *this, other, res);
+    return res;
+  }
+
+  inline Num f32_max(const Num &other) const {
+    uint32_t a_bits = toUInt(), b_bits = other.toUInt();
+    if (f32_is_nan(a_bits))
+      return Num(static_cast<int32_t>(a_bits));
+    if (f32_is_nan(b_bits))
+      return Num(static_cast<int32_t>(b_bits));
+    float a = f32_from_bits(a_bits), b = f32_from_bits(b_bits);
+    if (a == b) {
+      if ((a_bits & 0x80000000u) || (b_bits & 0x80000000u))
+        return Num(
+            static_cast<int32_t>((a_bits & 0x80000000u) ? b_bits : a_bits));
+      return Num(static_cast<int32_t>(a_bits));
+    }
+    float r = (a > b) ? a : b;
+    uint32_t r_bits = f32_to_bits(r);
+    Num res(static_cast<int32_t>(r_bits));
+    debug_print("f32.max", *this, other, res);
+    return res;
+  }
+
+  // f32.copysign: result has magnitude of lhs, sign of rhs
+  inline Num f32_copysign(const Num &other) const {
+    uint32_t a_bits = toUInt(), b_bits = other.toUInt();
+    uint32_t r_bits = (a_bits & 0x7FFFFFFFu) | (b_bits & 0x80000000u);
+    Num res(static_cast<int32_t>(r_bits));
+    debug_print("f32.copysign", *this, other, res);
+    return res;
+  }
 };
 
 static Num I32V(int v) { return v; }
 
 static Num I64V(int64_t v) { return v; }
+
+static Num F32V(float f) {
+  union {
+    uint32_t i;
+    float f;
+  } u;
+  u.f = f;
+  return static_cast<int32_t>(u.i);
+}
+
+static Num F64V(double d) {
+  union {
+    uint64_t i;
+    double d;
+  } u;
+  u.d = d;
+  return static_cast<int64_t>(u.i);
+}
 
 const int STACK_SIZE = 1024 * 64;
 
@@ -449,7 +697,34 @@ struct Memory_t {
   }
 };
 
-
 static Memory_t Memory(1); // 1 page memory
+
+struct FuncTable_t {
+  FuncTable_t() : table(20) {}
+  std::vector<Func_t> table;
+
+  Func_t read(int32_t index) {
+    if (index < 0 || index >= table.size()) {
+      throw std::runtime_error("Function table read out of bounds: " +
+                               std::to_string(index));
+    }
+    if (!table[index]) {
+      throw std::runtime_error("Function table entry at index " +
+                               std::to_string(index) + " is empty or invalid");
+    }
+    return table[index];
+  }
+
+  std::monostate set(Num offset, int32_t index, Func_t func) {
+    if (index < 0 || index >= table.size()) {
+      throw std::runtime_error("Function table set out of bounds: " +
+                               std::to_string(index));
+    }
+    table[offset.toInt() + index] = func;
+    return std::monostate{};
+  }
+};
+
+static FuncTable_t FuncTable;
 
 #endif // WASM_CONCRETE_RT_HPP

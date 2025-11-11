@@ -170,6 +170,22 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
     f
   }
 
+  override def visitElem(ctx: ElemContext): Elem = {
+    val offsetInstrs = List(visit(ctx.instr()).asInstanceOf[Instr])
+    val funcs = ctx.idx().asScala.map(getVar(_)).map { id =>
+      try id.toInt
+      catch {
+        case _: NumberFormatException =>
+          if (fnMap.contains(id)) fnMap(id)
+          else {
+            System.err.println(s"[Parser] Warning: unresolved elem function reference: $id")
+            -1
+          }
+      }
+    }.toList
+    Elem(None, offsetInstrs, ElemListFunc(funcs))
+  }
+
   override def visitSimport(ctx: SimportContext): WIR = {
     val module = ctx.name(0).getText.substring(1).dropRight(1)
     val name = ctx.name(1).getText.substring(1).dropRight(1)

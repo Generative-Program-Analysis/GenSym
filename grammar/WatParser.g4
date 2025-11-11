@@ -323,10 +323,11 @@ offset
 // TBH I'm not even sure what the `func 1` should count as
 // TODO: align with the rules here:
 // https://webassembly.github.io/function-references/core/_download/WebAssembly.pdf
+// For now, only support initialize one table via function indices
 elem
-  : LPAR ELEM idx? LPAR instr RPAR idx* RPAR
-  | LPAR ELEM idx? offset idx* RPAR
-  | LPAR ELEM idx? DECLARE FUNC idx* RPAR
+  : LPAR ELEM LPAR instr RPAR FUNC idx* RPAR
+  // | LPAR ELEM idx? offset idx* RPAR
+  // | LPAR ELEM idx? DECLARE FUNC idx* RPAR
   ;
 
 table

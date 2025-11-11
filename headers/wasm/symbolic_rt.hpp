@@ -573,6 +573,7 @@ struct NodeBox {
   int instr_cost;
 
   bool fillIfElseNode(SymVal cond, int id);
+  bool fillCallIndirectNode(SymVal cond, int id);
   std::monostate fillFinishedNode();
   std::monostate fillFailedNode();
   std::monostate fillUnreachableNode();
@@ -629,17 +630,10 @@ struct IfElseNode : Node {
   std::unique_ptr<NodeBox> true_branch;
   std::unique_ptr<NodeBox> false_branch;
   int id;
-  std::optional<Snapshot_t> snapshot;
 
   IfElseNode(SymVal cond, NodeBox *parent, int id)
       : cond(cond), true_branch(std::make_unique<NodeBox>(parent)),
-        false_branch(std::make_unique<NodeBox>(parent)), id(id),
-        snapshot(std::nullopt) {}
-
-  IfElseNode(SymVal cond, NodeBox *parent, int id, Snapshot_t snapshot)
-      : cond(cond), true_branch(std::make_unique<NodeBox>(parent)),
-        false_branch(std::make_unique<NodeBox>(parent)), id(id),
-        snapshot(snapshot) {}
+        false_branch(std::make_unique<NodeBox>(parent)), id(id) {}
 
   std::string to_string() override {
     std::string result = "IfElseNode {\n";
@@ -679,6 +673,49 @@ struct IfElseNode : Node {
     assert(false_branch != nullptr);
     assert(false_branch->node != nullptr);
     false_branch->node->generate_dot(os, current_node_dot_id, "false");
+  }
+};
+
+struct CallIndirectNode : Node {
+  SymVal cond;
+  std::unordered_map<int, std::unique_ptr<NodeBox>> branches;
+  std::unique_ptr<NodeBox> otherwise_branch;
+  int id;
+  CallIndirectNode(SymVal cond, NodeBox *parent, int id)
+      : cond(cond), id(id),
+        otherwise_branch(std::make_unique<NodeBox>(parent)) {}
+  std::string to_string() override {
+    std::string result = "CallIndirectNode {\n";
+    for (const auto &pair : branches) {
+      result += "  branch " + std::to_string(pair.first) + ": ";
+      if (pair.second && pair.second->node) {
+        result += pair.second->node->to_string();
+      } else {
+        result += "nullptr";
+      }
+      result += "\n";
+    }
+    result += "}";
+    return result;
+  }
+
+  void generate_dot(std::ostream &os, int parent_dot_id,
+                    const std::string &edge_label) override {
+    int current_node_dot_id = current_id;
+    current_id += 1;
+
+    graphviz_node(os, current_node_dot_id, "Branch", "diamond", "lightyellow");
+
+    // Draw edge from parent if this is not the root node
+    if (parent_dot_id != -1) {
+      graphviz_edge(os, parent_dot_id, current_node_dot_id, edge_label);
+    }
+    for (const auto &pair : branches) {
+      assert(pair.second != nullptr);
+      assert(pair.second->node != nullptr);
+      pair.second->node->generate_dot(os, current_node_dot_id,
+                                      "branch " + std::to_string(pair.first));
+    }
   }
 };
 
@@ -792,8 +829,7 @@ inline NodeBox::NodeBox(NodeBox *parent)
 inline bool NodeBox::fillIfElseNode(SymVal cond, int id) {
   // fill the current NodeBox with an ifelse branch node when it's unexplored
   if (auto ptr = dynamic_cast<SnapshotNode *>(node.get())) {
-    node =
-        std::make_unique<IfElseNode>(cond, this, id, ptr->move_out_snapshot());
+    node = std::make_unique<IfElseNode>(cond, this, id);
     return true;
   } else if (dynamic_cast<UnExploredNode *>(node.get())) {
     node = std::make_unique<IfElseNode>(cond, this, id);
@@ -807,6 +843,28 @@ inline bool NodeBox::fillIfElseNode(SymVal cond, int id) {
   assert(
       dynamic_cast<IfElseNode *>(node.get()) != nullptr &&
       "Current node is not an Unexplored nor an IfElseNode, cannot fill it!");
+  return false;
+}
+
+inline bool NodeBox::fillCallIndirectNode(SymVal cond, int id) {
+  // fill the current NodeBox with a call_indirect branch node when it's
+  // unexplored
+  if (auto ptr = dynamic_cast<SnapshotNode *>(node.get())) {
+    node = std::make_unique<CallIndirectNode>(cond, this, id);
+    return true;
+  } else if (dynamic_cast<UnExploredNode *>(node.get())) {
+    node = std::make_unique<CallIndirectNode>(cond, this, id);
+    return true;
+  } else if (dynamic_cast<NotToExploreNode *>(node.get()) != nullptr) {
+    assert(false &&
+           "Unexpected traversal: arrived at a node marked 'NotToExplore'.");
+    return false;
+  }
+
+  assert(
+      dynamic_cast<CallIndirectNode *>(node.get()) != nullptr &&
+      "Current node is not an Unexplored nor a CallIndirectNode, cannot fill "
+      "it!");
   return false;
 }
 
@@ -839,6 +897,7 @@ inline std::monostate NodeBox::fillFailedNode() {
   if (this->isUnexplored()) {
     node = std::make_unique<Failed>();
   } else {
+    std::cout << "Fill Failed Node" << node->to_string() << std::endl;
     assert(dynamic_cast<Failed *>(node.get()) != nullptr);
   }
   return std::monostate();
@@ -869,8 +928,7 @@ inline std::vector<SymVal> NodeBox::collect_path_conds() {
   auto result = std::vector<SymVal>();
   while (box->parent) {
     auto parent = box->parent;
-    auto if_else_node = dynamic_cast<IfElseNode *>(parent->node.get());
-    if (if_else_node) {
+    if (auto if_else_node = dynamic_cast<IfElseNode *>(parent->node.get())) {
       if (if_else_node->true_branch.get() == box) {
         // If the current box is the true branch, add the condition
         result.push_back(if_else_node->cond);
@@ -879,6 +937,33 @@ inline std::vector<SymVal> NodeBox::collect_path_conds() {
         result.push_back(if_else_node->cond.negate());
       } else {
         throw std::runtime_error("Unexpected node structure in explore tree");
+      }
+    } else if (auto call_indirect_node =
+                   dynamic_cast<CallIndirectNode *>(parent->node.get())) {
+      // Find which branch we are in
+      bool found = false;
+      for (const auto &pair : call_indirect_node->branches) {
+        if (pair.second.get() == box) {
+          // We are in this branch
+          // Add the condition that leads to this branch
+          result.push_back(
+              call_indirect_node->cond.eq(Concrete(I32V(pair.first))));
+          found = true;
+          break;
+        }
+      }
+      if (!found) {
+        // We must be in the otherwise branch
+        if (call_indirect_node->otherwise_branch.get() != box) {
+          throw std::runtime_error("Unexpected node structure in explore tree");
+        }
+        // Add the negated conditions for all other branches
+        SymVal negated_conditions = Concrete(I32V(1)); // true
+        for (const auto &pair : call_indirect_node->branches) {
+          negated_conditions = negated_conditions.bitwise_and(
+              call_indirect_node->cond.neq(Concrete(I32V(pair.first))));
+        }
+        result.push_back(negated_conditions);
       }
     }
     // Move to parent
@@ -982,6 +1067,14 @@ public:
     return std::monostate();
   }
 
+  std::monostate fillCallIndirectNode(SymVal cond, int id) {
+    if (cursor->fillCallIndirectNode(cond, id)) {
+      auto indirect_node = dynamic_cast<CallIndirectNode *>(cursor->node.get());
+      register_new_node(indirect_node->otherwise_branch.get());
+    }
+    return std::monostate();
+  }
+
   std::monostate fillNotToExploredNode() {
     return cursor->fillNotToExploreNode();
   }
@@ -1060,6 +1153,27 @@ public:
     return std::monostate();
   }
 
+  std::monostate moveCursorIndirect(int branch_index) {
+    // Dont use snapshot reuse for untaken branches of indirect call
+    Profile.step(StepProfileKind::CURSOR_MOVE);
+    assert(cursor != nullptr);
+    auto branch_node = dynamic_cast<CallIndirectNode *>(cursor->node.get());
+    assert(branch_node != nullptr &&
+           "Can't move cursor when the branch node is not initialized ");
+    if (branch_node->branches.find(branch_index) ==
+        branch_node->branches.end()) {
+      // Create a new branch
+      branch_node->branches[branch_index] = std::make_unique<NodeBox>(cursor);
+      register_new_node(branch_node->branches[branch_index].get());
+    }
+    cursor = branch_node->branches[branch_index].get();
+    int cost_from_parent = CostManager.dump_instr_cost();
+    int cost_from_root =
+        cost_from_parent + (cursor->parent ? cursor->parent->instr_cost : 0);
+    cursor->instr_cost = cost_from_root;
+    return std::monostate();
+  }
+
   std::monostate print() {
     std::cout << root->node->to_string() << std::endl;
     return std::monostate();
@@ -1108,6 +1222,12 @@ public:
         result.unexplored_count += 1;
       } else if (dynamic_cast<NotToExploreNode *>(node->node.get())) {
         result.not_to_explore_count += 1;
+      } else if (auto call_indirect_node =
+                     dynamic_cast<CallIndirectNode *>(node->node.get())) {
+        for (const auto &pair : call_indirect_node->branches) {
+          dfs(pair.second.get());
+        }
+        dfs(call_indirect_node->otherwise_branch.get());
       } else {
         throw std::runtime_error("Unknown node type in explore tree");
       }
@@ -1491,8 +1611,8 @@ Snapshot_t::resume_execution_by_model(NodeBox *node, z3::model &model) const {
   return cont(mcont);
 }
 
-[[deprecated]]
-inline std::monostate Snapshot_t::resume_execution(NodeBox *node) const {
+[[deprecated]] inline std::monostate
+Snapshot_t::resume_execution(NodeBox *node) const {
   // Reset explore tree's cursor and restore symbolic states
   ExploreTree.set_cursor(node);
   restore_states_to_global();

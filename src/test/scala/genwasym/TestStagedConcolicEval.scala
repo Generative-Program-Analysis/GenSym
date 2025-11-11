@@ -190,6 +190,10 @@ class TestStagedConcolicEval extends FunSuite {
     testFileConcreteCpp("./benchmarks/wasm/f32_test.wat", Some("test_f32"))
   }
 
+  test("call-indirect-concrete") {
+    testFileConcreteCpp("./benchmarks/wasm/call_indirect_test.wat")
+  }
+
   // test("diverge") {
   //   testFileConcolicCpp("./benchmarks/wasm/diverge.wat", Some("main"))
   // }

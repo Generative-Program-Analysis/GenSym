@@ -64,4 +64,6 @@ struct Control {
   Control(Cont_t cont, MCont_t mcont) : cont(cont), mcont(mcont) {}
 };
 
+using Func_t = std::function<std::monostate(MCont_t)>;
+
 #endif // WASM_CONTROLS_HPP

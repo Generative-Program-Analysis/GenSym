@@ -128,6 +128,7 @@ trait StagedWasmEvaluator extends SAIOps {
   class MCont[A]
   type Cont[A] = (MCont[A]) => A
   type Trail[A] = List[Context => Rep[Cont[A]]]
+  trait Func
 
   // a cache storing the compiled code for each function, to reduce re-compilation
   val compileCache = new HashMap[Int, Rep[(MCont[Unit]) => Unit]]
@@ -464,6 +465,11 @@ trait StagedWasmEvaluator extends SAIOps {
       case Return        => trail.last(ctx)(mkont)
       case Call(f)       => evalCall(rest, kont, mkont, trail, f, false)
       case ReturnCall(f) => evalCall(rest, kont, mkont, trail, f, true)
+      case CallIndirect(ty, table) =>
+        Predef.assert(table == 0, "Currently we can only have one table!")
+        val functy = module.types(ty)
+        Predef.println(s"Table = ")
+        evalCallIndirect(rest, kont, mkont, trail, functy.asInstanceOf[FuncType])
       case _ =>
         val todo = "todo-op".reflectCtrlWith[Unit]()
         eval(rest, kont, mkont, trail)
@@ -472,6 +478,51 @@ trait StagedWasmEvaluator extends SAIOps {
 
   def forwardKont: Rep[Cont[Unit]] = topFun((mk: Rep[MCont[Unit]]) => mk.enter())
 
+  def readFuncTable(index: Rep[Int]): Rep[Func] = {
+    "read-func-table".reflectCtrlWith[Func](index)
+  }
+
+  def invokeWithMCont(func: Rep[Func], mkont: Rep[MCont[Unit]]): Rep[Unit] = {
+    "invoke-func-with-mcont".reflectCtrlWith[Unit](func, mkont)
+  }
+
+  def evalCallIndirect(rest: List[Instr],
+                       kont: Context => Rep[Cont[Unit]],
+                       mkont: Rep[MCont[Unit]],
+                       trail: Trail[Unit],
+                       functy: FuncType)
+                      (implicit ctx: Context): Rep[Unit] = {
+    val (ty, newCtx) = ctx.pop()
+    val index = Stack.popC(ty)
+    val symIndex = Stack.popS(ty)
+    Predef.assert(ty == NumType(I32Type))
+    val id = Counter.getId()
+    ExploreTree.fillWithCallIndirect(symIndex.s, id)
+    ExploreTree.moveCursor(index.toInt)
+    val func = readFuncTable(index.toInt)
+    invokeWithMCont(func, mkont)
+  }
+
+  def evalFunc(ty: FuncType, body: List[Instr], funcIndex: Int, locals: List[ValueType]): Rep[(MCont[Unit]) => Unit] = {
+    if (compileCache.contains(funcIndex)) {
+      compileCache(funcIndex)
+    } else {
+      val func = topFun((mk: Rep[MCont[Unit]]) => {
+        info(s"Entered the function at $funcIndex, stackSize =", Stack.size)
+        // the return instruction is also stack polymorphic
+        def retK(ctx: Context): Rep[Cont[Unit]] = topFun((mk: Rep[MCont[Unit]]) => {
+          info(s"Exiting the function at $funcIndex, stackSize =", Stack.size)
+          val offset = ctx.stackTypes.size - ty.out.size
+          Stack.shiftC(offset, ty.out.size)
+          Stack.shiftS(offset, ty.out.size)
+          mk.enter()
+        })
+        eval(body, retK _, mk, retK _::Nil)(Context(Nil, locals))
+      })
+      compileCache(funcIndex) = func
+      func
+    }
+  }
 
   def evalCall(rest: List[Instr],
                kont: Context => Rep[Cont[Unit]],
@@ -485,25 +536,7 @@ trait StagedWasmEvaluator extends SAIOps {
         val locals = bodyLocals ++ ty.inps
         instrCost += locals.size * 2 - 1
         addInstrCost()
-        val callee =
-          if (compileCache.contains(funcIndex)) {
-            compileCache(funcIndex)
-          } else {
-            val callee = topFun((mk: Rep[MCont[Unit]]) => {
-              info(s"Entered the function at $funcIndex, stackSize =", Stack.size)
-              // the return instruction is also stack polymorphic
-              def retK(ctx: Context): Rep[Cont[Unit]] = topFun((mk: Rep[MCont[Unit]]) => {
-                info(s"Exiting the function at $funcIndex, stackSize =", Stack.size)
-                val offset = ctx.stackTypes.size - ty.out.size
-                Stack.shiftC(offset, ty.out.size)
-                Stack.shiftS(offset, ty.out.size)
-                mk.enter()
-              })
-              eval(body, retK _, mk, retK _::Nil)(Context(Nil, locals))
-            })
-            compileCache(funcIndex) = callee
-            callee
-          }
+        val callee = evalFunc(ty, body, funcIndex, locals)
         // Predef.println(s"[DEBUG] locals size: ${locals.size}")
         val newCtx = ctx.take(ty.inps.size)
         val argsC = Stack.takeC(ty.inps)
@@ -703,6 +736,7 @@ trait StagedWasmEvaluator extends SAIOps {
     val (instrs, locals) = (funBody.body, funBody.locals)
     // resetStacks() // Don't manually reset the global states (like stack), manage them in the driver
     initGlobals(module.globals)
+    initTable(module)
     Frames.pushFrameC(locals)
     Frames.pushFrameS(locals)
     eval(instrs, (_: Context) => forwardKont, mkont, ((_: Context) => forwardKont)::Nil)(Context(Nil, locals))
@@ -883,6 +917,27 @@ trait StagedWasmEvaluator extends SAIOps {
     }
   }
 
+  def initTable(module: ModuleInstance): Rep[Unit] = {
+    val haltK: Rep[Unit] => Rep[Unit] = (_) => { }
+    val mkont: Rep[MCont[Unit]] = makeInitMCont(topFun(haltK))
+    for (definition <- module.defs) {
+      definition match {
+        case Elem(_, offset, funcIndices) =>
+          eval(offset, (_: Context) => forwardKont, mkont, ((_: Context) => forwardKont)::Nil)(Context(Nil, Nil))
+          val offsetC = Stack.popC(NumType(I32Type))
+          Stack.popS(NumType(I32Type))
+          Predef.println(s"funcIndices: $funcIndices")
+          for ((fidx, i) <- funcIndices.asInstanceOf[ElemListFunc].funcs.view.zipWithIndex) {
+            val FuncDef(_, FuncBodyDef(ty, _, bodyLocals, body)) = module.funcs(fidx)
+            val locals = bodyLocals ++ ty.inps
+            val func = evalFunc(ty, body, fidx, locals)
+            "init-func-table".reflectCtrlWith[Unit](offsetC.i, i, func)
+          }
+        case _ => ()
+      }
+    }
+  }
+
   // call unreachable
   def unreachable(): Rep[Unit] = {
     "unreachable".reflectCtrlWith[Unit]()
@@ -933,6 +988,10 @@ trait StagedWasmEvaluator extends SAIOps {
       "tree-fill-if-else".reflectCtrlWith[Unit](s, id)
     }
 
+    def fillWithCallIndirect(s: Rep[SymVal], id: Int): Rep[Unit] = {
+      "tree-fill-call-indirect".reflectCtrlWith[Unit](s, id)
+    }
+
     def fillWithNotToExplore(): Rep[Unit] = {
       "tree-fill-not-to-explore".reflectCtrlWith[Unit]()
     }
@@ -949,6 +1008,10 @@ trait StagedWasmEvaluator extends SAIOps {
     def moveCursor(branch: Boolean): Rep[Unit] = {
       // when moving cursor from to an unexplored node, we need to change the reuse state
       "tree-move-cursor-no-control".reflectCtrlWith[Unit](branch)
+    }
+
+    def moveCursor(index: Rep[Int]): Rep[Unit] = {
+      "tree-move-cursor-call-indirect-index".reflectCtrlWith[Unit](index)
     }
 
     def print(): Rep[Unit] = {
@@ -1529,6 +1592,7 @@ trait StagedWasmCppGen extends CGenBase with CppSAICodeGenBase {
     else if (m.toString.endsWith("SymVal")) "SymVal"
     else if (m.toString.endsWith("Snapshot")) "Snapshot_t"
     else if (m.toString.endsWith("MCont[Unit]")) "MCont_t"
+    else if (m.toString.endsWith("Func")) "Func_t"
     else super.remap(m)
   }
 
@@ -1747,6 +1811,16 @@ trait StagedWasmCppGen extends CGenBase with CppSAICodeGenBase {
       emit("prependCont(");  shallow(kont); emit(", "); shallow(mkont); emit(")")
     case Node(_, "mcont-enter", List(mkont), _) =>
       shallow(mkont); emit(".enter()")
+    case Node(_, "init-func-table", List(offset, i, func), _) =>
+      emit("FuncTable.set("); shallow(offset); emit(", "); shallow(i); emit(", "); shallow(func); emit(")")
+    case Node(_, "tree-fill-call-indirect", List(s, id), _) =>
+      emit("ExploreTree.fillCallIndirectNode("); shallow(s); emit(", "); emit(id.toString); emit(")")
+    case Node(_, "invoke-func-with-mcont", List(f, mkont), _) =>
+      shallow(f); emit("("); shallow(mkont); emit(")")
+    case Node(_, "read-func-table", List(funcIndex), _) =>
+      emit("FuncTable.read("); shallow(funcIndex); emit(")")
+    case Node(_, "tree-move-cursor-call-indirect-index", List(index), _) =>
+      emit("ExploreTree.moveCursorIndirect("); shallow(index); emit(")")
     case Node(_, "dummy", _, _) => emit("std::monostate()")
     case Node(_, "dummy-op", _, _) => emit("std::monostate()")
     case Node(_, "no-op", _, _) =>

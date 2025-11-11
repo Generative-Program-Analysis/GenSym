@@ -27,7 +27,7 @@ case class ImportFuncTy(name: Option[String], t: FuncType) extends ImportDesc
 case class ImportFuncTyUse(name: Option[String], u: Int) extends ImportDesc
 
 abstract class ElemList extends WIR
-case class ElemListFunc(funcs: List[String]) extends ElemList
+case class ElemListFunc(funcs: List[Int]) extends ElemList
 case class ElemListExpr(exprs: List[List[Instr]]) extends ElemList
 
 abstract class FuncField extends WIR
