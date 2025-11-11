@@ -45,14 +45,14 @@
     i32.gt_s
     i32.const 1
     i32.and
-    sym_assume
+    call 1
     local.get 0
     i32.load offset=136
     i32.const 127
     i32.lt_s
     i32.const 1
     i32.and
-    sym_assume
+    call 1
     local.get 0
     local.get 0
     i32.load offset=136
@@ -70,14 +70,14 @@
     i32.gt_s
     i32.const 1
     i32.and
-    sym_assume
+    call 1
     local.get 0
     i32.load offset=128
     i32.const 127
     i32.lt_s
     i32.const 1
     i32.and
-    sym_assume
+    call 1
     local.get 0
     local.get 0
     i32.load offset=128
@@ -95,14 +95,14 @@
     i32.gt_s
     i32.const 1
     i32.and
-    sym_assume
+    call 1
     local.get 0
     i32.load offset=120
     i32.const 127
     i32.lt_s
     i32.const 1
     i32.and
-    sym_assume
+    call 1
     local.get 0
     local.get 0
     i32.load offset=120
@@ -120,14 +120,14 @@
     i32.gt_s
     i32.const 1
     i32.and
-    sym_assume
+    call 1
     local.get 0
     i32.load offset=112
     i32.const 127
     i32.lt_s
     i32.const 1
     i32.and
-    sym_assume
+    call 1
     local.get 0
     local.get 0
     i32.load offset=112
@@ -145,14 +145,14 @@
     i32.gt_s
     i32.const 1
     i32.and
-    sym_assume
+    call 1
     local.get 0
     i32.load offset=104
     i32.const 127
     i32.lt_s
     i32.const 1
     i32.and
-    sym_assume
+    call 1
     local.get 0
     local.get 0
     i32.load offset=104
@@ -170,14 +170,14 @@
     i32.gt_s
     i32.const 1
     i32.and
-    sym_assume
+    call 1
     local.get 0
     i32.load offset=96
     i32.const 127
     i32.lt_s
     i32.const 1
     i32.and
-    sym_assume
+    call 1
     local.get 0
     local.get 0
     i32.load offset=96
@@ -195,14 +195,14 @@
     i32.gt_s
     i32.const 1
     i32.and
-    sym_assume
+    call 1
     local.get 0
     i32.load offset=88
     i32.const 127
     i32.lt_s
     i32.const 1
     i32.and
-    sym_assume
+    call 1
     local.get 0
     local.get 0
     i32.load offset=88
@@ -220,14 +220,14 @@
     i32.gt_s
     i32.const 1
     i32.and
-    sym_assume
+    call 1
     local.get 0
     i32.load offset=80
     i32.const 127
     i32.lt_s
     i32.const 1
     i32.and
-    sym_assume
+    call 1
     local.get 0
     local.get 0
     i32.load offset=80
@@ -245,14 +245,14 @@
     i32.gt_s
     i32.const 1
     i32.and
-    sym_assume
+    call 1
     local.get 0
     i32.load offset=72
     i32.const 127
     i32.lt_s
     i32.const 1
     i32.and
-    sym_assume
+    call 1
     local.get 0
     local.get 0
     i32.load offset=72
@@ -270,14 +270,14 @@
     i32.gt_s
     i32.const 1
     i32.and
-    sym_assume
+    call 1
     local.get 0
     i32.load offset=64
     i32.const 127
     i32.lt_s
     i32.const 1
     i32.and
-    sym_assume
+    call 1
     local.get 0
     local.get 0
     i32.load offset=64
@@ -295,14 +295,14 @@
     i32.gt_s
     i32.const 1
     i32.and
-    sym_assume
+    call 1
     local.get 0
     i32.load offset=56
     i32.const 127
     i32.lt_s
     i32.const 1
     i32.and
-    sym_assume
+    call 1
     local.get 0
     local.get 0
     i32.load offset=56
@@ -343,7 +343,7 @@
     local.get 1
     i32.const 1
     i32.and
-    sym_assume
+    call 1
     i32.const 0
     local.set 1
     block  ;; label = @1
@@ -388,7 +388,7 @@
     local.get 1
     i32.const 1
     i32.and
-    sym_assume
+    call 1
     i32.const 0
     local.set 1
     block  ;; label = @1
@@ -411,7 +411,7 @@
     local.get 1
     i32.const 1
     i32.and
-    sym_assume
+    call 1
     i32.const 0
     local.set 1
     block  ;; label = @1
@@ -445,7 +445,7 @@
     local.get 1
     i32.const 1
     i32.and
-    sym_assume
+    call 1
     i32.const 0
     i32.load offset=1052
     local.get 0

@@ -218,7 +218,7 @@
     i32.ne
     i32.const 1
     i32.and
-    sym_assume
+    call 1
     local.get 0
     i32.const 32
     i32.add
@@ -280,7 +280,7 @@
     local.get 1
     i32.const 1
     i32.and
-    sym_assume
+    call 1
     block  ;; label = @1
       loop  ;; label = @2
         local.get 0
