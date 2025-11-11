@@ -4,10 +4,12 @@
   (type (;2;) (func (param i32)))
   (type (;3;) (func (result i32)))
   (type (;4;) (func (param i32 i32 i32) (result i32)))
-  (import "i32" "symbolic" (func (;0;) (type 0)))
-  (import "i32" "sym_assume" (func (;1;) (type 1)))
-  (import "i32" "sym_assert" (func (;2;) (type 1)))
+  (import "i32" "symbolic" (func (;0;) (type 1)))
+  (import "i32" "sym_assume" (func (;1;) (type 2)))
+  (import "i32" "sym_assert" (func (;2;) (type 2)))
   (import "sym" "get_sym_int32" (func (;3;) (type 0)))
+  (import "mem" "alloc" (func (;4;) (type 0)))
+  (import "mem" "free" (func (;5;) (type 2)))
   (func $__original_main (type 3) (result i32)
     (local i32)
     global.get 0
@@ -636,7 +638,7 @@
     i32.load offset=8
     local.get 1
     i32.load offset=12
-    alloc
+    call 4
     local.set 0
     local.get 1
     i32.const 16
@@ -710,7 +712,7 @@
     local.get 2
     i32.load offset=8
     i32.mul
-    alloc
+    call 4
     local.set 1
     local.get 2
     i32.const 16
@@ -729,7 +731,7 @@
     i32.store offset=12
     local.get 1
     i32.load offset=12
-    free
+    call 5
     local.get 1
     i32.const 16
     i32.add
