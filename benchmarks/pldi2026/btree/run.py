@@ -40,12 +40,13 @@ def run_all(targets: list[Path], action):
         else:
             output_path = "NoConfig" + f"/{file_name}.output"
 
-        if Path(output_path).exists():
-            print(f"Output path {output_path} already exists, skipping...")
+        num = len(list(Path(output_path).glob("*.json"))) if Path(output_path).exists() else 0
+        if num >= 5:
+            print(f"Skip {file_name} since it already has {num} reports.")
             continue
         if action == "run":
             env = os.environ.copy()
-            env.update({"OUTPUT_DIR": output_path})
+            env.update({"OUTPUT_FILE": output_path + f"/report_{num}.json"})
 
             print("Now executing: " + str(file_path))
             proc = subprocess.Popen(

@@ -609,6 +609,16 @@ public:
     count = new_size;
   }
 
+  void resize_old_frames_size(int32_t new_size) {
+    assert(new_size >= 0);
+    old_frame_bases.resize(new_size);
+  }
+
+  void set_old_frame_base(int32_t index, int32_t value) {
+    assert(index >= 0 && index < old_frame_bases.size());
+    old_frame_bases[index] = value;
+  }
+
 private:
   int32_t count;
   Num *stack_ptr;

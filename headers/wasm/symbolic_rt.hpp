@@ -437,7 +437,6 @@ public:
     return cost;
   }
 
-private:
 #ifdef USE_IMM
   immer::vector_transient<SymVal> stack;
   immer::vector_transient<int32_t> old_frame_bases;
@@ -1562,6 +1561,11 @@ static void resume_conc_frames_by_model(const SymFrames_t &sym_frame,
     auto res = eval_sym_expr_by_model(sym, model);
     auto conc = res.value;
     frames.set_from_front(i, conc);
+  }
+  frames.resize_old_frames_size(sym_frame.old_frame_bases.size());
+  for (size_t i = 0; i < sym_frame.old_frame_bases.size(); ++i) {
+    auto base = sym_frame.old_frame_bases[i];
+    frames.set_old_frame_base(i, base);
   }
 }
 

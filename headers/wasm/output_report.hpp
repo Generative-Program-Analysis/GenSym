@@ -8,17 +8,13 @@
 
 inline void dump_all_summary_json(const Profile_t &profile,
                                   const OverallResult &overall) {
-  // use environment variable OUTPUT_DIR to config particular output directory
-  // use environment variable OUTPUT_DIR to config particular output directory
-  const char *output_dir = std::getenv("OUTPUT_DIR");
-  if (output_dir == nullptr) {
+  // use environment variable OUTPUT_FILE to config particular output profiling file
+  const char *output_file = std::getenv("OUTPUT_FILE");
+  if (output_file == nullptr) {
     return;
   }
 
-  std::filesystem::path outdir(output_dir);
-
-  std::filesystem::path report_path =
-      outdir / std::filesystem::path("concolic_execution_report.json");
+  std::filesystem::path report_path(output_file);
 
   auto parent = report_path.parent_path();
   if (!parent.empty()) {
