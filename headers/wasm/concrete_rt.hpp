@@ -639,7 +639,6 @@ static std::monostate unreachable() {
 }
 
 static int32_t pagesize = 65536;
-static int32_t page_count = 0;
 
 struct Memory_t {
   // TODO: We assign a SymVal to each byte in memory
@@ -648,7 +647,7 @@ struct Memory_t {
   int page_count;
 
   Memory_t(int32_t init_page_count)
-      : memory(pagesize), init_page_count(init_page_count),
+      : memory(pagesize * init_page_count), init_page_count(init_page_count),
         page_count(init_page_count) {}
 
   int32_t loadInt(int32_t base, int32_t offset) {
@@ -672,10 +671,6 @@ struct Memory_t {
 
   std::monostate storeInt(int32_t base, int32_t offset, int32_t value) {
     int32_t addr = base + offset;
-#ifdef DEBUG
-    std::cout << "[Debug] storing int " << value << " to memory at address "
-              << addr << std::endl;
-#endif
     // Ensure we don't write out of bounds
     if (!(addr + 3 < memory.size())) {
       throw std::runtime_error("Invalid memory access " + std::to_string(addr));
@@ -684,7 +679,11 @@ struct Memory_t {
       memory[addr + i] = static_cast<uint8_t>((value >> (8 * i)) & 0xFF);
       // Optionally, update memory[addr + i].second (SymVal) if needed
     }
+#ifdef DEBUG
+    std::cout << "[Debug] storing int " << value << " to memory at address "
+              << addr << std::endl;
     std::cout << "[Debug] stored int value " << value << " to " << addr << std::endl;
+#endif
     return std::monostate{};
   }
 
@@ -722,7 +721,7 @@ struct Memory_t {
   }
 };
 
-static Memory_t Memory(1); // 1 page memory
+static Memory_t Memory(4); // 4 page memory
 
 struct FuncTable_t {
   FuncTable_t() : table(20) {}
