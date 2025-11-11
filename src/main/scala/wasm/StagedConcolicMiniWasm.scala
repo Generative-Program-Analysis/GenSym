@@ -523,7 +523,7 @@ trait StagedWasmEvaluator extends SAIOps {
         info(s"Entered the function at $funcIndex, stackSize =", Stack.size)
         // the return instruction is also stack polymorphic
         def retK(ctx: Context): Rep[Cont[Unit]] = topFun((mk: Rep[MCont[Unit]]) => {
-          info(s"Exiting the function at $funcIndex, stackSize =", Stack.size)
+          info(s"Return from the function at $funcIndex, stackSize =", Stack.size)
           val offset = ctx.stackTypes.size - ty.out.size
           Stack.shiftC(offset, ty.out.size)
           Stack.shiftS(offset, ty.out.size)

@@ -184,7 +184,6 @@ inline std::monostate GENSYM_SYM_ASSERT(SymVal &sym_cond) {
   auto result = solver.solve(conds);
   auto end = std::chrono::steady_clock::now();
   auto time_need_to_be_removed = std::chrono::duration<double>(end - start);
-  std::cout << "Time taken for symbolic assertion: " << time_need_to_be_removed.count() << " seconds" << std::endl;
   Profile.remove_instruction_time(TimeProfileKind::INSTR, time_need_to_be_removed.count());
   if (result.has_value()) {
     std::cout << "Symbolic assertion failed" << std::endl;

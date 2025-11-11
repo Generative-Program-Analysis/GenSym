@@ -98,6 +98,7 @@ inline void ConcolicDriver::main_exploration_loop() {
     }
     auto &new_env = result.value().first;
     auto &model = result.value().second;
+    std::cout << "Get from model..." << std::endl << model << std::endl;
 
     // update global symbolic environment from SMT solved model
     SymEnv.update(std::move(new_env));

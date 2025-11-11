@@ -539,7 +539,7 @@ private:
 };
 static Stack_t Stack;
 
-const int FRAME_SIZE = 1024;
+const int FRAME_SIZE = 1024 * 8;
 
 class Frames_t {
 public:
@@ -553,6 +553,7 @@ public:
 
   std::monostate popFrame(std::int32_t size) {
     assert(size >= 0);
+    assert(size == count - current_base);
     count -= size;
     current_base = old_frame_bases.back();
     old_frame_bases.pop_back();
@@ -637,7 +638,6 @@ static std::monostate unreachable() {
   throw std::runtime_error("Unreachable code reached");
 }
 
-static const int PRE_ALLOC_PAGES = 20;
 static int32_t pagesize = 65536;
 static int32_t page_count = 0;
 
@@ -646,17 +646,12 @@ struct Memory_t {
   std::vector<uint8_t> memory;
   int init_page_count;
   int page_count;
-  int allocated_pages;
 
   Memory_t(int32_t init_page_count)
-      : memory(PRE_ALLOC_PAGES * pagesize), init_page_count(init_page_count),
-        page_count(init_page_count), allocated_pages(PRE_ALLOC_PAGES) {}
+      : memory(pagesize), init_page_count(init_page_count),
+        page_count(init_page_count) {}
 
   int32_t loadInt(int32_t base, int32_t offset) {
-#ifdef DEBUG
-    std::cout << "[Debug] loading int from memory at address: "
-              << (base + offset) << std::endl;
-#endif
     // just load a 4-byte integer from memory of the vector
     int32_t addr = base + offset;
     if (!(addr + 3 < memory.size())) {
@@ -667,6 +662,11 @@ struct Memory_t {
     for (int i = 0; i < 4; ++i) {
       result |= static_cast<int32_t>(memory[addr + i]) << (8 * i);
     }
+#ifdef DEBUG
+    std::cout << "[Debug] loading int from memory at address: "
+              << (base + offset) << std::endl;
+    std::cout << "[Debug] loaded int value " << result << " from " << addr << std::endl;
+#endif
     return result;
   }
 
@@ -684,6 +684,7 @@ struct Memory_t {
       memory[addr + i] = static_cast<uint8_t>((value >> (8 * i)) & 0xFF);
       // Optionally, update memory[addr + i].second (SymVal) if needed
     }
+    std::cout << "[Debug] stored int value " << value << " to " << addr << std::endl;
     return std::monostate{};
   }
 
@@ -701,15 +702,11 @@ struct Memory_t {
       return page_count * pagesize;
     }
 
-    if (page_count + delta < allocated_pages) {
-      page_count += delta;
-      return page_count * pagesize;
-    }
-
     try {
-      assert(false && "Use pre-allocated memory, should not reach here");
       memory.resize(memory.size() + delta * pagesize);
-      auto old_page_count = page_count;
+      for (int i = 0; i < delta * pagesize; ++i) {
+        memory[page_count * pagesize + i] = 0;
+      }
       page_count += delta;
       return memory.size();
     } catch (const std::bad_alloc &e) {
@@ -719,7 +716,6 @@ struct Memory_t {
 
   void reset() {
     page_count = init_page_count;
-    allocated_pages = PRE_ALLOC_PAGES;
     for (int i = 0; i < memory.size() && i < page_count * pagesize; ++i) {
       memory[i] = 0;
     }

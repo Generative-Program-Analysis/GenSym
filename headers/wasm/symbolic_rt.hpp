@@ -382,6 +382,7 @@ public:
     // Pop the frame of the given size
 
 #ifdef USE_IMM
+    assert(size == stack.size() - current_base);
     stack.take(stack.size() - size);
     current_base = old_frame_bases.end()[-1];
     old_frame_bases.take(old_frame_bases.size() - 1);
@@ -914,7 +915,7 @@ inline std::monostate NodeBox::fillNotToExploreNode() {
 }
 
 inline std::monostate NodeBox::fillFinishedNode() {
-  if (this->isUnexplored()) {
+    if (this->isUnexplored()) {
     node = std::make_unique<Finished>();
   } else {
     assert(dynamic_cast<Finished *>(node.get()) != nullptr);
@@ -1372,7 +1373,8 @@ static std::monostate reset_stacks() {
   return std::monostate{};
 }
 
-inline void NodeBox::reach_here(std::function<void()> entrypoint) {
+[[deprecated]] inline void
+NodeBox::reach_here(std::function<void()> entrypoint) {
   // reach the node of exploration tree with given input (symbolic environment)
   if (auto snapshot = dynamic_cast<SnapshotNode *>(node.get())) {
     assert(REUSE_SNAPSHOT);
@@ -1567,6 +1569,7 @@ static void resume_conc_frames_by_model(const SymFrames_t &sym_frame,
     auto base = sym_frame.old_frame_bases[i];
     frames.set_old_frame_base(i, base);
   }
+  frames.current_base = sym_frame.current_base;
 }
 
 static void resume_conc_memory(const SymMemory_t &sym_memory, Memory_t &memory,
