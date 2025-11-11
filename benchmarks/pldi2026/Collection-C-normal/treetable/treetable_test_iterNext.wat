@@ -275,28 +275,28 @@
     i32.eq
     i32.const 1
     i32.and
-    sym_assert
+    call 2
     i32.const 1
     local.get 0
     i32.load offset=36
     i32.eq
     i32.const 1
     i32.and
-    sym_assert
+    call 2
     i32.const 1
     local.get 0
     i32.load offset=32
     i32.eq
     i32.const 1
     i32.and
-    sym_assert
+    call 2
     i32.const 1
     local.get 0
     i32.load offset=28
     i32.eq
     i32.const 1
     i32.and
-    sym_assert
+    call 2
     i32.const 0
     i32.load offset=1044
     call $treetable_destroy

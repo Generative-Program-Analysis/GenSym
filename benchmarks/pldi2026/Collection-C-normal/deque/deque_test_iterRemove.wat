@@ -208,7 +208,7 @@
             i32.eq
             i32.const 1
             i32.and
-            sym_assert
+            call 2
             br 1 (;@3;)
           end
           i32.const 6
@@ -218,7 +218,7 @@
           i32.eq
           i32.const 1
           i32.and
-          sym_assert
+          call 2
         end
         block  ;; label = @3
           local.get 0
@@ -240,7 +240,7 @@
           i32.eq
           i32.const 1
           i32.and
-          sym_assert
+          call 2
         end
         local.get 0
         local.get 0

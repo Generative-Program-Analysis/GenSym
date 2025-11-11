@@ -213,7 +213,7 @@
     i32.eq
     i32.const 1
     i32.and
-    sym_assert
+    call 2
     local.get 0
     i32.load offset=8
     i32.const 1
@@ -237,7 +237,7 @@
     i32.eq
     i32.const 1
     i32.and
-    sym_assert
+    call 2
     local.get 0
     i32.load offset=8
     call $slist_destroy

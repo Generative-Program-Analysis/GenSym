@@ -162,21 +162,21 @@
     i32.eq
     i32.const 1
     i32.and
-    sym_assert
+    call 2
     i32.const 1
     local.get 0
     i32.load offset=24
     i32.eq
     i32.const 1
     i32.and
-    sym_assert
+    call 2
     i32.const 1
     local.get 0
     i32.load offset=20
     i32.eq
     i32.const 1
     i32.and
-    sym_assert
+    call 2
     call $teardown_test
     local.get 0
     i32.const 48

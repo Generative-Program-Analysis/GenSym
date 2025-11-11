@@ -173,7 +173,7 @@
     i32.eq
     i32.const 1
     i32.and
-    sym_assert
+    call 2
     block  ;; label = @1
       loop  ;; label = @2
         local.get 0
@@ -229,7 +229,7 @@
           i32.eq
           i32.const 1
           i32.and
-          sym_assert
+          call 2
         end
         local.get 0
         local.get 0
@@ -247,7 +247,7 @@
     i32.eq
     i32.const 1
     i32.and
-    sym_assert
+    call 2
     i32.const 0
     i32.load offset=1044
     i32.const 4
@@ -264,7 +264,7 @@
     i32.eq
     i32.const 1
     i32.and
-    sym_assert
+    call 2
     call $teardown_tests
     local.get 0
     i32.const 64

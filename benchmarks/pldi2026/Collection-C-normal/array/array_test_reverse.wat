@@ -89,7 +89,7 @@
     i32.eq
     i32.const 1
     i32.and
-    sym_assert
+    call 2
     local.get 0
     i32.load offset=20
     local.get 0
@@ -98,7 +98,7 @@
     i32.eq
     i32.const 1
     i32.and
-    sym_assert
+    call 2
     local.get 0
     i32.load offset=24
     local.get 0
@@ -107,7 +107,7 @@
     i32.eq
     i32.const 1
     i32.and
-    sym_assert
+    call 2
     i32.const 0
     i32.load offset=1036
     call $array_destroy

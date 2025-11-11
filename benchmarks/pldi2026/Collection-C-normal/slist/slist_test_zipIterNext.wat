@@ -343,7 +343,7 @@
     i32.eq
     i32.const 1
     i32.and
-    sym_assert
+    call 2
     call $teardown_test
     local.get 0
     i32.const 112
@@ -1202,7 +1202,7 @@
     i32.eq
     i32.const 1
     i32.and
-    sym_assert
+    call 2
     local.get 2
     i32.const 16
     i32.add
