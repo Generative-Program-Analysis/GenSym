@@ -554,21 +554,36 @@ public:
   std::monostate popFrame(std::int32_t size) {
     assert(size >= 0);
     count -= size;
+    current_base = old_frame_bases.back();
+    old_frame_bases.pop_back();
     return std::monostate{};
   }
 
   Num get(std::int32_t index) {
     Profile.step(StepProfileKind::GET);
-    auto ret = stack_ptr[count - 1 - index];
+    auto ret = stack_ptr[current_base + index];
     return ret;
   }
 
   void set(std::int32_t index, Num num) {
     Profile.step(StepProfileKind::SET);
-    stack_ptr[count - 1 - index] = num;
+    stack_ptr[current_base + index] = num;
   }
 
   void pushFrame(std::int32_t size) {
+    assert(size >= 0);
+    assert(count + size <= FRAME_SIZE);
+
+    old_frame_bases.push_back(current_base);
+    current_base = count;
+    count += size;
+    // Zero-initialize the new stack frames.
+    for (std::int32_t i = 0; i < size; ++i) {
+      stack_ptr[count - 1 - i] = Num(0);
+    }
+  }
+
+  void extendFrame(std::int32_t size) {
     assert(size >= 0);
     count += size;
     // Zero-initialize the new stack frames.
@@ -577,7 +592,10 @@ public:
     }
   }
 
-  void reset() { count = 0; }
+  void reset() {
+    count = 0;
+    current_base = 0;
+  }
 
   size_t size() const { return count; }
 
@@ -594,6 +612,8 @@ public:
 private:
   int32_t count;
   Num *stack_ptr;
+  int32_t current_base;
+  std::vector<int32_t> old_frame_bases;
 };
 
 static Frames_t Frames;

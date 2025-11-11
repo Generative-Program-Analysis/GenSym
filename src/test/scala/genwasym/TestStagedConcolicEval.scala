@@ -191,7 +191,7 @@ class TestStagedConcolicEval extends FunSuite {
   }
 
   test("call-indirect-concrete") {
-    testFileConcreteCpp("./benchmarks/wasm/call_indirect_test.wat")
+    testFileConcreteCpp("./benchmarks/wasm/call_indirect_test.wat", expect=Some(List(42)))
   }
 
   // test("diverge") {

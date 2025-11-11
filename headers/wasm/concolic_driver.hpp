@@ -108,8 +108,6 @@ inline void ConcolicDriver::main_exploration_loop() {
         if (auto snapshot = dynamic_cast<SnapshotNode *>(node->node.get())) {
           assert(REUSE_SNAPSHOT);
           auto snap = snapshot->get_snapshot();
-          std::cout << "Model \n"
-                    << model << std::endl;
           snap.resume_execution_by_model(node, model);
         } else {
           auto timer = ManagedTimer(TimeProfileKind::INSTR);

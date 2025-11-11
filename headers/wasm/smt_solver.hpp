@@ -180,7 +180,11 @@ inline EvalRes eval_sym_expr_by_model(const SymVal &sym, z3::model &model) {
 inline std::monostate GENSYM_SYM_ASSERT(SymVal &sym_cond) {
   std::vector<SymVal> conds = ExploreTree.collect_current_path_conds();
   conds.push_back(sym_cond.negate());
+  auto start = std::chrono::steady_clock::now();
   auto result = solver.solve(conds);
+  auto end = std::chrono::steady_clock::now();
+  auto time_need_to_be_removed = end - start;
+  Profile.remove_instruction_time(TimeProfileKind::INSTR, time_need_to_be_removed.count());
   if (result.has_value()) {
     std::cout << "Symbolic assertion failed" << std::endl;
     throw std::runtime_error("Symbolic assertion failed");

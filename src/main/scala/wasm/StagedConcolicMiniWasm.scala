@@ -463,8 +463,8 @@ trait StagedWasmEvaluator extends SAIOps {
         }
         aux(labels, 0, mkont)
       case Return        => trail.last(ctx)(mkont)
-      case Call(f)       => evalCall(rest, kont, mkont, trail, f, false)
-      case ReturnCall(f) => evalCall(rest, kont, mkont, trail, f, true)
+      case Call(f)       => evalCall(rest, kont, mkont, trail, f)
+      case ReturnCall(f) => evalCall(rest, kont, mkont, trail, f)
       case CallIndirect(ty, table) =>
         Predef.assert(table == 0, "Currently we can only have one table!")
         val functy = module.types(ty)
@@ -500,10 +500,22 @@ trait StagedWasmEvaluator extends SAIOps {
     ExploreTree.fillWithCallIndirect(symIndex.s, id)
     ExploreTree.moveCursor(index.toInt)
     val func = readFuncTable(index.toInt)
-    invokeWithMCont(func, mkont)
+    val restK: Rep[Cont[Unit]] = topFun((mk: Rep[MCont[Unit]]) => {
+      info(s"Returned from call_indirect, stackSize =", Stack.size)
+      eval(rest, kont, mk, trail)(newCtx.copy(stackTypes = functy.out.reverse ++ newCtx.stackTypes.drop(functy.inps.size)))
+    })
+    val newMKont: Rep[MCont[Unit]] = mkont.prependCont(restK)
+
+    val argsC = Stack.takeC(functy.inps)
+    val argsS = Stack.takeS(functy.inps)
+    Frames.pushFrameC(functy.inps)
+    Frames.pushFrameS(functy.inps)
+    Frames.putAllC(argsC)
+    Frames.putAllS(argsS)
+    invokeWithMCont(func, newMKont)
   }
 
-  def evalFunc(ty: FuncType, body: List[Instr], funcIndex: Int, locals: List[ValueType]): Rep[(MCont[Unit]) => Unit] = {
+  def evalFunc(ty: FuncType, body: List[Instr], funcIndex: Int, inps: List[ValueType], locals: List[ValueType]): Rep[(MCont[Unit]) => Unit] = {
     if (compileCache.contains(funcIndex)) {
       compileCache(funcIndex)
     } else {
@@ -515,9 +527,13 @@ trait StagedWasmEvaluator extends SAIOps {
           val offset = ctx.stackTypes.size - ty.out.size
           Stack.shiftC(offset, ty.out.size)
           Stack.shiftS(offset, ty.out.size)
+          Frames.popFrameC(inps.size + locals.size)
+          Frames.popFrameS(inps.size + locals.size)
           mk.enter()
         })
-        eval(body, retK _, mk, retK _::Nil)(Context(Nil, locals))
+        Frames.extendFrameC(locals.size)
+        Frames.extendFrameS(locals.size)
+        eval(body, retK _, mk, retK _::Nil)(Context(Nil, inps ++ locals))
       })
       compileCache(funcIndex) = func
       func
@@ -528,44 +544,29 @@ trait StagedWasmEvaluator extends SAIOps {
                kont: Context => Rep[Cont[Unit]],
                mkont: Rep[MCont[Unit]],
                trail: Trail[Unit],
-               funcIndex: Int,
-               isTail: Boolean)
+               funcIndex: Int)
               (implicit ctx: Context): Rep[Unit] = {
     module.funcs(funcIndex) match {
       case FuncDef(_, FuncBodyDef(ty, _, bodyLocals, body)) =>
-        val locals = bodyLocals ++ ty.inps
-        instrCost += locals.size * 2 - 1
+        instrCost += (ty.inps ++ bodyLocals).size * 2 - 1
         addInstrCost()
-        val callee = evalFunc(ty, body, funcIndex, locals)
+        val callee = evalFunc(ty, body, funcIndex, ty.inps, bodyLocals)
         // Predef.println(s"[DEBUG] locals size: ${locals.size}")
         val newCtx = ctx.take(ty.inps.size)
         val argsC = Stack.takeC(ty.inps)
         val argsS = Stack.takeS(ty.inps)
-        if (isTail) {
-          // when tail call, return to the caller's return continuation
-          Frames.popFrameC(ctx.frameTypes.size)
-          Frames.popFrameS(ctx.frameTypes.size)
-          Frames.pushFrameC(locals)
-          Frames.pushFrameS(locals)
-          Frames.putAllC(argsC)
-          Frames.putAllS(argsS)
-          callee(mkont)
-        } else {
-          // We make a new trail by `restK`, since function creates a new block to escape
-          // (more or less like `return`)
-          val restK: Rep[Cont[Unit]] = topFun((mk: Rep[MCont[Unit]]) => {
-            info(s"Exiting the function at $funcIndex, stackSize =", Stack.size)
-            Frames.popFrameC(locals.size)
-            Frames.popFrameS(locals.size)
-            eval(rest, kont, mk, trail)(newCtx.copy(stackTypes = ty.out.reverse ++ ctx.stackTypes.drop(ty.inps.size)))
-          })
-          val newMKont: Rep[MCont[Unit]] = mkont.prependCont(restK)
-          Frames.pushFrameC(locals)
-          Frames.pushFrameS(locals)
-          Frames.putAllC(argsC)
-          Frames.putAllS(argsS)
-          callee(newMKont)
-        }
+        // We make a new trail by `restK`, since function creates a new block to escape
+        // (more or less like `return`)
+        val restK: Rep[Cont[Unit]] = topFun((mk: Rep[MCont[Unit]]) => {
+          info(s"Exiting the function at $funcIndex, stackSize =", Stack.size)
+          eval(rest, kont, mk, trail)(newCtx.copy(stackTypes = ty.out.reverse ++ ctx.stackTypes.drop(ty.inps.size)))
+        })
+        val newMKont: Rep[MCont[Unit]] = mkont.prependCont(restK)
+        Frames.pushFrameC(ty.inps)
+        Frames.pushFrameS(ty.inps)
+        Frames.putAllC(argsC)
+        Frames.putAllS(argsS)
+        callee(newMKont)
       case Import("console", "log", _)
          | Import("spectest", "print_i32", _) =>
         //println(s"[DEBUG] current stack: $stack")
@@ -852,10 +853,18 @@ trait StagedWasmEvaluator extends SAIOps {
       "frame-push".reflectCtrlWith[Unit](size)
     }
 
+    def extendFrameC(size: Int): Rep[Unit] = {
+      if (size > 0) "frame-extend".reflectCtrlWith[Unit](size)
+    }
+
     def pushFrameS(locals: List[ValueType]): Rep[Unit] = {
       // Predef.println(s"[DEBUG] push frame: $locals")
       val size = locals.size
       "sym-frame-push".reflectCtrlWith[Unit](size)
+    }
+
+    def extendFrameS(size: Int): Rep[Unit] = {
+      if (size > 0) "sym-frame-extend".reflectCtrlWith[Unit](size)
     }
 
     def popFrameC(size: Int): Rep[Unit] = {
@@ -929,8 +938,7 @@ trait StagedWasmEvaluator extends SAIOps {
           Predef.println(s"funcIndices: $funcIndices")
           for ((fidx, i) <- funcIndices.asInstanceOf[ElemListFunc].funcs.view.zipWithIndex) {
             val FuncDef(_, FuncBodyDef(ty, _, bodyLocals, body)) = module.funcs(fidx)
-            val locals = bodyLocals ++ ty.inps
-            val func = evalFunc(ty, body, fidx, locals)
+            val func = evalFunc(ty, body, fidx, ty.inps, bodyLocals)
             "init-func-table".reflectCtrlWith[Unit](offsetC.i, i, func)
           }
         case _ => ()
@@ -1653,6 +1661,10 @@ trait StagedWasmCppGen extends CGenBase with CppSAICodeGenBase {
       emit("Stack.pop()")
     case Node(_, "sym-stack-pop", _, _) =>
       emit("SymStack.pop()")
+    case Node(_, "frame-extend", List(i), _) =>
+      emit("Frames.extendFrame("); shallow(i); emit(")")
+    case Node(_, "sym-frame-extend", List(i), _) =>
+      emit("SymFrames.extendFrame("); shallow(i); emit(")")
     case Node(_, "control-make", List(k, mk), _) =>
       emit("makeControl("); shallow(k); emit(", "); shallow(mk); emit(")")
     case Node(_, "frame-pop", List(i), _) =>

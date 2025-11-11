@@ -355,6 +355,21 @@ public:
   void pushFrame(int size) {
     // Push a new frame with the given size
 #ifdef USE_IMM
+    old_frame_bases.push_back(current_base);
+    current_base = stack.size();
+    for (int i = 0; i < size; ++i) {
+      stack.push_back(SymVal());
+    }
+#else
+    old_frame_bases.push_back(current_base);
+    current_base = stack.size();
+    stack.resize(size + stack.size());
+#endif
+  }
+
+  void extendFrame(int size) {
+    // Extend the current frame with the given size
+#ifdef USE_IMM
     for (int i = 0; i < size; ++i) {
       stack.push_back(SymVal());
     }
@@ -362,30 +377,37 @@ public:
     stack.resize(size + stack.size());
 #endif
   }
+
   std::monostate popFrame(int size) {
     // Pop the frame of the given size
 
 #ifdef USE_IMM
     stack.take(stack.size() - size);
+    current_base = old_frame_bases.end()[-1];
+    old_frame_bases.take(old_frame_bases.size() - 1);
 #else
     stack.resize(stack.size() - size);
+    current_base = old_frame_bases.back();
+    old_frame_bases.pop_back();
 #endif
     return std::monostate();
   }
 
   SymVal get(int index) {
     // Get the symbolic value at the given frame index
-    auto res = stack[stack.size() - 1 - index];
+    assert(index >= 0 && index < size() - current_base);
+    auto res = stack[current_base + index];
     return res;
   }
 
   void set(int index, SymVal val) {
     // Set the symbolic value at the given index
     assert(val.symptr != nullptr);
+    assert(index >= 0 && index < size() - current_base);
 #ifdef USE_IMM
-    stack.set(stack.size() - 1 - index, val);
+    stack.set(current_base + index, val);
 #else
-    stack[stack.size() - 1 - index] = val;
+    stack[current_base + index] = val;
 #endif
   }
 
@@ -394,8 +416,12 @@ public:
 
 #ifdef USE_IMM
     stack = immer::vector_transient<SymVal>();
+    old_frame_bases = immer::vector_transient<int32_t>();
+    current_base = 0;
 #else
     stack.clear();
+    old_frame_bases.clear();
+    current_base = 0;
 #endif
   }
 
@@ -414,8 +440,12 @@ public:
 private:
 #ifdef USE_IMM
   immer::vector_transient<SymVal> stack;
+  immer::vector_transient<int32_t> old_frame_bases;
+  int32_t current_base = 0;
 #else
   std::vector<SymVal> stack;
+  std::vector<int32_t> old_frame_bases;
+  int32_t current_base = 0;
 #endif
 };
 
@@ -897,7 +927,6 @@ inline std::monostate NodeBox::fillFailedNode() {
   if (this->isUnexplored()) {
     node = std::make_unique<Failed>();
   } else {
-    std::cout << "Fill Failed Node" << node->to_string() << std::endl;
     assert(dynamic_cast<Failed *>(node.get()) != nullptr);
   }
   return std::monostate();
