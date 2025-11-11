@@ -170,6 +170,12 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
     f
   }
 
+  override def visitData(ctx: DataContext): Data = {
+    val instr = visit(ctx.instr()).asInstanceOf[Instr]
+    val str = ctx.STRING_.asScala.toList.map(_.getText.substring(1).dropRight(1)).mkString
+    Data(None, instr, str)
+  }
+
   override def visitElem(ctx: ElemContext): Elem = {
     val offsetInstrs = List(visit(ctx.instr()).asInstanceOf[Instr])
     val funcs = ctx.idx().asScala.map(getVar(_)).map { id =>

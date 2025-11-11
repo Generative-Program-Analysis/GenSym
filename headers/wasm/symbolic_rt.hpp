@@ -578,6 +578,20 @@ public:
 
 static SymMemory_t SymMemory;
 
+static std::monostate memoryInitialize(int32_t offset,
+                                       const std::string &data) {
+  // initialize concrete memory
+  for (size_t i = 0; i < data.size(); ++i) {
+    Memory.storeInt(offset, i, static_cast<uint8_t>(data[i]));
+  }
+  // initialize symbolic memory
+  for (size_t i = 0; i < data.size(); ++i) {
+    SymMemory.storeSym(offset + i, 0,
+                       Concrete(I32V(static_cast<uint8_t>(data[i]))));
+  }
+  return {};
+}
+
 // A snapshot of the symbolic state and execution context (control)
 class Snapshot_t {
 public:
@@ -940,7 +954,7 @@ inline std::monostate NodeBox::fillNotToExploreNode() {
 }
 
 inline std::monostate NodeBox::fillFinishedNode() {
-    if (this->isUnexplored()) {
+  if (this->isUnexplored()) {
     node = std::make_unique<Finished>();
   } else {
     assert(dynamic_cast<Finished *>(node.get()) != nullptr);
@@ -1061,7 +1075,7 @@ inline int Snapshot_t::cost_of_snapshot() {
   auto cost_of_memory_copy = SymMemory.cost_of_copy();
   // The speed ratio between symbolic expression instantiation and WebAssembly
   // instruction execution, given by benchmark results
-  auto ratio = 5.336;
+  auto ratio = 2.5;
   return ratio *
          (cost_of_stack_copy + cost_of_frame_copy + cost_of_memory_copy);
 }

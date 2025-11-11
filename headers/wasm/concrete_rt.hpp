@@ -733,6 +733,7 @@ struct FuncTable_t {
                                std::to_string(index));
     }
     if (!table[index]) {
+      assert(false);
       throw std::runtime_error("Function table entry at index " +
                                std::to_string(index) + " is empty or invalid");
     }

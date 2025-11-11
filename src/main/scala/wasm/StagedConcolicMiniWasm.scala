@@ -756,6 +756,7 @@ trait StagedWasmEvaluator extends SAIOps {
     // resetStacks() // Don't manually reset the global states (like stack), manage them in the driver
     initGlobals(module.globals)
     initTable(module)
+    initMemory()
     Frames.pushFrameC(locals)
     Frames.pushFrameS(locals)
     eval(instrs, (_: Context) => forwardKont, mkont, ((_: Context) => forwardKont)::Nil)(Context(Nil, locals))
@@ -959,6 +960,22 @@ trait StagedWasmEvaluator extends SAIOps {
             val func = evalFunc(ty, body, fidx, ty.inps, bodyLocals)
             "init-func-table".reflectCtrlWith[Unit](offsetC.i, i, func)
           }
+        case _ => ()
+      }
+    }
+  }
+
+  def initMemory(): Rep[Unit] = {
+    for (definition <- module.defs) {
+      definition match {
+        case Data(_, offsetInstr, bytes) =>
+          val haltK: Rep[Unit] => Rep[Unit] = (_) => { }
+          val mkont: Rep[MCont[Unit]] = makeInitMCont(topFun(haltK))
+          eval(offsetInstr::Nil, (_: Context) => forwardKont, mkont, ((_: Context) => forwardKont)::Nil)(Context(Nil, Nil))
+          val offsetC = Stack.popC(NumType(I32Type))
+          Stack.popS(NumType(I32Type))
+          Predef.printf("Initializing memory of %s\n", bytes)
+          "memory-initialize".reflectCtrlWith[Unit](offsetC.toInt, bytes)
         case _ => ()
       }
     }
@@ -1857,6 +1874,8 @@ trait StagedWasmCppGen extends CGenBase with CppSAICodeGenBase {
       emit("FuncTable.read("); shallow(funcIndex); emit(")")
     case Node(_, "tree-move-cursor-call-indirect-index", List(index), _) =>
       emit("ExploreTree.moveCursorIndirect("); shallow(index); emit(")")
+    case Node(_, "memory-initialize", List(offset, str), _) =>
+      emit("memoryInitialize("); shallow(offset); emit(", "); shallow(str); emit(")")
     case Node(_, "dummy", _, _) => emit("std::monostate()")
     case Node(_, "dummy-op", _, _) => emit("std::monostate()")
     case Node(_, "no-op", _, _) =>
