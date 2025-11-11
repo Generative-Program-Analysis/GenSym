@@ -21,35 +21,35 @@
     drop
     i32.const 0
     i32.const 1040
-    i32.symbolic
+    call 0
     i32.store offset=1056
     i32.const 0
     i32.const 1038
-    i32.symbolic
+    call 0
     i32.store offset=1060
     i32.const 0
     i32.const 1036
-    i32.symbolic
+    call 0
     i32.store offset=1064
     i32.const 0
     i32.const 1034
-    i32.symbolic
+    call 0
     i32.store offset=1068
     i32.const 0
     i32.const 1032
-    i32.symbolic
+    call 0
     i32.store offset=1072
     i32.const 0
     i32.const 1030
-    i32.symbolic
+    call 0
     i32.store offset=1076
     i32.const 0
     i32.const 1028
-    i32.symbolic
+    call 0
     i32.store offset=1080
     i32.const 0
     i32.const 1026
-    i32.symbolic
+    call 0
     i32.store offset=1084
     local.get 0
     i32.const 4
@@ -199,7 +199,7 @@
     call $setup_test
     local.get 0
     i32.const 1024
-    i32.symbolic
+    call 0
     i32.store offset=24
     local.get 0
     i32.const 4

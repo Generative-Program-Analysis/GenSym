@@ -23,7 +23,7 @@
     drop
     local.get 0
     i32.const 1024
-    i32.symbolic
+    call 0
     i32.store offset=8
     i32.const 0
     i32.const 0

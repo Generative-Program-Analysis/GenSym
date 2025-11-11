@@ -26,15 +26,15 @@
     drop
     local.get 0
     i32.const 1028
-    i32.symbolic
+    call 0
     i32.store offset=72
     local.get 0
     i32.const 1026
-    i32.symbolic
+    call 0
     i32.store offset=68
     local.get 0
     i32.const 1024
-    i32.symbolic
+    call 0
     i32.store offset=64
     i32.const 0
     local.set 1
@@ -61,7 +61,7 @@
     sym_assume
     local.get 0
     i32.const 1034
-    i32.symbolic
+    call 0
     i32.store offset=60
     local.get 0
     local.get 0
@@ -72,7 +72,7 @@
     i32.store8 offset=59
     local.get 0
     i32.const 1032
-    i32.symbolic
+    call 0
     i32.store offset=52
     local.get 0
     local.get 0
@@ -83,7 +83,7 @@
     i32.store8 offset=51
     local.get 0
     i32.const 1030
-    i32.symbolic
+    call 0
     i32.store offset=44
     local.get 0
     local.get 0

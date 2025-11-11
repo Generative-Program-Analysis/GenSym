@@ -38,7 +38,7 @@
     call $setup_test
     local.get 0
     i32.const 1036
-    i32.symbolic
+    call 0
     i32.store offset=104
     local.get 0
     i32.load offset=104
@@ -63,7 +63,7 @@
     i32.store8 offset=103
     local.get 0
     i32.const 1034
-    i32.symbolic
+    call 0
     i32.store offset=96
     local.get 0
     i32.load offset=96
@@ -88,7 +88,7 @@
     i32.store8 offset=95
     local.get 0
     i32.const 1032
-    i32.symbolic
+    call 0
     i32.store offset=88
     local.get 0
     i32.load offset=88
@@ -113,7 +113,7 @@
     i32.store8 offset=87
     local.get 0
     i32.const 1030
-    i32.symbolic
+    call 0
     i32.store offset=80
     local.get 0
     i32.load offset=80
@@ -138,7 +138,7 @@
     i32.store8 offset=79
     local.get 0
     i32.const 1028
-    i32.symbolic
+    call 0
     i32.store offset=72
     local.get 0
     i32.load offset=72
@@ -163,7 +163,7 @@
     i32.store8 offset=71
     local.get 0
     i32.const 1026
-    i32.symbolic
+    call 0
     i32.store offset=64
     local.get 0
     i32.load offset=64
@@ -188,7 +188,7 @@
     i32.store8 offset=63
     local.get 0
     i32.const 1024
-    i32.symbolic
+    call 0
     i32.store offset=56
     local.get 0
     i32.load offset=56

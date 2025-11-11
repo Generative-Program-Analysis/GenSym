@@ -25,7 +25,7 @@
     drop
     local.get 0
     i32.const 1036
-    i32.symbolic
+    call 0
     i32.store offset=88
     local.get 0
     local.get 0
@@ -36,7 +36,7 @@
     i32.store8 offset=87
     local.get 0
     i32.const 1034
-    i32.symbolic
+    call 0
     i32.store offset=80
     local.get 0
     local.get 0
@@ -47,7 +47,7 @@
     i32.store8 offset=79
     local.get 0
     i32.const 1032
-    i32.symbolic
+    call 0
     i32.store offset=72
     local.get 0
     local.get 0
@@ -58,7 +58,7 @@
     i32.store8 offset=71
     local.get 0
     i32.const 1030
-    i32.symbolic
+    call 0
     i32.store offset=64
     local.get 0
     local.get 0
@@ -69,7 +69,7 @@
     i32.store8 offset=63
     local.get 0
     i32.const 1028
-    i32.symbolic
+    call 0
     i32.store offset=56
     local.get 0
     local.get 0
@@ -80,7 +80,7 @@
     i32.store8 offset=55
     local.get 0
     i32.const 1026
-    i32.symbolic
+    call 0
     i32.store offset=48
     local.get 0
     local.get 0
@@ -91,7 +91,7 @@
     i32.store8 offset=47
     local.get 0
     i32.const 1024
-    i32.symbolic
+    call 0
     i32.store offset=40
     local.get 0
     local.get 0

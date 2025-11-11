@@ -25,23 +25,23 @@
     drop
     local.get 0
     i32.const 1042
-    i32.symbolic
+    call 0
     i32.store offset=56
     local.get 0
     i32.const 1040
-    i32.symbolic
+    call 0
     i32.store offset=52
     local.get 0
     i32.const 1038
-    i32.symbolic
+    call 0
     i32.store offset=48
     local.get 0
     i32.const 1036
-    i32.symbolic
+    call 0
     i32.store offset=44
     local.get 0
     i32.const 1024
-    i32.symbolic
+    call 0
     i32.store offset=40
     i32.const 0
     local.set 1
