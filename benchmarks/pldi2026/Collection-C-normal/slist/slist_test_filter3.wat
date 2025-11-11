@@ -262,6 +262,10 @@
     i32.const 64
     i32.add
     global.set 0)
+  (import "i32" "symbolic" (func (;0;) (type 0)))
+  (import "i32" "sym_assume" (func (;1;) (type 1)))
+  (import "i32" "sym_assert" (func (;2;) (type 1)))
+  (import "sym" "get_sym_int32" (func (;3;) (type 0)))
   (func $__original_main (type 5) (result i32)
     (local i32 i32)
     global.get 0

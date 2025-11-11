@@ -22,6 +22,10 @@
     i32.const 0
     i32.load offset=1052
     call $list_destroy)
+  (import "i32" "symbolic" (func (;0;) (type 0)))
+  (import "i32" "sym_assume" (func (;1;) (type 1)))
+  (import "i32" "sym_assert" (func (;2;) (type 1)))
+  (import "sym" "get_sym_int32" (func (;3;) (type 0)))
   (func $__original_main (type 3) (result i32)
     (local i32 i32)
     global.get 0
