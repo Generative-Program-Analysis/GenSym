@@ -303,6 +303,12 @@ inline bool SymVal::is_concrete() const {
   return dynamic_cast<SymConcrete *>(symptr.get()) != nullptr;
 }
 
+template <typename... Args> inline bool allConcrete(const Args &...args) {
+  static_assert((std::is_same_v<Args, SymVal> && ...),
+                "all_concrete only accepts SymVal arguments");
+  return (... && args.is_concrete());
+}
+
 class Snapshot_t;
 
 class SymStack_t {

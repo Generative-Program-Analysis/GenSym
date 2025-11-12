@@ -57,7 +57,11 @@ object Counter {
 trait StagedWasmEvaluator extends SAIOps {
   def module: ModuleInstance
 
-  case class StagedConcreteNum(tipe: ValueType, i: Rep[Num])
+  case class StagedConcreteNum(tipe: ValueType, i: Rep[Num]) {
+    def toStagedSymbolicNum: StagedSymbolicNum = {
+      StagedSymbolicNum(tipe, "Concrete".reflectCtrlWith[SymVal](i))
+    }
+  }
 
 
   case class StagedSymbolicNum(tipe: ValueType, s: Rep[SymVal])
@@ -314,7 +318,7 @@ trait StagedWasmEvaluator extends SAIOps {
         val s = Stack.popS(ty)
         val res = evalUnaryOpC(op, v)
         Stack.pushC(res)
-        Stack.pushS(evalUnaryOpS(op, s))
+        Stack.pushS(evalUnaryOpS(op, s, res))
         val newCtx2 = newCtx1.push(res.tipe)
         eval(rest, kont, mkont, trail)(newCtx2)
       case Binary(op) =>
@@ -326,7 +330,7 @@ trait StagedWasmEvaluator extends SAIOps {
         val s1 = Stack.popS(ty1)
         val res = evalBinOpC(op, v1, v2)
         Stack.pushC(res)
-        Stack.pushS(evalBinOpS(op, s1, s2))
+        Stack.pushS(evalBinOpS(op, s1, s2, res))
         val newCtx3 = newCtx2.push(res.tipe)
         eval(rest, kont, mkont, trail)(newCtx3)
       case Compare(op) =>
@@ -338,7 +342,7 @@ trait StagedWasmEvaluator extends SAIOps {
         val s1 = Stack.popS(ty1)
         val res = evalRelOpC(op, v1, v2)
         Stack.pushC(res)
-        Stack.pushS(evalRelOpS(op, s1, s2))
+        Stack.pushS(evalRelOpS(op, s1, s2, res))
         val newCtx3 = newCtx2.push(res.tipe)
         eval(rest, kont, mkont, trail)(newCtx3)
       case WasmBlock(ty, inner) =>
@@ -679,11 +683,18 @@ trait StagedWasmEvaluator extends SAIOps {
     case _ => ???
   }
 
-  def evalUnaryOpS(op: UnaryOp, value: StagedSymbolicNum): StagedSymbolicNum = op match {
-    case Clz(_) => value.clz()
-    case Ctz(_) => value.ctz()
-    case Popcnt(_) => value.popcnt()
-    case _ => ???
+  def evalUnaryOpS(op: UnaryOp, value: StagedSymbolicNum, c: StagedConcreteNum): StagedSymbolicNum = {
+    val res = if (allConcrete(value)) {
+      c.toStagedSymbolicNum.s
+    } else {
+      (op match {
+        case Clz(_)   => value.clz()
+        case Ctz(_)   => value.ctz()
+        case Popcnt(_) => value.popcnt()
+        case _        => throw new Exception(s"Unknown unary operation $op")
+      }).s
+    }
+    StagedSymbolicNum(c.tipe, res)
   }
 
   def evalBinOpC(op: BinOp, v1: StagedConcreteNum, v2: StagedConcreteNum): StagedConcreteNum = op match {
@@ -702,20 +713,27 @@ trait StagedWasmEvaluator extends SAIOps {
       throw new Exception(s"Unknown binary operation $op")
   }
 
-  def evalBinOpS(op: BinOp, v1: StagedSymbolicNum, v2: StagedSymbolicNum): StagedSymbolicNum = op match {
-    case Add(_) => v1 + v2
-    case Mul(_) => v1 * v2
-    case Sub(_) => v1 - v2
-    case Shl(_) => v1 << v2
-    // case ShrS(_) => v1 >> v2 // TODO: signed shift right
-    case ShrU(_) => v1 >> v2
-    case And(_) => v1 & v2
-    case DivS(_) => v1 divs v2
-    case DivU(_) => v1 divu v2
-    case Div(_) => v1 div v2
-    case Xor(_) => v1 xor v2
-    case _ =>
-      throw new Exception(s"Unknown binary operation $op")
+  def evalBinOpS(op: BinOp, v1: StagedSymbolicNum, v2: StagedSymbolicNum, c: StagedConcreteNum): StagedSymbolicNum = {
+    val res = if (allConcrete(v1, v2)) {
+      c.toStagedSymbolicNum.s
+    } else {
+      (op match {
+        case Add(_) => v1 + v2
+        case Mul(_) => v1 * v2
+        case Sub(_) => v1 - v2
+        case Shl(_) => v1 << v2
+        // case ShrS(_) => v1 >> v2 // TODO: signed shift right
+        case ShrU(_) => v1 >> v2
+        case And(_) => v1 & v2
+        case DivS(_) => v1 divs v2
+        case DivU(_) => v1 divu v2
+        case Div(_) => v1 div v2
+        case Xor(_) => v1 xor v2
+        case _ =>
+          throw new Exception(s"Unknown binary operation $op")
+      }).s
+    }
+    StagedSymbolicNum(c.tipe, res)
   }
 
   def evalRelOpC(op: RelOp, v1: StagedConcreteNum, v2: StagedConcreteNum): StagedConcreteNum = op match {
@@ -736,22 +754,29 @@ trait StagedWasmEvaluator extends SAIOps {
     case _ => ???
   }
 
-  def evalRelOpS(op: RelOp, v1: StagedSymbolicNum, v2: StagedSymbolicNum): StagedSymbolicNum = op match {
-    case Eq(_) => v1 numEq v2
-    case Ne(_) => v1 numNe v2
-    case LtS(_) => v1 < v2
-    case LtU(_) => v1 ltu v2
-    case GtS(_) => v1 > v2
-    case GtU(_) => v1 gtu v2
-    case LeS(_) => v1 <= v2
-    case LeU(_) => v1 leu v2
-    case GeS(_) => v1 >= v2
-    case GeU(_) => v1 geu v2
-    case Lt(_) => v1 lt v2
-    case Le(_) => v1 le v2
-    case Gt(_) => v1 gt v2
-    case Ge(_) => v1 ge v2
-    case _ => ???
+  def evalRelOpS(op: RelOp, v1: StagedSymbolicNum, v2: StagedSymbolicNum, c: StagedConcreteNum): StagedSymbolicNum = {
+    val res = if (allConcrete(v1, v2)) {
+      c.toStagedSymbolicNum.s
+    } else {
+      (op match {
+        case Eq(_)  => v1 numEq v2
+        case Ne(_)  => v1 numNe v2
+        case LtS(_) => v1 < v2
+        case LtU(_) => v1 ltu v2
+        case GtS(_) => v1 > v2
+        case GtU(_) => v1 gtu v2
+        case LeS(_) => v1 <= v2
+        case LeU(_) => v1 leu v2
+        case GeS(_) => v1 >= v2
+        case GeU(_) => v1 geu v2
+        case Lt(_)  => v1 lt v2
+        case Le(_)  => v1 le v2
+        case Gt(_)  => v1 gt v2
+        case Ge(_)  => v1 ge v2
+        case _      => throw new Exception(s"Unknown relational operation $op")
+      }).s
+    }
+    StagedSymbolicNum(c.tipe, res)
   }
 
   def evalTop(mkont: Rep[MCont[Unit]], main: Option[String]): Rep[Unit] = {
@@ -1007,6 +1032,10 @@ trait StagedWasmEvaluator extends SAIOps {
         case _ => ()
       }
     }
+  }
+
+  def allConcrete(syms: StagedSymbolicNum*): Rep[Boolean] = {
+    "allConcrete".reflectCtrlWith[Boolean](syms.map(_.s): _*)
   }
 
   // call unreachable
@@ -1857,7 +1886,7 @@ trait StagedWasmCppGen extends CGenBase with CppSAICodeGenBase {
     case Node(_, "sym-relation-lts", List(lhs, rhs), _) =>
       shallow(lhs); emit(".lt("); shallow(rhs); emit(")")
     case Node(_, "sym-binary-xor", List(lhs, rhs), _) =>
-      shallow(lhs); emit(".xor("); shallow(rhs); emit(")")
+      shallow(lhs); emit(".bitwise_xor("); shallow(rhs); emit(")")
     case Node(_, "relation-ltu", List(lhs, rhs), _) =>
       shallow(lhs); emit(".ltu("); shallow(rhs); emit(")")
     case Node(_, "sym-relation-ges", List(lhs, rhs), _) =>
