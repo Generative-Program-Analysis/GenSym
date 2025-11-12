@@ -540,7 +540,6 @@ private:
 static Stack_t Stack;
 
 const int FRAME_SIZE = 1024 * 8;
-
 class Frames_t {
 public:
   Frames_t() : count(0), stack_ptr(new Num[FRAME_SIZE]) {
@@ -553,30 +552,23 @@ public:
 
   std::monostate popFrame(std::int32_t size) {
     assert(size >= 0);
-    assert(size == count - current_base);
     count -= size;
-    current_base = old_frame_bases.back();
-    old_frame_bases.pop_back();
     return std::monostate{};
   }
 
   Num get(std::int32_t index) {
     Profile.step(StepProfileKind::GET);
-    auto ret = stack_ptr[current_base + index];
+    auto ret = stack_ptr[count - 1 - index];
     return ret;
   }
 
   void set(std::int32_t index, Num num) {
     Profile.step(StepProfileKind::SET);
-    stack_ptr[current_base + index] = num;
+    stack_ptr[count - 1 - index] = num;
   }
 
   void pushFrame(std::int32_t size) {
     assert(size >= 0);
-    assert(count + size <= FRAME_SIZE);
-
-    old_frame_bases.push_back(current_base);
-    current_base = count;
     count += size;
     // Zero-initialize the new stack frames.
     for (std::int32_t i = 0; i < size; ++i) {
@@ -584,19 +576,7 @@ public:
     }
   }
 
-  void extendFrame(std::int32_t size) {
-    assert(size >= 0);
-    count += size;
-    // Zero-initialize the new stack frames.
-    for (std::int32_t i = 0; i < size; ++i) {
-      stack_ptr[count - 1 - i] = Num(0);
-    }
-  }
-
-  void reset() {
-    count = 0;
-    current_base = 0;
-  }
+  void reset() { count = 0; }
 
   size_t size() const { return count; }
 
@@ -610,20 +590,9 @@ public:
     count = new_size;
   }
 
-  void resize_old_frames_size(int32_t new_size) {
-    assert(new_size >= 0);
-    old_frame_bases.resize(new_size);
-  }
-
-  void set_old_frame_base(int32_t index, int32_t value) {
-    assert(index >= 0 && index < old_frame_bases.size());
-    old_frame_bases[index] = value;
-  }
-
+private:
   int32_t count;
   Num *stack_ptr;
-  int32_t current_base;
-  std::vector<int32_t> old_frame_bases;
 };
 
 static Frames_t Frames;
@@ -638,19 +607,26 @@ static std::monostate unreachable() {
   throw std::runtime_error("Unreachable code reached");
 }
 
+static const int PRE_ALLOC_PAGES = 20;
 static int32_t pagesize = 65536;
+static int32_t page_count = 0;
 
 struct Memory_t {
   // TODO: We assign a SymVal to each byte in memory
   std::vector<uint8_t> memory;
   int init_page_count;
   int page_count;
+  int allocated_pages;
 
   Memory_t(int32_t init_page_count)
-      : memory(pagesize * init_page_count), init_page_count(init_page_count),
-        page_count(init_page_count) {}
+      : memory(PRE_ALLOC_PAGES * pagesize), init_page_count(init_page_count),
+        page_count(init_page_count), allocated_pages(PRE_ALLOC_PAGES) {}
 
   int32_t loadInt(int32_t base, int32_t offset) {
+#ifdef DEBUG
+    std::cout << "[Debug] loading int from memory at address: "
+              << (base + offset) << std::endl;
+#endif
     // just load a 4-byte integer from memory of the vector
     int32_t addr = base + offset;
     if (!(addr + 3 < memory.size())) {
@@ -661,16 +637,15 @@ struct Memory_t {
     for (int i = 0; i < 4; ++i) {
       result |= static_cast<int32_t>(memory[addr + i]) << (8 * i);
     }
-#ifdef DEBUG
-    std::cout << "[Debug] loading int from memory at address: "
-              << (base + offset) << std::endl;
-    std::cout << "[Debug] loaded int value " << result << " from " << addr << std::endl;
-#endif
     return result;
   }
 
   std::monostate storeInt(int32_t base, int32_t offset, int32_t value) {
     int32_t addr = base + offset;
+#ifdef DEBUG
+    std::cout << "[Debug] storing int " << value << " to memory at address "
+              << addr << std::endl;
+#endif
     // Ensure we don't write out of bounds
     if (!(addr + 3 < memory.size())) {
       throw std::runtime_error("Invalid memory access " + std::to_string(addr));
@@ -679,11 +654,6 @@ struct Memory_t {
       memory[addr + i] = static_cast<uint8_t>((value >> (8 * i)) & 0xFF);
       // Optionally, update memory[addr + i].second (SymVal) if needed
     }
-#ifdef DEBUG
-    std::cout << "[Debug] storing int " << value << " to memory at address "
-              << addr << std::endl;
-    std::cout << "[Debug] stored int value " << value << " to " << addr << std::endl;
-#endif
     return std::monostate{};
   }
 
@@ -701,11 +671,15 @@ struct Memory_t {
       return page_count * pagesize;
     }
 
+    if (page_count + delta < allocated_pages) {
+      page_count += delta;
+      return page_count * pagesize;
+    }
+
     try {
+      assert(false && "Use pre-allocated memory, should not reach here");
       memory.resize(memory.size() + delta * pagesize);
-      for (int i = 0; i < delta * pagesize; ++i) {
-        memory[page_count * pagesize + i] = 0;
-      }
+      auto old_page_count = page_count;
       page_count += delta;
       return memory.size();
     } catch (const std::bad_alloc &e) {
@@ -715,6 +689,7 @@ struct Memory_t {
 
   void reset() {
     page_count = init_page_count;
+    allocated_pages = PRE_ALLOC_PAGES;
     for (int i = 0; i < memory.size() && i < page_count * pagesize; ++i) {
       memory[i] = 0;
     }

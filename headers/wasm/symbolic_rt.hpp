@@ -380,21 +380,6 @@ public:
   void pushFrame(int size) {
     // Push a new frame with the given size
 #ifdef USE_IMM
-    old_frame_bases.push_back(current_base);
-    current_base = stack.size();
-    for (int i = 0; i < size; ++i) {
-      stack.push_back(SymVal());
-    }
-#else
-    old_frame_bases.push_back(current_base);
-    current_base = stack.size();
-    stack.resize(size + stack.size());
-#endif
-  }
-
-  void extendFrame(int size) {
-    // Extend the current frame with the given size
-#ifdef USE_IMM
     for (int i = 0; i < size; ++i) {
       stack.push_back(SymVal());
     }
@@ -402,38 +387,30 @@ public:
     stack.resize(size + stack.size());
 #endif
   }
-
   std::monostate popFrame(int size) {
     // Pop the frame of the given size
 
 #ifdef USE_IMM
-    assert(size == stack.size() - current_base);
     stack.take(stack.size() - size);
-    current_base = old_frame_bases.end()[-1];
-    old_frame_bases.take(old_frame_bases.size() - 1);
 #else
     stack.resize(stack.size() - size);
-    current_base = old_frame_bases.back();
-    old_frame_bases.pop_back();
 #endif
     return std::monostate();
   }
 
   SymVal get(int index) {
     // Get the symbolic value at the given frame index
-    assert(index >= 0 && index < size() - current_base);
-    auto res = stack[current_base + index];
+    auto res = stack[stack.size() - 1 - index];
     return res;
   }
 
   void set(int index, SymVal val) {
     // Set the symbolic value at the given index
     assert(val.symptr != nullptr);
-    assert(index >= 0 && index < size() - current_base);
 #ifdef USE_IMM
-    stack.set(current_base + index, val);
+    stack.set(stack.size() - 1 - index, val);
 #else
-    stack[current_base + index] = val;
+    stack[stack.size() - 1 - index] = val;
 #endif
   }
 
@@ -442,12 +419,8 @@ public:
 
 #ifdef USE_IMM
     stack = immer::vector_transient<SymVal>();
-    old_frame_bases = immer::vector_transient<int32_t>();
-    current_base = 0;
 #else
     stack.clear();
-    old_frame_bases.clear();
-    current_base = 0;
 #endif
   }
 
@@ -463,14 +436,11 @@ public:
     return cost;
   }
 
+private:
 #ifdef USE_IMM
   immer::vector_transient<SymVal> stack;
-  immer::vector_transient<int32_t> old_frame_bases;
-  int32_t current_base = 0;
 #else
   std::vector<SymVal> stack;
-  std::vector<int32_t> old_frame_bases;
-  int32_t current_base = 0;
 #endif
 };
 
@@ -1603,12 +1573,6 @@ static void resume_conc_frames_by_model(const SymFrames_t &sym_frame,
     auto conc = res.value;
     frames.set_from_front(i, conc);
   }
-  frames.resize_old_frames_size(sym_frame.old_frame_bases.size());
-  for (size_t i = 0; i < sym_frame.old_frame_bases.size(); ++i) {
-    auto base = sym_frame.old_frame_bases[i];
-    frames.set_old_frame_base(i, base);
-  }
-  frames.current_base = sym_frame.current_base;
 }
 
 static void resume_conc_memory(const SymMemory_t &sym_memory, Memory_t &memory,

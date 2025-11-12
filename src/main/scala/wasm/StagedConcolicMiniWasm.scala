@@ -214,6 +214,25 @@ trait StagedWasmEvaluator extends SAIOps {
         Stack.pushS(Frames.getS(i))
         val newCtx = ctx.push(ctx.frameTypes(i))
         eval(rest, kont, mkont, trail)(newCtx)
+      case Select(ty) => 
+        val (ty1, newCtx1) = ctx.pop()
+        val cond = Stack.popC(ty1)
+        val condSym = Stack.popS(ty1)
+        val (ty2, newCtx2) = newCtx1.pop()
+        val falseVal = Stack.popC(ty2)
+        val falseSym = Stack.popS(ty2)
+        val (ty3, newCtx3) = newCtx2.pop()
+        val trueVal = Stack.popC(ty3)
+        val trueSym = Stack.popS(ty3)
+        if (cond.toInt != 0) {
+          Stack.pushC(trueVal)
+          Stack.pushS(trueSym)
+        } else {
+          Stack.pushC(falseVal)
+          Stack.pushS(falseSym)
+        }
+        val newCtx4 = newCtx3.push(ty2)
+        eval(rest, kont, mkont, trail)(newCtx4)
       case LocalSet(i) =>
         val (ty, newCtx) = ctx.pop()
         val num = Stack.popC(ty)
@@ -287,7 +306,7 @@ trait StagedWasmEvaluator extends SAIOps {
         val s = Stack.popS(ty)
         Stack.pushC(evalTestOpC(op, v))
         Stack.pushS(evalTestOpS(op, s))
-        val newCtx2 = newCtx1.push(v.tipe)
+        val newCtx2 = newCtx1.push(NumType(I32Type))
         eval(rest, kont, mkont, trail)(newCtx2)
       case Unary(op) =>
         val (ty, newCtx1) = ctx.pop()
@@ -472,6 +491,8 @@ trait StagedWasmEvaluator extends SAIOps {
         evalCallIndirect(rest, kont, mkont, trail, functy.asInstanceOf[FuncType])
       case _ =>
         val todo = "todo-op".reflectCtrlWith[Unit]()
+        Predef.println(s"[WARNING] Encountered unimplemented instruction $inst, treat it as NOP")
+        Predef.assert(false, s"Unimplemented instruction $inst")
         eval(rest, kont, mkont, trail)
     }
   }
@@ -527,12 +548,8 @@ trait StagedWasmEvaluator extends SAIOps {
           val offset = ctx.stackTypes.size - ty.out.size
           Stack.shiftC(offset, ty.out.size)
           Stack.shiftS(offset, ty.out.size)
-          Frames.popFrameC(inps.size + locals.size)
-          Frames.popFrameS(inps.size + locals.size)
           mk.enter()
         })
-        Frames.extendFrameC(locals.size)
-        Frames.extendFrameS(locals.size)
         eval(body, retK _, mk, retK _::Nil)(Context(Nil, inps ++ locals))
       })
       compileCache(funcIndex) = func
@@ -559,11 +576,13 @@ trait StagedWasmEvaluator extends SAIOps {
         // (more or less like `return`)
         val restK: Rep[Cont[Unit]] = topFun((mk: Rep[MCont[Unit]]) => {
           info(s"Exiting the function at $funcIndex, stackSize =", Stack.size)
+          Frames.popFrameC(ty.inps.size + bodyLocals.size)
+          Frames.popFrameS(ty.inps.size + bodyLocals.size)
           eval(rest, kont, mk, trail)(newCtx.copy(stackTypes = ty.out.reverse ++ ctx.stackTypes.drop(ty.inps.size)))
         })
         val newMKont: Rep[MCont[Unit]] = mkont.prependCont(restK)
-        Frames.pushFrameC(ty.inps)
-        Frames.pushFrameS(ty.inps)
+        Frames.pushFrameC(ty.inps ++ bodyLocals)
+        Frames.pushFrameS(ty.inps ++ bodyLocals)
         Frames.putAllC(argsC)
         Frames.putAllS(argsS)
         callee(newMKont)
@@ -634,6 +653,12 @@ trait StagedWasmEvaluator extends SAIOps {
         Stack.popC(NumType(I32Type))
         Stack.popS(NumType(I32Type))
         eval(rest, kont, mkont, trail)(newCtx)
+      case Import("env", "proc_exit", _) =>
+        val (_, newCtx) = ctx.pop()
+        val code = Stack.popC(NumType(I32Type))
+        Stack.popS(NumType(I32Type))
+        info(s"Program exiting")
+        eval(rest, kont, mkont, trail)(newCtx)
       case Import(m, f, _) => throw new Exception(s"Unknown import $m.$f at $funcIndex")
       case _               => throw new Exception(s"Definition at $funcIndex is not callable")
     }
@@ -672,6 +697,7 @@ trait StagedWasmEvaluator extends SAIOps {
     case DivS(_) => v1 divs v2
     case DivU(_) => v1 divu v2
     case Div(_) => v1 div v2
+    case Xor(_) => v1 xor v2
     case _ =>
       throw new Exception(s"Unknown binary operation $op")
   }
@@ -687,6 +713,7 @@ trait StagedWasmEvaluator extends SAIOps {
     case DivS(_) => v1 divs v2
     case DivU(_) => v1 divu v2
     case Div(_) => v1 div v2
+    case Xor(_) => v1 xor v2
     case _ =>
       throw new Exception(s"Unknown binary operation $op")
   }
@@ -745,6 +772,7 @@ trait StagedWasmEvaluator extends SAIOps {
             case Start(id) => Some(id)
             case _ => None
         }
+        Predef.printf("module defs = %s", module.defs)
         val startId = startIds.headOption.getOrElse { throw new Exception("No start function") }
         module.funcs(startId) match {
           case FuncDef(_, body@FuncBodyDef(_,_,_,_)) => body
@@ -1164,6 +1192,13 @@ trait StagedWasmEvaluator extends SAIOps {
       }
     }
 
+    def xor(rhs: StagedConcreteNum): StagedConcreteNum = {
+      (num.tipe, rhs.tipe) match {
+        case (NumType(I32Type), NumType(I32Type)) =>
+          StagedConcreteNum(NumType(I32Type), "i32-binary-xor".reflectCtrlWith[Num](num.i, rhs.i))
+      }
+    }
+
     def <<(rhs: StagedConcreteNum): StagedConcreteNum = {
       (num.tipe, rhs.tipe) match {
         case (NumType(I32Type), NumType(I32Type)) =>
@@ -1431,6 +1466,13 @@ trait StagedWasmEvaluator extends SAIOps {
           StagedSymbolicNum(NumType(F32Type), "sym-binary-div".reflectCtrlWith[SymVal](num.s, rhs.s))
         case (NumType(F64Type), NumType(F64Type)) =>
           StagedSymbolicNum(NumType(F64Type), "sym-binary-div".reflectCtrlWith[SymVal](num.s, rhs.s))
+      }
+    }
+
+    def xor(rhs: StagedSymbolicNum): StagedSymbolicNum = {
+      (num.tipe, rhs.tipe) match {
+        case (NumType(I32Type), NumType(I32Type)) =>
+          StagedSymbolicNum(NumType(I32Type), "sym-binary-xor".reflectCtrlWith[SymVal](num.s, rhs.s))
       }
     }
 
@@ -1780,6 +1822,8 @@ trait StagedWasmCppGen extends CGenBase with CppSAICodeGenBase {
       shallow(lhs); emit(".i32_ge_s("); shallow(rhs); emit(")")
     case Node(_, "i32-relation-geu", List(lhs, rhs), _) =>
       shallow(lhs); emit(".i32_ge_u("); shallow(rhs); emit(")")
+    case Node(_, "i32-binary-xor", List(lhs, rhs), _) =>
+      shallow(lhs); emit(".i32_xor("); shallow(rhs); emit(")")
     case Node(_, "f32-binary-add", List(lhs, rhs), _) =>
       shallow(lhs); emit(".f32_add("); shallow(rhs); emit(")")
     case Node(_, "f32-binary-sub", List(lhs, rhs), _) =>
@@ -1812,6 +1856,8 @@ trait StagedWasmCppGen extends CGenBase with CppSAICodeGenBase {
       shallow(lhs); emit(".leu("); shallow(rhs); emit(")")
     case Node(_, "sym-relation-lts", List(lhs, rhs), _) =>
       shallow(lhs); emit(".lt("); shallow(rhs); emit(")")
+    case Node(_, "sym-binary-xor", List(lhs, rhs), _) =>
+      shallow(lhs); emit(".xor("); shallow(rhs); emit(")")
     case Node(_, "relation-ltu", List(lhs, rhs), _) =>
       shallow(lhs); emit(".ltu("); shallow(rhs); emit(")")
     case Node(_, "sym-relation-ges", List(lhs, rhs), _) =>
