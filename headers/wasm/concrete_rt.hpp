@@ -196,6 +196,14 @@ struct Num {
     return res;
   }
 
+  // i32.xor (Bitwise XOR)
+  inline Num i32_xor(const Num &other) const {
+    uint32_t result_u = this->toUInt() ^ other.toUInt();
+    Num res(static_cast<int32_t>(result_u));
+    debug_print("i32.xor", *this, other, res);
+    return res;
+  }
+
   // f32 helpers: interpret low 32 bits of value as IEEE-754 float
   static inline float f32_from_bits(uint32_t bits) {
     union {

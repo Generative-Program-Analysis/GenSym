@@ -156,6 +156,9 @@ inline z3::expr Solver::build_z3_expr_aux(SymVal &sym_val) {
     case B_AND: {
       return left & right;
     }
+    case B_XOR: {
+      return left ^ right;
+    }
     case CONCAT: {
       return z3::concat(left, right);
     }

@@ -89,6 +89,7 @@ enum Operation {
   GEU,    // Unsigned greater than or equal
   SHR,    // Shift right
   B_AND,  // Bitwise AND
+  B_XOR,  // Bitwise XOR
   CONCAT, // Byte-level concatenation
 };
 static MemBookKeeper<Symbolic> SymBookKeeper;
@@ -125,6 +126,7 @@ struct SymVal {
   SymVal shr(const SymVal &other) const;
   SymVal negate() const;
   SymVal bitwise_and(const SymVal &other) const;
+  SymVal bitwise_xor(const SymVal &other) const;
   SymVal concat(const SymVal &other) const;
   SymVal extract(int high, int low) const;
   // TODO: add bitwise operations, and use the underlying bitvector theory
@@ -266,6 +268,11 @@ inline SymVal SymVal::extract(int high, int low) const {
 inline SymVal SymVal::bitwise_and(const SymVal &other) const {
   return make_binary(B_AND, *this, other);
 }
+
+inline SymVal SymVal::bitwise_xor(const SymVal &other) const {
+  return make_binary(B_XOR, *this, other);
+}
+
 inline SymVal SymVal::make_binary(Operation op, const SymVal &lhs,
                                   const SymVal &rhs) {
   assert(lhs.symptr != nullptr && rhs.symptr != nullptr);
