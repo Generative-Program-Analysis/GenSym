@@ -113,12 +113,14 @@ inline void ConcolicDriver::main_exploration_loop() {
           auto timer = ManagedTimer(TimeProfileKind::INSTR);
           ExploreTree.reset_cursor();
           reset_stacks();
+          CostManager.reset_timer();
           entrypoint();
         }
       } else {
         auto timer = ManagedTimer(TimeProfileKind::INSTR);
         ExploreTree.reset_cursor();
         reset_stacks();
+        CostManager.reset_timer();
         entrypoint();
       }
 

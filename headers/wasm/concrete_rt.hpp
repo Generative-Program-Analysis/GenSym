@@ -204,6 +204,13 @@ struct Num {
     return res;
   }
 
+  inline Num i32_or(const Num &other) const {
+    uint32_t result_u = this->toUInt() | other.toUInt();
+    Num res(static_cast<int32_t>(result_u));
+    debug_print("i32.or", *this, other, res);
+    return res;
+  }
+
   // f32 helpers: interpret low 32 bits of value as IEEE-754 float
   static inline float f32_from_bits(uint32_t bits) {
     union {

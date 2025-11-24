@@ -45,6 +45,7 @@ enum Operation {
   SHR,    // Shift right
   B_AND,  // Bitwise AND
   B_XOR,  // Bitwise XOR
+  B_OR,   // Bitwise OR
   CONCAT, // Byte-level concatenation
 };
 class Symbolic;
@@ -76,6 +77,7 @@ struct SymVal {
   SymVal negate() const;
   SymVal bitwise_and(const SymVal &other) const;
   SymVal bitwise_xor(const SymVal &other) const;
+  SymVal bitwise_or(const SymVal &other) const;
   SymVal concat(const SymVal &other) const;
   SymVal extract(int high, int low) const;
   // TODO: add bitwise operations, and use the underlying bitvector theory
@@ -294,6 +296,10 @@ inline SymVal SymVal::bitwise_xor(const SymVal &other) const {
   return make_binary(B_XOR, *this, other);
 }
 
+inline SymVal SymVal::bitwise_or(const SymVal &other) const {
+  return make_binary(B_OR, *this, other);
+}
+
 inline SymVal SymVal::make_binary(Operation op, const SymVal &lhs,
                                   const SymVal &rhs) {
   assert(lhs.symptr != nullptr && rhs.symptr != nullptr);
@@ -396,6 +402,9 @@ inline z3::expr Symbolic::build_z3_expr_aux() {
     case B_XOR: {
       return left ^ right;
     }
+    case B_OR: {
+      return left | right;
+    }
     case CONCAT: {
       return z3::concat(left, right);
     }
@@ -441,11 +450,11 @@ public:
   void push(SymVal val) {
     // Push a symbolic value to the stack
     stack.push_back(val);
+    symbolic_size += val.size();
   }
 
   SymVal pop() {
     // Pop a symbolic value from the stack
-
 #ifdef DEBUG
     printf("[Debug] poping from stack, size of symbolic stack is: %zu\n",
            stack.size());
@@ -453,10 +462,12 @@ public:
 #ifdef USE_IMM
     auto ret = *(stack.end() - 1);
     stack.take(stack.size() - 1);
+    symbolic_size -= ret.size();
     return ret;
 #else
     auto ret = stack.back();
     stack.pop_back();
+    symbolic_size -= ret.size();
     return ret;
 #endif
   }
@@ -468,6 +479,7 @@ public:
     for (size_t i = n - size; i < n; ++i) {
       assert(i - offset >= 0);
 #ifdef USE_IMM
+      symbolic_size -= stack[i - offset].size();
       stack.set(i - offset, stack[i]);
 #else
       stack[i - offset] = stack[i];
@@ -488,22 +500,17 @@ public:
 #else
     stack.clear();
 #endif
+    symbolic_size = 0;
   }
 
   size_t size() const { return stack.size(); }
 
   SymVal operator[](size_t index) const { return stack[index]; }
 
-  int cost_of_copy() const {
-    return stack.size();
-    // int cost = 0;
-    // for (size_t i = 0; i < stack.size(); ++i) {
-    //   cost += stack[i].size();
-    // }
-    // return cost;
-  }
+  int total_sym_size() const { return symbolic_size; }
 
 private:
+  int symbolic_size = 0;
 #ifdef USE_IMM
   immer::vector_transient<SymVal> stack;
 #else
@@ -517,6 +524,7 @@ class SymFrames_t {
 
 public:
   void pushFrame(int size) {
+    symbolic_size += size;
     // Push a new frame with the given size
 #ifdef USE_IMM
     for (int i = 0; i < size; ++i) {
@@ -529,6 +537,9 @@ public:
   std::monostate popFrame(int size) {
     // Pop the frame of the given size
 
+    for (int i = 0; i < size; ++i) {
+      symbolic_size -= stack[stack.size() - 1 - i].size();
+    }
 #ifdef USE_IMM
     stack.take(stack.size() - size);
 #else
@@ -546,6 +557,7 @@ public:
   void set(int index, SymVal val) {
     // Set the symbolic value at the given index
     assert(val.symptr != nullptr);
+    symbolic_size += val.size() - stack[stack.size() - 1 - index].size();
 #ifdef USE_IMM
     stack.set(stack.size() - 1 - index, val);
 #else
@@ -561,22 +573,17 @@ public:
 #else
     stack.clear();
 #endif
+    symbolic_size = 0;
   }
 
   size_t size() const { return stack.size(); }
 
   SymVal operator[](size_t index) const { return stack[index]; }
 
-  int cost_of_copy() const {
-    return stack.size();
-    // int cost = 0;
-    // for (size_t i = 0; i < stack.size(); ++i) {
-    //   cost += stack[i].size();
-    // }
-    // return cost;
-  }
+  int total_sym_size() const { return symbolic_size; }
 
 private:
+  int symbolic_size = 0;
 #ifdef USE_IMM
   immer::vector_transient<SymVal> stack;
 #else
@@ -594,6 +601,7 @@ public:
 #else
   std::unordered_map<int, SymVal> memory;
 #endif
+  int symbolic_size = 0;
 
   SymVal loadSymByte(int32_t addr) {
 // if the address is not in the memory, it must be a zero-initialized memory
@@ -653,6 +661,14 @@ public:
     SymVal s1 = value.extract(2, 2);
     SymVal s2 = value.extract(3, 3);
     SymVal s3 = value.extract(4, 4);
+    symbolic_size -= loadSymByte(addr).size();
+    symbolic_size -= loadSymByte(addr + 1).size();
+    symbolic_size -= loadSymByte(addr + 2).size();
+    symbolic_size -= loadSymByte(addr + 3).size();
+    symbolic_size += s0.size();
+    symbolic_size += s1.size();
+    symbolic_size += s2.size();
+    symbolic_size += s3.size();
 #ifdef USE_IMM
     memory.set(addr, s0);
     memory.set(addr + 1, s1);
@@ -676,7 +692,7 @@ public:
     return std::monostate{};
   }
 
-  int cost_of_copy() const { return memory.size(); }
+  int total_sym_size() const { return symbolic_size; }
 };
 
 static SymMemory_t SymMemory;
@@ -712,7 +728,7 @@ public:
   std::monostate resume_execution_by_model(NodeBox *node,
                                            z3::model &model) const;
 
-  static int cost_of_snapshot();
+  static double cost_of_snapshot();
 
 private:
   SymStack_t stack;
@@ -1157,16 +1173,21 @@ inline Snapshot_t::Snapshot_t(Cont_t cont, MCont_t mcont, SymStack_t stack,
 #endif
 }
 
-inline int Snapshot_t::cost_of_snapshot() {
-  auto stack_copy_cost = SymStack.cost_of_copy();
-  auto frames_copy_cost = SymFrames.cost_of_copy();
-  auto memory_copy_cost = SymMemory.cost_of_copy();
-  auto global_copy_cost = SymGlobals.cost_of_copy();
+const double INSTR_COST_SCALING_FACTOR = 1E-03;
+
+inline double Snapshot_t::cost_of_snapshot() {
+  auto stack_sym_size = SymStack.total_sym_size();
+  assert(stack_sym_size >= 0);
+  auto frame_sym_size = SymFrames.total_sym_size();
+  assert(frame_sym_size >= 0);
+  auto memory_sym_size = SymMemory.total_sym_size();
+  assert(memory_sym_size >= 0);
+  auto global_sym_size = SymGlobals.total_sym_size();
+  assert(global_sym_size >= 0);
   // The speed ratio between symbolic expression instantiation and WebAssembly
   // instruction execution, given by benchmark results
-  auto ratio = 4;
-  return ratio * (stack_copy_cost + frames_copy_cost + memory_copy_cost +
-                  global_copy_cost);
+  return INSTR_COST_SCALING_FACTOR * (stack_sym_size + frame_sym_size +
+                                      memory_sym_size + global_sym_size);
 }
 
 struct OverallResult {
@@ -1267,6 +1288,9 @@ public:
     double cost_from_root =
         cost_from_parent + (cursor->parent ? cursor->parent->instr_cost : 0);
     cursor->instr_cost = cost_from_root;
+    GENSYM_INFO(
+        "Cursor move cost from parent: " + std::to_string(cost_from_parent) +
+        ", total cost from root: " + std::to_string(cost_from_root));
     if (branch) {
       true_branch_cov_map[if_else_node->id] = true;
       if (worth_to_create_snapshot()) {
@@ -1286,7 +1310,7 @@ public:
       }
       cursor = if_else_node->false_branch.get();
     }
-
+    CostManager.reset_timer();
     return std::monostate();
   }
 
@@ -1309,6 +1333,7 @@ public:
       assert(false &&
              "moveCursorNoControl should not be used for false branch");
     }
+    CostManager.reset_timer();
     return std::monostate();
   }
 

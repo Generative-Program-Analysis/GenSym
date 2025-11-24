@@ -702,6 +702,7 @@ trait StagedWasmEvaluator extends SAIOps {
     case DivS(_) => v1 divs v2
     case DivU(_) => v1 divu v2
     case Div(_) => v1 div v2
+    case Or(_) => v1 or v2
     case Xor(_) => v1 xor v2
     // case Or(_) => v1 or v2
     case _ =>
@@ -723,6 +724,7 @@ trait StagedWasmEvaluator extends SAIOps {
         case DivS(_) => v1 divs v2
         case DivU(_) => v1 divu v2
         case Div(_) => v1 div v2
+        case Or(_) => v1 or v2
         case Xor(_) => v1 xor v2
         case _ =>
           throw new Exception(s"Unknown binary operation $op")
@@ -1223,6 +1225,15 @@ trait StagedWasmEvaluator extends SAIOps {
       }
     }
 
+    def or(rhs: StagedConcreteNum): StagedConcreteNum = {
+      (num.tipe, rhs.tipe) match {
+        case (NumType(I32Type), NumType(I32Type)) =>
+          StagedConcreteNum(NumType(I32Type), "i32-binary-or".reflectCtrlWith[Num](num.i, rhs.i))
+        case (NumType(F32Type), NumType(F32Type)) =>
+          StagedConcreteNum(NumType(F32Type), "f32-binary-or".reflectCtrlWith[Num](num.i, rhs.i))
+      }
+    }
+
     def <<(rhs: StagedConcreteNum): StagedConcreteNum = {
       (num.tipe, rhs.tipe) match {
         case (NumType(I32Type), NumType(I32Type)) =>
@@ -1497,6 +1508,15 @@ trait StagedWasmEvaluator extends SAIOps {
       (num.tipe, rhs.tipe) match {
         case (NumType(I32Type), NumType(I32Type)) =>
           StagedSymbolicNum(NumType(I32Type), "sym-binary-xor".reflectCtrlWith[SymVal](num.s, rhs.s))
+      }
+    }
+
+    def or(rhs: StagedSymbolicNum): StagedSymbolicNum = {
+      (num.tipe, rhs.tipe) match {
+        case (NumType(I32Type), NumType(I32Type)) =>
+          StagedSymbolicNum(NumType(I32Type), "sym-binary-or".reflectCtrlWith[SymVal](num.s, rhs.s))
+        case (NumType(F32Type), NumType(F32Type)) =>
+          StagedSymbolicNum(NumType(F32Type), "sym-binary-or".reflectCtrlWith[SymVal](num.s, rhs.s))
       }
     }
 
@@ -1848,6 +1868,10 @@ trait StagedWasmCppGen extends CGenBase with CppSAICodeGenBase {
       shallow(lhs); emit(".i32_ge_u("); shallow(rhs); emit(")")
     case Node(_, "i32-binary-xor", List(lhs, rhs), _) =>
       shallow(lhs); emit(".i32_xor("); shallow(rhs); emit(")")
+    case Node(_, "i32-binary-or", List(lhs, rhs), _) =>
+      shallow(lhs); emit(".i32_or("); shallow(rhs); emit(")")
+    case Node(_, "f32-binary-or", List(lhs, rhs), _) =>
+      shallow(lhs); emit(".f32_or("); shallow(rhs); emit(")")
     case Node(_, "f32-binary-add", List(lhs, rhs), _) =>
       shallow(lhs); emit(".f32_add("); shallow(rhs); emit(")")
     case Node(_, "f32-binary-sub", List(lhs, rhs), _) =>
@@ -1882,6 +1906,8 @@ trait StagedWasmCppGen extends CGenBase with CppSAICodeGenBase {
       shallow(lhs); emit(".lt("); shallow(rhs); emit(")")
     case Node(_, "sym-binary-xor", List(lhs, rhs), _) =>
       shallow(lhs); emit(".bitwise_xor("); shallow(rhs); emit(")")
+    case Node(_, "sym-binary-or", List(lhs, rhs), _) =>
+      shallow(lhs); emit(".bitwise_or("); shallow(rhs); emit(")")
     case Node(_, "relation-ltu", List(lhs, rhs), _) =>
       shallow(lhs); emit(".ltu("); shallow(rhs); emit(")")
     case Node(_, "sym-relation-ges", List(lhs, rhs), _) =>

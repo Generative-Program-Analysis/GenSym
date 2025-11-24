@@ -7,6 +7,7 @@
 #include <chrono>
 #include <iomanip>
 #include <ratio>
+#include <string>
 #include <variant>
 #include <vector>
 
@@ -234,8 +235,8 @@ struct CostManager_t {
 
   double dump_instr_cost() {
     auto current = getCurrentTime();
-    double duration = duration_time(current, start_time);
-    start_time = current;
+    double duration = duration_time(start_time, current);
+    reset_timer();
     return normalize_cost(duration);
   }
 
