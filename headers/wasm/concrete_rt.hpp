@@ -457,6 +457,11 @@ public:
   }
 
   std::monostate push(Num &&num) {
+#ifdef DEBUG
+    printf("[Debug] pushing a value %ld to stack, size of concrete stack is: "
+           "%d\n",
+           num.value, count);
+#endif
     Profile.step(StepProfileKind::PUSH);
     stack_ptr[count] = num;
     count++;
@@ -628,14 +633,11 @@ struct Memory_t {
 
   Memory_t(int32_t init_page_count)
       : memory(PRE_ALLOC_PAGES * pagesize), init_page_count(init_page_count),
-        page_count(init_page_count), allocated_pages(PRE_ALLOC_PAGES) {}
+        page_count(init_page_count), allocated_pages(PRE_ALLOC_PAGES) {
+    reset();
+  }
 
   int32_t loadInt(int32_t base, int32_t offset) {
-#ifdef DEBUG
-    std::cout << "[Debug] loading int from memory at address: "
-              << (base + offset) << std::endl;
-#endif
-    // just load a 4-byte integer from memory of the vector
     int32_t addr = base + offset;
     if (!(addr + 3 < memory.size())) {
       throw std::runtime_error("Invalid memory access " + std::to_string(addr));
@@ -645,23 +647,28 @@ struct Memory_t {
     for (int i = 0; i < 4; ++i) {
       result |= static_cast<int32_t>(memory[addr + i]) << (8 * i);
     }
+#ifdef DEBUG
+    std::cout << "[Debug] loading int " << result << " from memory at address "
+              << addr << std::endl;
+
+#endif
+    // just load a 4-byte integer from memory of the vector
     return result;
   }
 
   std::monostate storeInt(int32_t base, int32_t offset, int32_t value) {
     int32_t addr = base + offset;
-#ifdef DEBUG
-    std::cout << "[Debug] storing int " << value << " to memory at address "
-              << addr << std::endl;
-#endif
     // Ensure we don't write out of bounds
     if (!(addr + 3 < memory.size())) {
       throw std::runtime_error("Invalid memory access " + std::to_string(addr));
     }
     for (int i = 0; i < 4; ++i) {
       memory[addr + i] = static_cast<uint8_t>((value >> (8 * i)) & 0xFF);
-      // Optionally, update memory[addr + i].second (SymVal) if needed
     }
+#ifdef DEBUG
+    std::cout << "[Debug] storing int " << value << " to memory at address "
+              << addr << std::endl;
+#endif
     return std::monostate{};
   }
 

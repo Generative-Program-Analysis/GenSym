@@ -10,6 +10,7 @@
 #include "immer/vector_transient.hpp"
 #include "profile.hpp"
 #include "utils.hpp"
+#include "wasm/z3_env.hpp"
 #include "z3++.h"
 #include <cassert>
 #include <cstddef>
@@ -26,52 +27,6 @@
 #include <unordered_map>
 #include <variant>
 #include <vector>
-
-class Symbolic {
-public:
-  Symbolic() {}
-  virtual ~Symbolic() = default; // Make Symbolic polymorphic
-  virtual int size() = 0;
-  virtual std::optional<z3::expr> z3_expr() { return _z3_expr; }
-  virtual void update_z3_expr(z3::expr expr) { _z3_expr = expr; }
-
-private:
-  std::optional<z3::expr> _z3_expr;
-};
-
-static int max_id = 0;
-
-class Symbol : public Symbolic {
-public:
-  // TODO: add type information to determine the size of bitvector
-  // for now we just assume that only i32 will be used
-  Symbol(int id) : id(id) { max_id = std::max(max_id, id); }
-  int get_id() const { return id; }
-  int size() override { return 1; }
-
-private:
-  int id;
-};
-
-class SymConcrete : public Symbolic {
-public:
-  Num value;
-  SymConcrete(Num num) : value(num) {}
-  int size() override { return 1; }
-};
-
-class SmallBV : public Symbolic {
-public:
-  SmallBV(int width, int64_t value) : width(width), value(value) {}
-  int get_size() const { return width; }
-  int64_t get_value() const { return value; }
-  int size() override { return 1; }
-
-private:
-  int width; // in bits
-  int64_t value;
-};
-struct SymBinary;
 
 enum Operation {
   ADD,    // Addition
@@ -92,18 +47,12 @@ enum Operation {
   B_XOR,  // Bitwise XOR
   CONCAT, // Byte-level concatenation
 };
-static MemBookKeeper<Symbolic> SymBookKeeper;
-
-static std::shared_ptr<SymConcrete> ZERO =
-    SymBookKeeper.allocate<SymConcrete>(I32V(0));
-static std::shared_ptr<SmallBV> ZeroByte =
-    SymBookKeeper.allocate<SmallBV>(8, 0);
-
+class Symbolic;
 struct SymVal {
   std::shared_ptr<Symbolic> symptr;
 
-  SymVal() : symptr(ZERO) {}
-  SymVal(std::shared_ptr<Symbolic> symptr) : symptr(symptr) {}
+  SymVal();
+  SymVal(std::shared_ptr<Symbolic> symptr);
 
   // data structure operations
   SymVal makeSymbolic() const;
@@ -132,14 +81,81 @@ struct SymVal {
   // TODO: add bitwise operations, and use the underlying bitvector theory
 
   bool is_concrete() const;
-  int size() const { return symptr->size(); }
+  int size() const;
 
 private:
   static SymVal make_binary(Operation op, const SymVal &lhs, const SymVal &rhs);
 };
 
+class Symbolic {
+public:
+  Symbolic() {}
+  virtual ~Symbolic() = default; // Make Symbolic polymorphic
+  int size();
+  virtual z3::expr z3_expr() { return build_z3_expr(); }
+  z3::expr build_z3_expr();
+
+private:
+  z3::expr build_z3_expr_aux();
+  std::optional<z3::expr> _z3_expr;
+};
+
+static int max_id = 0;
+
+class Symbol : public Symbolic {
+public:
+  // TODO: add type information to determine the size of bitvector
+  // for now we just assume that only i32 will be used
+  Symbol(int id) : id(id) { max_id = std::max(max_id, id); }
+  int get_id() const { return id; }
+
+private:
+  int id;
+};
+
+class SymConcrete : public Symbolic {
+public:
+  Num value;
+  SymConcrete(Num num) : value(num) {}
+};
+
+class SmallBV : public Symbolic {
+public:
+  SmallBV(int width, int64_t value) : width(width), value(value) {}
+  int get_size() const { return width; }
+  int64_t get_value() const { return value; }
+
+private:
+  int width; // in bits
+  int64_t value;
+};
+struct SymBinary;
+
+static MemBookKeeper<Symbolic> SymBookKeeper;
+
+static std::shared_ptr<SymConcrete> ZERO =
+    SymBookKeeper.allocate<SymConcrete>(I32V(0));
+static std::shared_ptr<SmallBV> ZeroByte =
+    SymBookKeeper.allocate<SmallBV>(8, 0);
+
+SymVal::SymVal() : symptr(ZERO) {}
+SymVal::SymVal(std::shared_ptr<Symbolic> symptr) : symptr(symptr) {}
+int SymVal::size() const { return symptr->size(); }
+
 static SymVal make_symbolic(int index) {
   return SymVal(SymBookKeeper.allocate<Symbol>(index));
+}
+
+static SymVal makeSmallBV(int width, int64_t value) {
+  if (width == 32) {
+    return SymVal(
+        SymBookKeeper.allocate<SymConcrete>(Num(static_cast<int32_t>(value))));
+  }
+  if (width == 64) {
+    return SymVal(
+        SymBookKeeper.allocate<SymConcrete>(Num(static_cast<int64_t>(value))));
+  }
+  return SymVal(SymBookKeeper.allocate<SmallBV>(width, value));
 }
 
 static std::unordered_map<int64_t, SymVal> concrete_pool;
@@ -161,34 +177,18 @@ struct SymExtract : Symbolic {
   SymVal value;
   int high;
   int low;
-  int size_cache = -1;
 
   SymExtract(SymVal value, int high, int low)
       : value(value), high(high), low(low) {}
-  int size() override {
-    if (size_cache != -1) {
-      return size_cache;
-    }
-    size_cache = 1 + value.size();
-    return size_cache;
-  }
 };
 
 struct SymBinary : Symbolic {
   Operation op;
   SymVal lhs;
   SymVal rhs;
-  int size_cache = -1;
 
   SymBinary(Operation op, SymVal lhs, SymVal rhs)
       : op(op), lhs(lhs), rhs(rhs) {}
-  int size() override {
-    if (size_cache != -1) {
-      return size_cache;
-    }
-    size_cache = 1 + lhs.size() + rhs.size();
-    return size_cache;
-  }
 };
 
 inline SymVal SymVal::add(const SymVal &other) const {
@@ -257,11 +257,32 @@ inline SymVal SymVal::negate() const {
 }
 
 inline SymVal SymVal::concat(const SymVal &other) const {
+  if (auto bv1 = std::dynamic_pointer_cast<SmallBV>(symptr)) {
+    if (auto bv2 = std::dynamic_pointer_cast<SmallBV>(other.symptr)) {
+      int new_width = bv1->get_size() + bv2->get_size();
+      int64_t new_value =
+          (bv1->get_value() << bv2->get_size()) | bv2->get_value();
+      return makeSmallBV(new_width, new_value);
+    }
+  }
   return make_binary(CONCAT, *this, other);
 }
 
 inline SymVal SymVal::extract(int high, int low) const {
   assert(high >= low && "Invalid extract range");
+  if (auto bv = std::dynamic_pointer_cast<SmallBV>(symptr)) {
+    int new_width = (high - low + 1) * 8;
+    int64_t mask = (1LL << new_width) - 1;
+    int64_t new_value = (bv->get_value() >> (low * 8)) & mask;
+    return makeSmallBV(new_width, new_value);
+  } else if (auto concrete = std::dynamic_pointer_cast<SymConcrete>(symptr)) {
+    // extract from concrete value
+    int new_width = (high - low + 1) * 8;
+    int32_t val = concrete->value.toInt();
+    int32_t mask = (1LL << ((high - low + 1) * 8)) - 1;
+    int32_t new_value = (val >> (low * 8)) & mask;
+    return makeSmallBV(new_width, new_value);
+  }
   return SymVal(SymBookKeeper.allocate<SymExtract>(*this, high, low));
 }
 
@@ -298,6 +319,110 @@ inline SymVal SymVal::makeSymbolic() const {
         "Cannot make symbolic a non-concrete symbolic value");
   }
 }
+
+inline z3::expr Symbolic::build_z3_expr_aux() {
+  if (auto sym = dynamic_cast<Symbol *>(this)) {
+    return global_z3_ctx().bv_const(
+        ("s_" + std::to_string(sym->get_id())).c_str(), 32);
+  } else if (auto concrete = dynamic_cast<SymConcrete *>(this)) {
+    return global_z3_ctx().bv_val(concrete->value.value, 32);
+  } else if (auto smallbv = dynamic_cast<SmallBV *>(this)) {
+    return global_z3_ctx().bv_val(smallbv->get_value(), smallbv->get_size());
+  } else if (auto binary = dynamic_cast<SymBinary *>(this)) {
+    auto bit_width = 32;
+    z3::expr zero_bv = global_z3_ctx().bv_val(
+        0, bit_width); // Represents 0 as a 32-bit bitvector
+    z3::expr one_bv = global_z3_ctx().bv_val(
+        1, bit_width); // Represents 1 as a 32-bit bitvector
+
+    z3::expr left = binary->lhs.symptr->build_z3_expr();
+    z3::expr right = binary->rhs.symptr->build_z3_expr();
+    // TODO: make sure the semantics of these operations are aligned with wasm
+    switch (binary->op) {
+    case EQ: {
+      auto temp_bool = left == right;
+      return z3::ite(temp_bool, one_bv, zero_bv);
+    }
+    case NEQ: {
+      auto temp_bool = left != right;
+      return z3::ite(temp_bool, one_bv, zero_bv);
+    }
+    case LT: {
+      auto temp_bool = left < right;
+      return z3::ite(temp_bool, one_bv, zero_bv);
+    }
+    case LTU: {
+      auto temp_bool = z3::ult(left, right);
+      return z3::ite(temp_bool, one_bv, zero_bv);
+    }
+    case LEQ: {
+      auto temp_bool = left <= right;
+      return z3::ite(temp_bool, one_bv, zero_bv);
+    }
+    case GT: {
+      auto temp_bool = left > right;
+      return z3::ite(temp_bool, one_bv, zero_bv);
+    }
+    case GTU: {
+      auto temp_bool = z3::ugt(left, right);
+      return z3::ite(temp_bool, one_bv, zero_bv);
+    }
+    case GEU: {
+      auto temp_bool = z3::uge(left, right);
+      return z3::ite(temp_bool, one_bv, zero_bv);
+    }
+    case SHR: {
+      return z3::lshr(left, right);
+    }
+    case GEQ: {
+      auto temp_bool = left >= right;
+      return z3::ite(temp_bool, one_bv, zero_bv);
+    }
+    case ADD: {
+      return left + right;
+    }
+    case SUB: {
+      return left - right;
+    }
+    case MUL: {
+      return left * right;
+    }
+    case DIV: {
+      return left / right;
+    }
+    case B_AND: {
+      return left & right;
+    }
+    case B_XOR: {
+      return left ^ right;
+    }
+    case CONCAT: {
+      return z3::concat(left, right);
+    }
+    default:
+      throw std::runtime_error("Operation not supported: " +
+                               std::to_string(binary->op));
+    }
+  } else if (auto extract = dynamic_cast<SymExtract *>(this)) {
+    assert(extract);
+    int high = extract->high * 8 - 1;
+    int low = extract->low * 8 - 8;
+    auto s = extract->value.symptr->build_z3_expr();
+    auto res = s.extract(high, low);
+    return res;
+  }
+  throw std::runtime_error("Unsupported symbolic value type");
+}
+
+inline z3::expr Symbolic::build_z3_expr() {
+  if (_z3_expr.has_value()) {
+    return *_z3_expr;
+  }
+  auto e = build_z3_expr_aux();
+  _z3_expr = e;
+  return e;
+}
+inline int Symbolic::size() { return get_z3_expr_size(build_z3_expr()); }
 
 inline bool SymVal::is_concrete() const {
   return dynamic_cast<SymConcrete *>(symptr.get()) != nullptr;
@@ -370,11 +495,12 @@ public:
   SymVal operator[](size_t index) const { return stack[index]; }
 
   int cost_of_copy() const {
-    int cost = 0;
-    for (size_t i = 0; i < stack.size(); ++i) {
-      cost += stack[i].size();
-    }
-    return cost;
+    return stack.size();
+    // int cost = 0;
+    // for (size_t i = 0; i < stack.size(); ++i) {
+    //   cost += stack[i].size();
+    // }
+    // return cost;
   }
 
 private:
@@ -442,11 +568,12 @@ public:
   SymVal operator[](size_t index) const { return stack[index]; }
 
   int cost_of_copy() const {
-    int cost = 0;
-    for (size_t i = 0; i < stack.size(); ++i) {
-      cost += stack[i].size();
-    }
-    return cost;
+    return stack.size();
+    // int cost = 0;
+    // for (size_t i = 0; i < stack.size(); ++i) {
+    //   cost += stack[i].size();
+    // }
+    // return cost;
   }
 
 private:
@@ -549,14 +676,7 @@ public:
     return std::monostate{};
   }
 
-  int cost_of_copy() const {
-#ifdef USE_IMM
-    // If we use immer, the copy cost should be negligible
-    return 0;
-#else
-    return memory.size();
-#endif
-  }
+  int cost_of_copy() const { return memory.size(); }
 };
 
 static SymMemory_t SymMemory;
@@ -579,11 +699,13 @@ static std::monostate memoryInitialize(int32_t offset,
 class Snapshot_t {
 public:
   explicit Snapshot_t(Cont_t cont, MCont_t mcont, SymStack_t stack,
-                      SymFrames_t frames, SymMemory_t memory);
+                      SymFrames_t frames, SymFrames_t globals,
+                      SymMemory_t memory);
   explicit Snapshot_t() {}
 
   SymStack_t get_stack() const { return stack; }
   SymFrames_t get_frames() const { return frames; }
+  SymFrames_t get_globals() const { return globals; }
   SymMemory_t get_memory() const { return memory; }
 
   std::monostate resume_execution(NodeBox *node) const;
@@ -595,6 +717,7 @@ public:
 private:
   SymStack_t stack;
   SymFrames_t frames;
+  SymFrames_t globals;
   SymMemory_t memory;
   // The continuation at the snapshot point
   Cont_t cont;
@@ -612,7 +735,7 @@ static Control makeControl(Cont_t cont, MCont_t mcont) {
 static Snapshot_t makeSnapshot(Control control) {
   // create a snapshot from the current symbolic states and the control
   return Snapshot_t(control.cont, control.mcont, SymStack, SymFrames,
-                    SymMemory);
+                    SymGlobals, SymMemory);
 }
 
 struct Node;
@@ -621,8 +744,8 @@ struct NodeBox {
   explicit NodeBox(NodeBox *parent);
   std::unique_ptr<Node> node;
   NodeBox *parent;
-  int cost;
-  int instr_cost;
+  std::optional<double> cost;
+  double instr_cost;
 
   bool fillIfElseNode(SymVal cond, int id);
   bool fillCallIndirectNode(SymVal cond, int id);
@@ -633,7 +756,6 @@ struct NodeBox {
   std::monostate fillNotToExploreNode();
   bool isUnexplored() const;
   std::vector<SymVal> collect_path_conds();
-  int min_cost_of_reaching_here();
   void reach_here(std::function<void()>);
 };
 
@@ -876,7 +998,7 @@ protected:
 inline NodeBox::NodeBox(NodeBox *parent)
     : node(std::make_unique<UnExploredNode>()),
       /* TODO: avoid allocation of unexplored node */
-      parent(parent), cost(-1), instr_cost(0) {}
+      parent(parent), cost(std::nullopt), instr_cost(0) {}
 
 inline bool NodeBox::fillIfElseNode(SymVal cond, int id) {
   // fill the current NodeBox with an ifelse branch node when it's unexplored
@@ -1023,29 +1145,12 @@ inline std::vector<SymVal> NodeBox::collect_path_conds() {
   return result;
 }
 
-inline int NodeBox::min_cost_of_reaching_here() {
-  if (cost != -1) {
-    return cost;
-  }
-
-  if (auto snapshot = dynamic_cast<SnapshotNode *>(node.get())) {
-    cost = snapshot->get_snapshot().cost_of_snapshot();
-    return cost;
-  }
-
-  if (parent != nullptr) {
-    auto parent_cost = parent->min_cost_of_reaching_here();
-    cost = parent_cost + instr_cost;
-    return cost;
-  }
-  cost = instr_cost;
-  return cost;
-}
-
 inline Snapshot_t::Snapshot_t(Cont_t cont, MCont_t mcont, SymStack_t stack,
-                              SymFrames_t frames, SymMemory_t memory)
+                              SymFrames_t frames, SymFrames_t globals,
+                              SymMemory_t memory)
     : stack(std::move(stack)), frames(std::move(frames)),
-      memory(std::move(memory)), cont(cont), mcont(mcont) {
+      globals(std::move(globals)), memory(std::move(memory)), cont(cont),
+      mcont(mcont) {
   Profile.step(StepProfileKind::SNAPSHOT_CREATE);
 #ifdef DEBUG
   std::cout << "Creating snapshot of size " << stack.size() << std::endl;
@@ -1053,14 +1158,15 @@ inline Snapshot_t::Snapshot_t(Cont_t cont, MCont_t mcont, SymStack_t stack,
 }
 
 inline int Snapshot_t::cost_of_snapshot() {
-  auto cost_of_stack_copy = SymStack.cost_of_copy();
-  auto cost_of_frame_copy = SymFrames.cost_of_copy();
-  auto cost_of_memory_copy = SymMemory.cost_of_copy();
+  auto stack_copy_cost = SymStack.cost_of_copy();
+  auto frames_copy_cost = SymFrames.cost_of_copy();
+  auto memory_copy_cost = SymMemory.cost_of_copy();
+  auto global_copy_cost = SymGlobals.cost_of_copy();
   // The speed ratio between symbolic expression instantiation and WebAssembly
   // instruction execution, given by benchmark results
-  auto ratio = 2.5;
-  return ratio *
-         (cost_of_stack_copy + cost_of_frame_copy + cost_of_memory_copy);
+  auto ratio = 4;
+  return ratio * (stack_copy_cost + frames_copy_cost + memory_copy_cost +
+                  global_copy_cost);
 }
 
 struct OverallResult {
@@ -1141,9 +1247,11 @@ public:
     }
     // find out the best way to reach the current position via our cost model
     auto snapshot_cost = Snapshot_t::cost_of_snapshot();
-    int re_execution_cost = cursor->instr_cost;
+    double re_execution_cost = cursor->instr_cost;
     if (snapshot_cost <= re_execution_cost) {
       GENSYM_INFO("Snapshot is worth to create");
+    } else {
+      GENSYM_INFO("Snapshot is NOT worth to create");
     }
     return snapshot_cost <= re_execution_cost;
   }
@@ -1155,8 +1263,8 @@ public:
     assert(
         if_else_node != nullptr &&
         "Can't move cursor when the branch node is not initialized correctly!");
-    int cost_from_parent = CostManager.dump_instr_cost();
-    int cost_from_root =
+    double cost_from_parent = CostManager.dump_instr_cost();
+    double cost_from_root =
         cost_from_parent + (cursor->parent ? cursor->parent->instr_cost : 0);
     cursor->instr_cost = cost_from_root;
     if (branch) {
@@ -1620,21 +1728,26 @@ static void resume_conc_memory_by_model(const SymMemory_t &sym_memory,
 
 static void resume_conc_states(const SymStack_t &sym_stack,
                                const SymFrames_t &sym_frame,
+                               const SymFrames_t &sym_globals,
                                const SymMemory_t &sym_memory, Stack_t &stack,
-                               Frames_t &frames, Memory_t &memory,
-                               SymEnv_t &sym_env) {
+                               Frames_t &frames, Frames_t &globals,
+                               Memory_t &memory, SymEnv_t &sym_env) {
   resume_conc_stack(sym_stack, stack, sym_env);
   resume_conc_frames(sym_frame, frames, sym_env);
+  resume_conc_frames(sym_globals, globals, sym_env);
   resume_conc_memory(sym_memory, memory, sym_env);
 }
 
 static void resume_conc_states_by_model(const SymStack_t &sym_stack,
                                         const SymFrames_t &sym_frame,
+                                        const SymFrames_t &sym_globals,
                                         const SymMemory_t &sym_memory,
                                         Stack_t &stack, Frames_t &frames,
-                                        Memory_t &memory, z3::model &model) {
+                                        Frames_t &globals, Memory_t &memory,
+                                        z3::model &model) {
   resume_conc_stack_by_model(sym_stack, stack, model);
   resume_conc_frames_by_model(sym_frame, frames, model);
+  resume_conc_frames_by_model(sym_globals, globals, model);
   resume_conc_memory_by_model(sym_memory, memory, model);
 }
 
@@ -1644,6 +1757,7 @@ inline void Snapshot_t::restore_states_to_global() const {
   SymStack = stack;
   SymFrames = frames;
   SymMemory = memory;
+  SymGlobals = globals;
 }
 
 inline std::monostate
@@ -1655,11 +1769,12 @@ Snapshot_t::resume_execution_by_model(NodeBox *node, z3::model &model) const {
   {
     auto timer = ManagedTimer(TimeProfileKind::RESUME_SNAPSHOT);
     // Restore the concrete states from the symbolic states
-    resume_conc_states_by_model(stack, frames, memory, Stack, Frames, Memory,
-                                model);
+    resume_conc_states_by_model(stack, frames, globals, memory, Stack, Frames,
+                                Globals, Memory, model);
   }
   // Resume execution from the continuation
   auto timer = ManagedTimer(TimeProfileKind::INSTR);
+  CostManager.reset_timer();
   return cont(mcont);
 }
 
@@ -1671,7 +1786,8 @@ Snapshot_t::resume_execution(NodeBox *node) const {
   {
     auto timer = ManagedTimer(TimeProfileKind::RESUME_SNAPSHOT);
     // Restore the concrete states from the symbolic states
-    resume_conc_states(stack, frames, memory, Stack, Frames, Memory, SymEnv);
+    resume_conc_states(stack, frames, globals, memory, Stack, Frames, Globals,
+                       Memory, SymEnv);
   }
 
   // Resume execution from the continuation

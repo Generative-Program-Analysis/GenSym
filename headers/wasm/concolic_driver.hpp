@@ -174,6 +174,7 @@ static void start_concolic_execution_with(
   ConcolicDriver driver = ConcolicDriver(
       [=]() { entrypoint(std::monostate{}); }, tree_file, branchCount);
   driver.run();
+  std::quick_exit(0);
 }
 
 #endif // CONCOLIC_DRIVER_HPP

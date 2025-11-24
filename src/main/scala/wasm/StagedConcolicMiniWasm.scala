@@ -268,7 +268,7 @@ trait StagedWasmEvaluator extends SAIOps {
           case _ => throw new Exception("Cannot set immutable global")
         }
         eval(rest, kont, mkont, trail)(newCtx)
-      case Store(StoreOp(align, offset, ty, None)) =>
+      case Store(StoreOp(align, offset, NumType(I32Type), None)) =>
         val (ty1, newCtx1) = ctx.pop()
         val value = Stack.popC(ty1)
         val symValue = Stack.popS(ty1)
@@ -416,10 +416,8 @@ trait StagedWasmEvaluator extends SAIOps {
         ()
       case Br(label) =>
         info(s"Jump to $label")
-        addInstrCost()
         trail(label)(ctx)(mkont)
       case BrIf(label) =>
-        addInstrCost()
         val (ty, newCtx) = ctx.pop()
         val cond = Stack.popC(ty)
         val symCond = Stack.popS(ty)
@@ -445,7 +443,6 @@ trait StagedWasmEvaluator extends SAIOps {
         }
         ()
       case BrTable(labels, default) =>
-        addInstrCost()
         val (ty, newCtx) = ctx.pop()
         def aux(choices: List[Int], idx: Int, mkont: Rep[MCont[Unit]]): Rep[Unit] = {
           if (choices.isEmpty) {
@@ -570,7 +567,6 @@ trait StagedWasmEvaluator extends SAIOps {
     module.funcs(funcIndex) match {
       case FuncDef(_, FuncBodyDef(ty, _, bodyLocals, body)) =>
         instrCost += (ty.inps ++ bodyLocals).size * 2 - 1
-        addInstrCost()
         val callee = evalFunc(ty, body, funcIndex, ty.inps, bodyLocals)
         // Predef.println(s"[DEBUG] locals size: ${locals.size}")
         val newCtx = ctx.take(ty.inps.size)
@@ -593,14 +589,12 @@ trait StagedWasmEvaluator extends SAIOps {
       case Import("console", "log", _)
          | Import("spectest", "print_i32", _) =>
         //println(s"[DEBUG] current stack: $stack")
-        addInstrCost()
         val (ty, newCtx) = ctx.pop()
         val v = Stack.popC(ty)
         Stack.popS(ty)
         println(v.toInt)
         eval(rest, kont, mkont, trail)(newCtx)
       case Import("console", "assert", _) =>
-        addInstrCost()
         val (ty, newCtx) = ctx.pop()
         val v = Stack.popC(ty)
         // TODO: We should also add s into exploration tree
@@ -709,6 +703,7 @@ trait StagedWasmEvaluator extends SAIOps {
     case DivU(_) => v1 divu v2
     case Div(_) => v1 div v2
     case Xor(_) => v1 xor v2
+    // case Or(_) => v1 or v2
     case _ =>
       throw new Exception(s"Unknown binary operation $op")
   }

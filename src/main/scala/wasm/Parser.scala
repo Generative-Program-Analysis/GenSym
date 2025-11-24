@@ -402,7 +402,7 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
       Compare(op)
     }
     else if (ctx.UNARY != null) {
-      val Array(tyStr, opStr) = ctx.COMPARE.getText.split("\\.")
+      val Array(tyStr, opStr) = ctx.UNARY.getText.split("\\.")
       val ty = toNumType(tyStr)
       val op = opStr match {
         case "clz" => Clz(ty)

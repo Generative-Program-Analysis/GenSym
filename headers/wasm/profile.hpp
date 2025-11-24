@@ -6,6 +6,7 @@
 #include <array>
 #include <chrono>
 #include <iomanip>
+#include <ratio>
 #include <variant>
 #include <vector>
 
@@ -212,23 +213,36 @@ private:
   std::chrono::high_resolution_clock::time_point start;
 };
 
+using Time = std::chrono::time_point<std::chrono::steady_clock>;
+
+inline Time getCurrentTime() { return std::chrono::steady_clock::now(); }
+
+inline double duration_time(Time start, Time end) {
+  std::chrono::duration<double, std::milli> duration = end - start;
+  return duration.count();
+}
+
 struct CostManager_t {
-  int instr_cost;
+  Time start_time;
 
-  CostManager_t() : instr_cost(0) {}
+  CostManager_t() : start_time() {}
 
-  std::monostate add_instr_cost(int n) {
-    instr_cost += n;
-    return {};
+  std::monostate reset_timer() {
+    start_time = getCurrentTime();
+    return std::monostate();
   }
 
-  int dump_instr_cost() {
-    auto cost = instr_cost;
-    instr_cost = 0;
-    return normalize_cost(cost);
+  double dump_instr_cost() {
+    auto current = getCurrentTime();
+    double duration = duration_time(current, start_time);
+    start_time = current;
+    return normalize_cost(duration);
   }
 
-  int normalize_cost(int cost) { return 1 * cost; }
+  double normalize_cost(double cost) {
+    // Just return duration time as it is
+    return 1 * cost;
+  }
 };
 
 static CostManager_t CostManager;
