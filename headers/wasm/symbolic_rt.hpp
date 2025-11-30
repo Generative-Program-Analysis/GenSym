@@ -272,17 +272,18 @@ inline SymVal SymVal::concat(const SymVal &other) const {
 
 inline SymVal SymVal::extract(int high, int low) const {
   assert(high >= low && "Invalid extract range");
+  int new_width = (high - low + 1) * 8;
+  int shift_bits = (low - 1) * 8;
+
   if (auto bv = std::dynamic_pointer_cast<SmallBV>(symptr)) {
-    int new_width = (high - low + 1) * 8;
     int64_t mask = (1LL << new_width) - 1;
-    int64_t new_value = (bv->get_value() >> (low * 8)) & mask;
+    int64_t new_value = (bv->get_value() >> shift_bits) & mask;
     return makeSmallBV(new_width, new_value);
   } else if (auto concrete = std::dynamic_pointer_cast<SymConcrete>(symptr)) {
     // extract from concrete value
-    int new_width = (high - low + 1) * 8;
     int32_t val = concrete->value.toInt();
     int32_t mask = (1LL << ((high - low + 1) * 8)) - 1;
-    int32_t new_value = (val >> (low * 8)) & mask;
+    int32_t new_value = (val >> shift_bits) & mask;
     return makeSmallBV(new_width, new_value);
   }
   return SymVal(SymBookKeeper.allocate<SymExtract>(*this, high, low));
@@ -1186,8 +1187,8 @@ inline double Snapshot_t::cost_of_snapshot() {
   assert(global_sym_size >= 0);
   // The speed ratio between symbolic expression instantiation and WebAssembly
   // instruction execution, given by benchmark results
-  return INSTR_COST_SCALING_FACTOR * (stack_sym_size + frame_sym_size +
-                                      memory_sym_size + global_sym_size);
+  return INSTR_COST_SCALING_FACTOR *
+         (stack_sym_size + frame_sym_size + memory_sym_size + global_sym_size);
 }
 
 struct OverallResult {

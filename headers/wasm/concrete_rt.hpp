@@ -10,6 +10,7 @@
 #include <iostream>
 #include <memory>
 #include <ostream>
+#include <string>
 #include <unistd.h>
 #include <variant>
 #include <vector>
@@ -632,11 +633,6 @@ static int32_t pagesize = 65536;
 static int32_t page_count = 0;
 
 struct Memory_t {
-  // TODO: We assign a SymVal to each byte in memory
-  std::vector<uint8_t> memory;
-  int init_page_count;
-  int page_count;
-  int allocated_pages;
 
   Memory_t(int32_t init_page_count)
       : memory(PRE_ALLOC_PAGES * pagesize), init_page_count(init_page_count),
@@ -646,7 +642,7 @@ struct Memory_t {
 
   int32_t loadInt(int32_t base, int32_t offset) {
     int32_t addr = base + offset;
-    if (!(addr + 3 < memory.size())) {
+    if (!(addr + 3 < memory.size()) || addr < 0) {
       throw std::runtime_error("Invalid memory access " + std::to_string(addr));
     }
     int32_t result = 0;
@@ -680,6 +676,10 @@ struct Memory_t {
   }
 
   std::monostate store_byte(int32_t addr, uint8_t value) {
+#ifdef DEBUG
+    std::cout << "[Debug] storing byte " << std::to_string(value)
+              << " to memory at address " << addr << std::endl;
+#endif
     assert(addr < memory.size());
     memory[addr] = value;
     return std::monostate{};
@@ -716,6 +716,12 @@ struct Memory_t {
       memory[i] = 0;
     }
   }
+
+private:
+  std::vector<uint8_t> memory;
+  int init_page_count;
+  int page_count;
+  int allocated_pages;
 };
 
 static Memory_t Memory(4); // 4 page memory
