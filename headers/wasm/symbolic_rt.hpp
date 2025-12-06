@@ -1289,9 +1289,9 @@ public:
     double cost_from_root =
         cost_from_parent + (cursor->parent ? cursor->parent->instr_cost : 0);
     cursor->instr_cost = cost_from_root;
-    GENSYM_INFO(
-        "Cursor move cost from parent: " + std::to_string(cost_from_parent) +
-        ", total cost from root: " + std::to_string(cost_from_root));
+    // GENSYM_INFO(
+    //     "Cursor move cost from parent: " + std::to_string(cost_from_parent) +
+    //     ", total cost from root: " + std::to_string(cost_from_root));
     if (branch) {
       true_branch_cov_map[if_else_node->id] = true;
       if (worth_to_create_snapshot()) {

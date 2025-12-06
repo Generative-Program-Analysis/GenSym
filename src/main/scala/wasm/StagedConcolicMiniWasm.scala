@@ -794,7 +794,6 @@ trait StagedWasmEvaluator extends SAIOps {
             case Start(id) => Some(id)
             case _ => None
         }
-        Predef.printf("module defs = %s", module.defs)
         val startId = startIds.headOption.getOrElse { throw new Exception("No start function") }
         module.funcs(startId) match {
           case FuncDef(_, body@FuncBodyDef(_,_,_,_)) => body
@@ -1024,7 +1023,6 @@ trait StagedWasmEvaluator extends SAIOps {
           eval(offsetInstr::Nil, (_: Context) => forwardKont, mkont, ((_: Context) => forwardKont)::Nil)(Context(Nil, Nil))
           val offsetC = Stack.popC(NumType(I32Type))
           Stack.popS(NumType(I32Type))
-          Predef.printf("Initializing memory of %s\n", bytes)
           "memory-initialize".reflectCtrlWith[Unit](offsetC.toInt, bytes)
         case _ => ()
       }
