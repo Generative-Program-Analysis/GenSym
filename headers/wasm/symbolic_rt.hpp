@@ -1801,7 +1801,8 @@ Snapshot_t::resume_execution_by_model(NodeBox *node, z3::model &model) const {
   // Resume execution from the continuation
   auto timer = ManagedTimer(TimeProfileKind::INSTR);
   CostManager.reset_timer();
-  return cont(mcont);
+  CURRENT_MCONT = mcont;
+  return cont(std::monostate{});
 }
 
 [[deprecated]] inline std::monostate
@@ -1818,7 +1819,8 @@ Snapshot_t::resume_execution(NodeBox *node) const {
 
   // Resume execution from the continuation
   auto timer = ManagedTimer(TimeProfileKind::INSTR);
-  return cont(mcont);
+  CURRENT_MCONT = mcont;
+  return cont(std::monostate{});
 }
 
 #endif // WASM_SYMBOLIC_RT_HPP

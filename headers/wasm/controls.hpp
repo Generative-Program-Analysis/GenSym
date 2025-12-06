@@ -2,6 +2,7 @@
 #ifndef WASM_CONTROLS_HPP
 #define WASM_CONTROLS_HPP
 
+#include <cassert>
 #include <functional>
 
 #include <iostream>
@@ -15,35 +16,37 @@ struct MCont_t {
   MCont_t(const MCont_t &p) : ptr(p.ptr) {}
   MCont_t(std::shared_ptr<MContRepr> p) : ptr(p) {}
   MCont_t(std::function<std::monostate(std::monostate)> haltK)
-      : ptr(std::make_shared<MContRepr>(haltK)) {}
+      : ptr(std::make_shared<MContRepr>(haltK)) {
+    assert(haltK);
+  }
   bool is_null() const { return ptr == nullptr; }
 
   std::monostate enter();
 };
-using Cont_t = std::function<std::monostate(MCont_t)>;
+using Cont_t = std::function<std::monostate(std::monostate)>;
+
+static MCont_t CURRENT_MCONT;
+
+inline std::monostate updateCurrentMCont(MCont_t newMCont) {
+  CURRENT_MCONT = newMCont;
+  return std::monostate{};
+}
+
 class MContRepr {
 public:
   MContRepr(Cont_t cont, MCont_t mcont) : cont(cont), mcont(mcont) {}
 
   MContRepr(std::function<std::monostate(std::monostate)> haltK)
-      : cont([=](MCont_t) {
-          // std::cout << "Halting the program..." << std::endl;
+      : cont(haltK), mcont() {}
 
-          return haltK(std::monostate{});
-        }),
-        mcont() {}
-
-  MContRepr() : cont(nullptr), mcont() {}
+  // MContRepr() : cont(nullptr), mcont() {}
 
   std::monostate enter() {
     // std::cout << "Entering MCont\n";
     // std::cout << "Cont cont: " << (cont ? "valid" : "null") << "\n";
     // std::cout << "MCont mcont: " << (mcont ? "valid" : "null") << "\n";
-    if (mcont.is_null()) {
-      return cont(std::make_shared<MContRepr>(
-          MContRepr())); // when mcont is null, we pass a dummy MContRepr
-    }
-    return cont(mcont);
+    CURRENT_MCONT = mcont;
+    return cont(std::monostate{});
   }
 
 private:
@@ -64,6 +67,6 @@ struct Control {
   Control(Cont_t cont, MCont_t mcont) : cont(cont), mcont(mcont) {}
 };
 
-using Func_t = std::function<std::monostate(MCont_t)>;
+using Func_t = std::function<std::monostate(std::monostate)>;
 
 #endif // WASM_CONTROLS_HPP
