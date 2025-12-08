@@ -134,6 +134,31 @@ trait StagedWasmEvaluator extends SAIOps {
   type Trail[A] = List[Context => Rep[Cont[A]]]
   trait Func
 
+  // def topFun[A:Manifest,B:Manifest](f: Rep[A] => Rep[B], decorator: String = "", tail: Boolean = false): Rep[A => B] = {
+  //   val deco = if (tail) "tail" else decorator
+  //   Wrap[A=>B](__topFun(f, 1, xn => Unwrap(f(Wrap[A](xn(0)))), deco))
+  // }
+
+  def startBlock: Rep[Unit] = {
+    "start-block".reflectCtrlWith[Unit]()
+  }
+
+  def endBlock: Rep[Unit] = {
+    "end-block".reflectCtrlWith[Unit]()
+  }
+
+  def localBlock(block: => Rep[Unit]): Unit = {
+    startBlock
+    val res = block
+    endBlock
+    ()
+  }
+
+  def tailCall[A:Manifest,B:Manifest](f: Rep[A => B], arg: Rep[A]): Rep[B] = {
+    "musttail-return".reflectCtrlWith[Unit]()
+    f(arg)
+  }
+
   def updateCurrentMCont(newMKont: Rep[MCont[Unit]]): Rep[Unit] = {
     "update-current-mkont".reflectCtrlWith[Unit](newMKont)
   }
@@ -187,6 +212,7 @@ trait StagedWasmEvaluator extends SAIOps {
                    rest: List[Instr],
                    kont: Context => Rep[Cont[Unit]],
                    trail: Trail[Unit])(implicit ctx: Context) = {
+      startBlock
       Stack.popC(ty)
       val id = Stack.popS(ty)
       val symVal = id.makeSymbolic(ty)
@@ -194,14 +220,20 @@ trait StagedWasmEvaluator extends SAIOps {
       Stack.pushC(StagedConcreteNum(ty, num))
       Stack.pushS(symVal)
       val newCtx = ctx.pop()._2.push(ty)
+      endBlock
       eval(rest, kont, trail)(newCtx)
   }
 
+  // We rely on the convention that eval function must be at tail position, to
+  // safely enforce tail call by the control effect "musttail-return"
   def eval(insts: List[Instr],
            kont: Context => Rep[Cont[Unit]],
            trail: Trail[Unit])
           (implicit ctx: Context): Rep[Unit] = {
-    if (insts.isEmpty) return kont(ctx)(())
+    if (insts.isEmpty) {
+      tailCall(kont(ctx), ()) // We must make sure all elements pushed to trail are top functions
+      return ()
+    }
     instrCost += 1
     // Predef.println(s"[DEBUG] Evaluating instructions: ${insts.mkString(", ")}")
     // Predef.println(s"[DEBUG] Current context: $ctx")
@@ -225,6 +257,7 @@ trait StagedWasmEvaluator extends SAIOps {
         val newCtx = ctx.push(ctx.frameTypes(i))
         eval(rest, kont, trail)(newCtx)
       case Select(ty) =>
+        startBlock
         val (ty1, newCtx1) = ctx.pop()
         val cond = Stack.popC(ty1)
         val condSym = Stack.popS(ty1)
@@ -241,21 +274,26 @@ trait StagedWasmEvaluator extends SAIOps {
           Stack.pushC(falseVal)
           Stack.pushS(falseSym)
         }
+        endBlock
         val newCtx4 = newCtx3.push(ty2)
         eval(rest, kont, trail)(newCtx4)
       case LocalSet(i) =>
+        startBlock
         val (ty, newCtx) = ctx.pop()
         val num = Stack.popC(ty)
         val sym = Stack.popS(ty)
         Frames.setC(i, num)
         Frames.setS(i, sym)
+        endBlock
         eval(rest, kont, trail)(newCtx)
       case LocalTee(i) =>
         val ty = ctx.pop()._1
+        startBlock
         val num = Stack.peekC(ty)
         val sym = Stack.peekS(ty)
         Frames.setC(i, num)
         Frames.setS(i, sym)
+        endBlock
         eval(rest, kont, trail)(ctx)
       case GlobalGet(i) =>
         Stack.pushC(Globals.getC(i))
@@ -264,6 +302,7 @@ trait StagedWasmEvaluator extends SAIOps {
         eval(rest, kont, trail)(newCtx)
       case GlobalSet(i) =>
         val (ty, newCtx) = ctx.pop()
+        startBlock
         val num = Stack.popC(ty)
         val sym = Stack.popS(ty)
         module.globals(i).ty match {
@@ -273,8 +312,10 @@ trait StagedWasmEvaluator extends SAIOps {
           }
           case _ => throw new Exception("Cannot set immutable global")
         }
+        endBlock
         eval(rest, kont, trail)(newCtx)
       case Store(StoreOp(align, offset, NumType(I32Type), None)) =>
+        startBlock
         val (ty1, newCtx1) = ctx.pop()
         val value = Stack.popC(ty1)
         val symValue = Stack.popS(ty1)
@@ -282,9 +323,11 @@ trait StagedWasmEvaluator extends SAIOps {
         val addr = Stack.popC(ty2)
         val symAddr = Stack.popS(ty2)
         Memory.storeInt(addr.toInt, offset, (value.toInt, symValue))
+        endBlock
         eval(rest, kont, trail)(newCtx2)
       case Nop => eval(rest, kont, trail)
       case Load(LoadOp(align, offset, ty, None, None)) =>
+        startBlock
         val (ty1, newCtx1) = ctx.pop()
         val addr = Stack.popC(ty1)
         Stack.popS(ty1)
@@ -292,10 +335,12 @@ trait StagedWasmEvaluator extends SAIOps {
         val sym = Memory.loadIntS(addr.toInt, offset)
         Stack.pushC(num)
         Stack.pushS(sym)
+        endBlock
         val newCtx2 = newCtx1.push(ty)
         eval(rest, kont, trail)(newCtx2)
       case MemorySize => ???
       case MemoryGrow =>
+        startBlock
         val (ty, newCtx) = ctx.pop()
         val delta = Stack.popC(ty)
         Stack.popS(ty)
@@ -306,16 +351,19 @@ trait StagedWasmEvaluator extends SAIOps {
         val retSym = "Concrete".reflectCtrlWith[SymVal](retNum)
         Stack.pushC(StagedConcreteNum(NumType(I32Type), retNum))
         Stack.pushS(StagedSymbolicNum(NumType(I32Type), retSym))
+        endBlock
         val newCtx2 = newCtx.push(NumType(I32Type))
         eval(rest, kont, trail)(newCtx2)
       case MemoryFill => ???
       case Unreachable => unreachable()
       case Test(op) =>
         val (ty, newCtx1) = ctx.pop()
+        startBlock
         val v = Stack.popC(ty)
         val s = Stack.popS(ty)
         Stack.pushC(evalTestOpC(op, v))
         Stack.pushS(evalTestOpS(op, s))
+        endBlock
         val newCtx2 = newCtx1.push(NumType(I32Type))
         eval(rest, kont, trail)(newCtx2)
       case Unary(op) =>
@@ -328,6 +376,7 @@ trait StagedWasmEvaluator extends SAIOps {
         val newCtx2 = newCtx1.push(res.tipe)
         eval(rest, kont, trail)(newCtx2)
       case Binary(op) =>
+        startBlock
         val (ty2, newCtx1) = ctx.pop()
         val v2 = Stack.popC(ty2)
         val s2 = Stack.popS(ty2)
@@ -337,9 +386,11 @@ trait StagedWasmEvaluator extends SAIOps {
         val res = evalBinOpC(op, v1, v2)
         Stack.pushC(res)
         Stack.pushS(evalBinOpS(op, s1, s2, res))
+        endBlock
         val newCtx3 = newCtx2.push(res.tipe)
         eval(rest, kont, trail)(newCtx3)
       case Compare(op) =>
+        startBlock
         val (ty2, newCtx1) = ctx.pop()
         val v2 = Stack.popC(ty2)
         val s2 = Stack.popS(ty2)
@@ -349,6 +400,7 @@ trait StagedWasmEvaluator extends SAIOps {
         val res = evalRelOpC(op, v1, v2)
         Stack.pushC(res)
         Stack.pushS(evalRelOpS(op, s1, s2, res))
+        endBlock
         val newCtx3 = newCtx2.push(res.tipe)
         eval(rest, kont, trail)(newCtx3)
       case WasmBlock(ty, inner) =>
@@ -385,13 +437,18 @@ trait StagedWasmEvaluator extends SAIOps {
           val newRestCtx = restCtx.shift(offset, funcTy.inps.size)
           eval(inner, restK _, loop _ :: trail)(newRestCtx)
         })
-        loop(ctx)(())
+        tailCall(loop(ctx), ())
+        ()
       case If(ty, thn, els) =>
         val funcTy = ty.funcType
         val (condTy, newCtx) = ctx.pop()
         val cond = Stack.popC(condTy)
+        startBlock
         val symCond = Stack.popS(condTy)
         val exitSize = newCtx.stackTypes.size - funcTy.inps.size + funcTy.out.size
+        val id = Counter.getId(inst)
+        ExploreTree.fillWithIfElse(symCond.s, id)
+        endBlock
         def restK(restCtx: Context): Rep[Cont[Unit]] = topFun((_: Rep[Unit]) => {
           info(s"Exiting the if, stackSize =", Stack.size)
           val offset = restCtx.stackTypes.size - exitSize
@@ -400,8 +457,6 @@ trait StagedWasmEvaluator extends SAIOps {
           val newRestCtx = restCtx.shift(offset, funcTy.out.size)
           eval(rest, kont, trail)(newRestCtx)
         })
-        val id = Counter.getId(inst)
-        ExploreTree.fillWithIfElse(symCond.s, id)
         def thnK: Rep[Cont[Unit]] = topFun((_: Rep[Unit]) => {
           info(s"Entering the true branch $id of the if")
           eval(thn, restK _, restK _ :: trail)(newCtx)
@@ -410,44 +465,50 @@ trait StagedWasmEvaluator extends SAIOps {
           info(s"Entering the false branch $id of the if")
           eval(els, restK _, restK _ :: trail)(newCtx)
         })
-        val mkont = currentMCont
         if (cond.toInt != 0) {
-          val control = makeControl(elsK, mkont)
+          val control = makeControl(elsK, currentMCont)
           ExploreTree.moveCursor(true, control)
-          thnK(())
+          tailCall(thnK, ())
         } else {
-          val control = makeControl(thnK, mkont)
+          val control = makeControl(thnK, currentMCont)
           ExploreTree.moveCursor(false, control)
-          elsK(())
+          tailCall(elsK, ())
         }
         ()
       case Br(label) =>
         info(s"Jump to $label")
-        trail(label)(ctx)(())
+        tailCall(trail(label)(ctx), ())
+        ()
       case BrIf(label) =>
         val (ty, newCtx) = ctx.pop()
         val cond = Stack.popC(ty)
-        val symCond = Stack.popS(ty)
         info(s"The br_if(${label})'s condition is ", cond.toInt)
+        startBlock
+        val symCond = Stack.popS(ty)
         val id = Counter.getId(inst)
         ExploreTree.fillWithIfElse(symCond.s, id)
+        endBlock
         def thnK: Rep[Cont[Unit]] = topFun((_: Rep[Unit]) => {
-          trail(label)(newCtx)(())
+          tailCall(trail(label)(newCtx), ())
+          ()
         })
         def elsK: Rep[Cont[Unit]] = topFun((_: Rep[Unit]) => {
           eval(rest, kont, trail)(newCtx)
         })
-        val mkont = currentMCont
         if (cond.toInt != 0) {
           info(s"Jump to $label")
-          val control = makeControl(elsK, mkont)
+          startBlock
+          val control = makeControl(elsK, currentMCont)
           ExploreTree.moveCursor(true, control)
-          thnK(())
+          endBlock
+          tailCall(thnK, ())
         } else {
           info(s"Continue")
-          val control = makeControl(thnK, mkont)
+          startBlock
+          val control = makeControl(thnK, currentMCont)
           ExploreTree.moveCursor(false, control)
-          elsK(())
+          endBlock
+          tailCall(elsK, ())
         }
         ()
       case BrTable(labels, default) =>
@@ -458,12 +519,14 @@ trait StagedWasmEvaluator extends SAIOps {
             Stack.popS(ty)
             trail(default)(newCtx)(())
           } else {
-            val label = Stack.peekC(ty)
-            val labelSym = Stack.peekS(ty)
-            val cond = (label - toStagedNum(I32V(idx))).isZero()
-            val condSym = (labelSym - toStagedSymbolicNum(I32V(idx))).isZero()
             val id = Counter.getId(inst, idx)
+            val label = Stack.peekC(ty)
+            val cond = (label - toStagedNum(I32V(idx))).isZero()
+            startBlock
+            val labelSym = Stack.peekS(ty)
+            val condSym = (labelSym - toStagedSymbolicNum(I32V(idx))).isZero()
             ExploreTree.fillWithIfElse(condSym.s, id)
+            endBlock
             // When moving the cursor to a branch, we mark another branch as
             // snapshotNode (this is done by moveCursor's runtime implementation)
             // TODO: store snapshot into this snapshot node
@@ -477,17 +540,17 @@ trait StagedWasmEvaluator extends SAIOps {
               info(s"Entering the false branch $id of the br_table")
               aux(choices.tail, idx + 1)
             })
-            val mkont = currentMCont
             if (cond.toInt != 0) {
-              val control = makeControl(elsK, mkont)
+              val control = makeControl(elsK, currentMCont)
               ExploreTree.moveCursor(true, control)
-              thnK(())
+              tailCall(thnK, ())
             }
             else {
-              val control = makeControl(thnK, mkont)
+              val control = makeControl(thnK, currentMCont)
               ExploreTree.moveCursor(false, control)
-              elsK(())
+              tailCall(elsK, ())
             }
+            ()
           }
         }
         aux(labels, 0)
@@ -550,17 +613,18 @@ trait StagedWasmEvaluator extends SAIOps {
     if (compileCache.contains(funcIndex)) {
       compileCache(funcIndex)
     } else {
+      def retK(ctx: Context): Rep[Cont[Unit]] = topFun((_: Rep[Unit]) => {
+        info(s"Return from the function at $funcIndex, stackSize =", Stack.size)
+        val offset = ctx.stackTypes.size - ty.out.size
+        Stack.shiftC(offset, ty.out.size)
+        Stack.shiftS(offset, ty.out.size)
+        val mk = currentMCont
+        mk.enter()
+      })
+
       val func = topFun((_: Rep[Unit]) => {
         info(s"Entered the function at $funcIndex, stackSize =", Stack.size)
         // the return instruction is also stack polymorphic
-        def retK(ctx: Context): Rep[Cont[Unit]] = topFun((_: Rep[Unit]) => {
-          info(s"Return from the function at $funcIndex, stackSize =", Stack.size)
-          val offset = ctx.stackTypes.size - ty.out.size
-          Stack.shiftC(offset, ty.out.size)
-          Stack.shiftS(offset, ty.out.size)
-          val mk = currentMCont
-          mk.enter()
-        })
         eval(body, retK _, retK _::Nil)(Context(Nil, inps ++ locals))
       })
       compileCache(funcIndex) = func
@@ -578,6 +642,8 @@ trait StagedWasmEvaluator extends SAIOps {
         instrCost += (ty.inps ++ bodyLocals).size * 2 - 1
         val callee = evalFunc(ty, body, funcIndex, ty.inps, bodyLocals)
         // Predef.println(s"[DEBUG] locals size: ${locals.size}")
+        startBlock
+        info("Taking arguments from stack to call function at ", funcIndex)
         val newCtx = ctx.take(ty.inps.size)
         val argsC = Stack.takeC(ty.inps)
         val argsS = Stack.takeS(ty.inps)
@@ -590,13 +656,15 @@ trait StagedWasmEvaluator extends SAIOps {
           eval(rest, kont, trail)(newCtx.copy(stackTypes = ty.out.reverse ++ ctx.stackTypes.drop(ty.inps.size)))
         })
 
-        val newMKont: Rep[MCont[Unit]] = currentMCont.prependCont(restK)
         Frames.pushFrameC(ty.inps ++ bodyLocals)
         Frames.pushFrameS(ty.inps ++ bodyLocals)
         Frames.putAllC(argsC)
         Frames.putAllS(argsS)
+        val newMKont: Rep[MCont[Unit]] = currentMCont.prependCont(restK)
         updateCurrentMCont(newMKont)
-        callee(())
+        endBlock
+        tailCall(callee, ())
+        ()
       case Import("console", "log", _)
          | Import("spectest", "print_i32", _) =>
         //println(s"[DEBUG] current stack: $stack")
@@ -620,19 +688,20 @@ trait StagedWasmEvaluator extends SAIOps {
         val (condTy, newCtx) = ctx.pop()
         Predef.assert(condTy == NumType(I32Type), s"sym_assume only supports i32 condition, get $condTy")
         val cond = Stack.popC(condTy)
+        startBlock
         val symCond = Stack.popS(condTy)
         val id = Counter.getId()
         ExploreTree.fillWithIfElse(symCond.s, id)
+        endBlock
         def thnK: Rep[Cont[Unit]] = topFun((_: Rep[Unit]) => {
           info(s"Successfully assumed condition at $id")
           eval(rest, kont, trail)(newCtx)
         })
-        val mkont = currentMCont
         if (cond.toInt != 0) {
           ExploreTree.moveCursor(true)
           eval(rest, kont, trail)(newCtx)
         } else {
-          val control = makeControl(thnK, mkont)
+          val control = makeControl(thnK, currentMCont)
           ExploreTree.moveCursor(false, control)
           // just stop the execution at here
           ExploreTree.fillWithNotToExplore()
@@ -788,7 +857,7 @@ trait StagedWasmEvaluator extends SAIOps {
     StagedSymbolicNum(c.tipe, res)
   }
 
-  def evalTop(mkont: Rep[MCont[Unit]], main: Option[String]): Rep[Unit] = {
+  def evalTop(haltK: Rep[Unit => Unit], main: Option[String]): Rep[Unit] = {
     Counter.reset()
     val funBody: FuncBodyDef = main match {
       case Some(func_name) =>
@@ -820,10 +889,22 @@ trait StagedWasmEvaluator extends SAIOps {
     initMemory()
     Frames.pushFrameC(locals)
     Frames.pushFrameS(locals)
-    updateCurrentMCont(mkont)
+
+    val restK: Rep[Cont[Unit]] = topFun((_: Rep[Unit]) => {
+      info(s"Exiting the entry function")
+      Frames.popFrameC(locals.size)
+      Frames.popFrameS(locals.size)
+      currentMCont.enter()
+    })
+
+    startBlock
+    val mkont: Rep[MCont[Unit]] = makeInitMCont(haltK)
+    val newMKont: Rep[MCont[Unit]] = mkont.prependCont(restK)
+    updateCurrentMCont(newMKont)
+    endBlock
+
     eval(instrs, (_: Context) => forwardKont, ((_: Context) => forwardKont)::Nil)(Context(Nil, locals))
-    Frames.popFrameC(locals.size)
-    Frames.popFrameS(locals.size)
+    ()
   }
 
   def evalTop(main: Option[String], printRes: Boolean): Rep[Unit] = {
@@ -835,8 +916,7 @@ trait StagedWasmEvaluator extends SAIOps {
       ExploreTree.fillWithFinished()
       "no-op".reflectCtrlWith[Unit]()
     }
-    val temp: Rep[MCont[Unit]] = makeInitMCont(topFun(haltK))
-    evalTop(temp, main)
+    evalTop(topFun(haltK), main)
   }
 
   def runtimeAssert(b: Rep[Boolean]): Rep[Unit] = {
@@ -995,53 +1075,74 @@ trait StagedWasmEvaluator extends SAIOps {
     "reset-stacks".reflectCtrlWith[Unit]()
   }
 
+  def evalSeq(instrs: List[Instr],
+              kont: Context => Rep[Cont[Unit]],
+              trail: Trail[Unit]): Rep[Unit] = {
+    def func = topFun((_: Rep[Unit]) => {
+      eval(instrs, kont, trail)(Context(Nil, Nil))
+    })
+    func(())
+  }
+
   def initGlobals(globals: List[RTGlobal]): Rep[Unit] = {
-    Globals.reserveSpace(globals.size)
-    for ((g, i) <- globals.view.zipWithIndex) {
-      val initValue = g.value match {
-        case n: Num => n
-        case _ => throw new RuntimeException("Non-numeric global value is not supported yet")
+    def initGlobalsTopFun = topFun((_: Rep[Unit]) => {
+      info("Initializing globals...")
+      Globals.reserveSpace(globals.size)
+      for ((g, i) <- globals.view.zipWithIndex) {
+        val initValue = g.value match {
+          case n: Num => n
+          case _ => throw new RuntimeException("Non-numeric global value is not supported yet")
+        }
+        Globals.setC(i, toStagedNum(initValue))
+        Globals.setS(i, toStagedSymbolicNum(initValue))
       }
-      Globals.setC(i, toStagedNum(initValue))
-      Globals.setS(i, toStagedSymbolicNum(initValue))
-    }
+    })
+    initGlobalsTopFun(())
   }
 
   def initTable(module: ModuleInstance): Rep[Unit] = {
-    val haltK: Rep[Unit] => Rep[Unit] = (_) => { }
-    val mkont: Rep[MCont[Unit]] = makeInitMCont(topFun(haltK))
-    updateCurrentMCont(mkont)
-    for (definition <- module.defs) {
-      definition match {
-        case Elem(_, offset, funcIndices) =>
-          eval(offset, (_: Context) => forwardKont, ((_: Context) => forwardKont)::Nil)(Context(Nil, Nil))
-          val offsetC = Stack.popC(NumType(I32Type))
-          Stack.popS(NumType(I32Type))
-          Predef.println(s"funcIndices: $funcIndices")
-          for ((fidx, i) <- funcIndices.asInstanceOf[ElemListFunc].funcs.view.zipWithIndex) {
-            val FuncDef(_, FuncBodyDef(ty, _, bodyLocals, body)) = module.funcs(fidx)
-            val func = evalFunc(ty, body, fidx, ty.inps, bodyLocals)
-            "init-func-table".reflectCtrlWith[Unit](offsetC.i, i, func)
-          }
-        case _ => ()
+    def initTableTopFun = topFun((_: Rep[Unit]) => {
+      info("Initializing function table...")
+      val haltK: Rep[Unit] => Rep[Unit] = (_) => { }
+      val mkont: Rep[MCont[Unit]] = makeInitMCont(topFun(haltK))
+      updateCurrentMCont(mkont)
+      for (definition <- module.defs) {
+        definition match {
+          case Elem(_, offset, funcIndices) =>
+            evalSeq(offset, (_: Context) => forwardKont, ((_: Context) => forwardKont)::Nil)
+            val offsetC = Stack.popC(NumType(I32Type))
+            Stack.popS(NumType(I32Type))
+            Predef.println(s"funcIndices: $funcIndices")
+            for ((fidx, i) <- funcIndices.asInstanceOf[ElemListFunc].funcs.view.zipWithIndex) {
+              val FuncDef(_, FuncBodyDef(ty, _, bodyLocals, body)) = module.funcs(fidx)
+              val func = evalFunc(ty, body, fidx, ty.inps, bodyLocals)
+              "init-func-table".reflectCtrlWith[Unit](offsetC.i, i, func)
+            }
+          case _ => ()
+        }
       }
-    }
+    })
+    initTableTopFun(())
   }
 
   def initMemory(): Rep[Unit] = {
-    for (definition <- module.defs) {
-      definition match {
-        case Data(_, offsetInstr, bytes) =>
-          val haltK: Rep[Unit] => Rep[Unit] = (_) => { }
-          val mkont: Rep[MCont[Unit]] = makeInitMCont(topFun(haltK))
-          updateCurrentMCont(mkont)
-          eval(offsetInstr::Nil, (_: Context) => forwardKont, ((_: Context) => forwardKont)::Nil)(Context(Nil, Nil))
-          val offsetC = Stack.popC(NumType(I32Type))
-          Stack.popS(NumType(I32Type))
-          "memory-initialize".reflectCtrlWith[Unit](offsetC.toInt, bytes)
-        case _ => ()
+    def initMemoryTopFun = topFun((_: Rep[Unit]) => {
+      info("Initializing memory...")
+      for (definition <- module.defs) {
+        definition match {
+          case Data(_, offsetInstr, bytes) =>
+            val haltK: Rep[Unit] => Rep[Unit] = (_) => { }
+            val mkont: Rep[MCont[Unit]] = makeInitMCont(topFun(haltK))
+            updateCurrentMCont(mkont)
+            evalSeq(offsetInstr::Nil, (_: Context) => forwardKont, ((_: Context) => forwardKont)::Nil)
+            val offsetC = Stack.popC(NumType(I32Type))
+            Stack.popS(NumType(I32Type))
+            "memory-initialize".reflectCtrlWith[Unit](offsetC.toInt, bytes)
+          case _ => ()
+        }
       }
-    }
+    })
+    initMemoryTopFun(())
   }
 
   def allConcrete(syms: StagedSymbolicNum*): Rep[Boolean] = {
@@ -1738,6 +1839,23 @@ trait StagedWasmCppGen extends CGenBase with CppSAICodeGenBase {
     else super.remap(m)
   }
 
+  // def quoteBlockPTailReturn(f: => Unit) = {
+  //   def wraper(numStms: Int, l: Option[Node], y: LMSBlock)(f: => Unit) = {
+  //     emitln("{")
+  //     f
+  //     if (y.res != LMSConst(())) {
+  //       // Must tail optimization to avoid extra stack frame
+  //       // To use musttail, we cannot use variable defined in the function body
+  //       es"[[clang::musttail]] return ${y.res};"
+  //     } else {
+  //       es"return ${y.res};"
+  //     }
+  //     emitln(quoteEff(y.eff))
+  //     emit("}")
+  //   }
+  //   withWraper(wraper _)(f)
+  // }
+
   override def traverse(n: Node): Unit = n match {
     case Node(_, "stack-push", List(value), _) =>
       emit("Stack.push("); shallow(value); emit(");\n")
@@ -1759,9 +1877,24 @@ trait StagedWasmCppGen extends CGenBase with CppSAICodeGenBase {
       emit("Frames.set("); shallow(i); emit(", "); shallow(value); emit(");\n")
     case Node(_, "sym-frame-set", List(i, s_value), _) =>
       emit("SymFrames.set("); shallow(i); emit(", "); shallow(s_value); emit(");\n")
-    // Note: The following code is copied from the traverse of CppBackend.scala, try to avoid duplicated code
+    case Node(_, "start-block", List(), _) =>
+      emitln("{")
+    case Node(_, "end-block", List(), _) =>
+      emitln("}")
+    case Node(_, "musttail-return", List(), _) =>
+      emit("__attribute__((musttail)) return ")
+    // Note: The following code is copied from the traverse of CppBackend.scala, try to avoid duplicated code if possible
+    // case n @ Node(f, "λ", (b: LMSBlock)::LMSConst(0)::LMSConst("tail")::rest, _) =>
+    //   registerTopLevelFunctionDecl(quote(f)) {
+    //     emitFunctionSignature(quote(f), b, argNames = false, ending = ";\n")
+    //   }
+    //   registerTopLevelFunction(quote(f)) {
+    //     emitFunctionSignature(quote(f), b)
+    //     quoteBlockPTailReturn(traverse(b))
+    //     emitln()
+    //   }
     case n @ Node(f, "λ", (b: LMSBlock)::LMSConst(0)::rest, _) =>
-      // TODO: Is a leading block followed by 0 a hint for top function?
+      // A leading block followed by 0 is a hint for top function (A internal convention of LMS)
       super.traverse(n)
     case n @ Node(f, "λ", (b: LMSBlock)::rest, _) =>
       val retType = remap(typeBlockRes(b.res))
@@ -2077,12 +2210,11 @@ object WasmToCppCompiler {
     import sys.process._
     val includeFlags = generated.headerFolders.map(f => s"-I$f").mkString(" ")
     val macroFlags = macros.map(m => s"-D$m").mkString(" ")
-    val command = s"g++ -std=c++17 $outputCpp -o $outputExe -O$optimizeLevel -g -l z3 " + includeFlags + " " + macroFlags
+    val command = s"clang++ -std=c++17 $outputCpp -o $outputExe -O$optimizeLevel -g -l z3 " + includeFlags + " " + macroFlags
     if (command.! != 0) {
       throw new RuntimeException(s"Compilation failed for $outputCpp")
     }
   }
 
 }
-
 
