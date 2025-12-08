@@ -709,10 +709,12 @@ trait StagedWasmEvaluator extends SAIOps {
         ()
       case Import("i32", "sym_assert", _) =>
         val (condTy, newCtx) = ctx.pop()
+        startBlock
         val v = Stack.popC(condTy)
         val s = Stack.popS(condTy)
         runtimeSymAssert(s)
         runtimeAssert(v.toInt != 0)
+        endBlock
         eval(rest, kont, trail)(newCtx)
       case Import("mem", "alloc", _) =>
         // this semantics here is not standardized in wasp, here is wasp's impl
