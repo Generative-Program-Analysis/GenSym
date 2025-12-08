@@ -198,6 +198,10 @@ class TestStagedConcolicEval extends FunSuite {
     testFileConcreteCpp("./benchmarks/wasm/data_sec.wat", expect=Some(List(67305985)))
   }
 
+  test("long-loop-concrete") {
+    testFileConcreteCpp("./benchmarks/wasm/long_loop.wat", expect=Some(List(100000)))
+  }
+
   // test("diverge") {
   //   testFileConcolicCpp("./benchmarks/wasm/diverge.wat", Some("main"))
   // }

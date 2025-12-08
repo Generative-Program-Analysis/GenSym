@@ -1390,10 +1390,16 @@ public:
 
   OverallResult read_current_overall_result() {
     OverallResult result;
-    std::function<void(NodeBox *)> dfs = [&](NodeBox *node) {
+    std::vector<NodeBox *> stack;
+    stack.push_back(root.get());
+
+    while (!stack.empty()) {
+      NodeBox *node = stack.back();
+      stack.pop_back();
+
       if (auto if_else_node = dynamic_cast<IfElseNode *>(node->node.get())) {
-        dfs(if_else_node->true_branch.get());
-        dfs(if_else_node->false_branch.get());
+        stack.push_back(if_else_node->true_branch.get());
+        stack.push_back(if_else_node->false_branch.get());
       } else if (dynamic_cast<UnExploredNode *>(node->node.get())) {
         result.unexplored_count += 1;
       } else if (dynamic_cast<Finished *>(node->node.get())) {
@@ -1410,14 +1416,13 @@ public:
       } else if (auto call_indirect_node =
                      dynamic_cast<CallIndirectNode *>(node->node.get())) {
         for (const auto &pair : call_indirect_node->branches) {
-          dfs(pair.second.get());
+          stack.push_back(pair.second.get());
         }
-        dfs(call_indirect_node->otherwise_branch.get());
+        stack.push_back(call_indirect_node->otherwise_branch.get());
       } else {
         throw std::runtime_error("Unknown node type in explore tree");
       }
-    };
-    dfs(root.get());
+    }
     return result;
   }
 
