@@ -772,6 +772,7 @@ struct NodeBox {
   std::monostate fillSnapshotNode(Snapshot_t snapshot);
   std::monostate fillNotToExploreNode();
   bool isUnexplored() const;
+  bool isSnapshotNode() const;
   std::vector<SymVal> collect_path_conds();
   void reach_here(std::function<void()>);
 };
@@ -1102,12 +1103,17 @@ inline std::monostate NodeBox::fillUnreachableNode() {
   return std::monostate();
 }
 
+inline bool NodeBox::isSnapshotNode() const {
+  assert(node != nullptr);
+  return dynamic_cast<SnapshotNode *>(node.get()) != nullptr;
+}
+
 inline bool NodeBox::isUnexplored() const {
   assert(node != nullptr);
   if (dynamic_cast<UnExploredNode *>(node.get()) != nullptr) {
     return true;
   }
-  if (dynamic_cast<SnapshotNode *>(node.get()) != nullptr) {
+  if (this->isSnapshotNode()) {
     return true;
   }
   return false;
@@ -1294,7 +1300,7 @@ public:
     //     ", total cost from root: " + std::to_string(cost_from_root));
     if (branch) {
       true_branch_cov_map[if_else_node->id] = true;
-      if (worth_to_create_snapshot()) {
+      if (!if_else_node->false_branch->isSnapshotNode() && worth_to_create_snapshot()) {
         auto snapshot = makeSnapshot(control);
         if_else_node->false_branch->fillSnapshotNode(snapshot);
       } else {
@@ -1303,7 +1309,7 @@ public:
       cursor = if_else_node->true_branch.get();
     } else {
       false_branch_cov_map[if_else_node->id] = true;
-      if (worth_to_create_snapshot()) {
+      if (!if_else_node->true_branch->isSnapshotNode() && worth_to_create_snapshot()) {
         auto snapshot = makeSnapshot(control);
         if_else_node->true_branch->fillSnapshotNode(snapshot);
       } else {
