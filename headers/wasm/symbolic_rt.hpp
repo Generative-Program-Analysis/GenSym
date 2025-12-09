@@ -712,13 +712,87 @@ static std::monostate memoryInitialize(int32_t offset,
   return {};
 }
 
+using NumMap = std::unordered_map<int, Num>;
+
+class ImmNumMapBox {
+public:
+  ImmNumMapBox(const NumMap &sym_env)
+      : map_ptr(std::make_shared<NumMap>(
+            sym_env) /* create a immutable copy of SymEnv */
+        ) {}
+
+  NumMap persistent() const {
+    return *map_ptr; // return a copy of the map
+  }
+
+private:
+  std::shared_ptr<NumMap> map_ptr;
+};
+
+class SymEnv_t {
+public:
+  SymEnv_t() : map(), imm_map_box(map) {}
+
+  Num read(const Symbol &symbol) {
+#if DEBUG
+    std::cout << "Read symbol: " << symbol.get_id()
+              << " from symbolic environment" << std::endl;
+    std::cout << "Current symbolic environment: " << to_string() << std::endl;
+#endif
+    map.try_emplace(symbol.get_id(), Num(I32V(0)));
+    return map.at(symbol.get_id());
+  }
+
+  Num read(SymVal sym) {
+    // Read the value of a symbolic value from the environment, it will update
+    // the environment if the key does not exist.
+    auto symbol = dynamic_cast<Symbol *>(sym.symptr.get());
+    assert(symbol);
+    return read(*symbol);
+  }
+
+  void update(NumMap new_env) {
+    map = std::move(new_env);
+    imm_map_box = ImmNumMapBox(map);
+  }
+
+  // Absorb another symbolic environment into this one, if some keys not exist
+  // in another environment and exist in this one, they will be kept unchanged.
+  void absorb(const NumMap &other) {
+    for (const auto &[id, num] : other) {
+      map[id] = num;
+    }
+    imm_map_box = ImmNumMapBox(map);
+  }
+
+  std::string to_string() const {
+    std::string result;
+    result += "(\n";
+    for (const auto &[id, num] : map) {
+      result +=
+          "  (" + std::to_string(id) + "->" + std::to_string(num.value) + ")\n";
+    }
+    result += ")";
+    return result;
+  }
+
+  size_t size() const { return map.size(); }
+
+  ImmNumMapBox get_num_map() const { return imm_map_box; }
+
+private:
+  NumMap map; // The symbolic environment, a vector of Num
+  ImmNumMapBox imm_map_box;
+};
+
+static SymEnv_t SymEnv;
+
 // A snapshot of the symbolic state and execution context (control)
 class Snapshot_t {
 public:
   explicit Snapshot_t(Cont_t cont, MCont_t mcont, SymStack_t stack,
-                      SymFrames_t frames, SymFrames_t globals,
-                      SymMemory_t memory);
-  explicit Snapshot_t() {}
+                      SymFrames_t frames,
+                      SymFrames_t globals, SymMemory_t memory, ImmNumMapBox num_map /* Current num map that corresponds to the symbolic environment */);
 
   SymStack_t get_stack() const { return stack; }
   SymFrames_t get_frames() const { return frames; }
@@ -739,6 +813,7 @@ private:
   // The continuation at the snapshot point
   Cont_t cont;
   MCont_t mcont;
+  ImmNumMapBox num_map;
   void restore_states_to_global() const;
 };
 
@@ -752,7 +827,7 @@ static Control makeControl(Cont_t cont, MCont_t mcont) {
 static Snapshot_t makeSnapshot(Control control) {
   // create a snapshot from the current symbolic states and the control
   return Snapshot_t(control.cont, control.mcont, SymStack, SymFrames,
-                    SymGlobals, SymMemory);
+                    SymGlobals, SymMemory, SymEnv.get_num_map());
 }
 
 struct Node;
@@ -1170,10 +1245,10 @@ inline std::vector<SymVal> NodeBox::collect_path_conds() {
 
 inline Snapshot_t::Snapshot_t(Cont_t cont, MCont_t mcont, SymStack_t stack,
                               SymFrames_t frames, SymFrames_t globals,
-                              SymMemory_t memory)
+                              SymMemory_t memory, ImmNumMapBox num_map)
     : stack(std::move(stack)), frames(std::move(frames)),
       globals(std::move(globals)), memory(std::move(memory)), cont(cont),
-      mcont(mcont) {
+      mcont(mcont), num_map(num_map) {
   Profile.step(StepProfileKind::SNAPSHOT_CREATE);
 #ifdef DEBUG
   std::cout << "Creating snapshot of size " << stack.size() << std::endl;
@@ -1300,7 +1375,8 @@ public:
     //     ", total cost from root: " + std::to_string(cost_from_root));
     if (branch) {
       true_branch_cov_map[if_else_node->id] = true;
-      if (!if_else_node->false_branch->isSnapshotNode() && worth_to_create_snapshot()) {
+      if (!if_else_node->false_branch->isSnapshotNode() &&
+          worth_to_create_snapshot()) {
         auto snapshot = makeSnapshot(control);
         if_else_node->false_branch->fillSnapshotNode(snapshot);
       } else {
@@ -1309,7 +1385,8 @@ public:
       cursor = if_else_node->true_branch.get();
     } else {
       false_branch_cov_map[if_else_node->id] = true;
-      if (!if_else_node->true_branch->isSnapshotNode() && worth_to_create_snapshot()) {
+      if (!if_else_node->true_branch->isSnapshotNode() &&
+          worth_to_create_snapshot()) {
         auto snapshot = makeSnapshot(control);
         if_else_node->true_branch->fillSnapshotNode(snapshot);
       } else {
@@ -1485,49 +1562,6 @@ private:
 };
 
 static ExploreTree_t ExploreTree;
-
-using NumMap = std::unordered_map<int, Num>;
-
-class SymEnv_t {
-public:
-  Num read(const Symbol &symbol) {
-#if DEBUG
-    std::cout << "Read symbol: " << symbol.get_id()
-              << " from symbolic environment" << std::endl;
-    std::cout << "Current symbolic environment: " << to_string() << std::endl;
-#endif
-    map.try_emplace(symbol.get_id(), Num(I32V(0)));
-    return map.at(symbol.get_id());
-  }
-
-  Num read(SymVal sym) {
-    // Read the value of a symbolic value from the environment, it will update
-    // the environment if the key does not exist.
-    auto symbol = dynamic_cast<Symbol *>(sym.symptr.get());
-    assert(symbol);
-    return read(*symbol);
-  }
-
-  void update(NumMap new_env) { map = std::move(new_env); }
-
-  std::string to_string() const {
-    std::string result;
-    result += "(\n";
-    for (const auto &[id, num] : map) {
-      result +=
-          "  (" + std::to_string(id) + "->" + std::to_string(num.value) + ")\n";
-    }
-    result += ")";
-    return result;
-  }
-
-  size_t size() const { return map.size(); }
-
-private:
-  NumMap map; // The symbolic environment, a vector of Num
-};
-
-static SymEnv_t SymEnv;
 
 static std::monostate reset_stacks() {
   Stack.reset();
