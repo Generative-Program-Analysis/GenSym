@@ -45,8 +45,19 @@ public:
     // std::cout << "Entering MCont\n";
     // std::cout << "Cont cont: " << (cont ? "valid" : "null") << "\n";
     // std::cout << "MCont mcont: " << (mcont ? "valid" : "null") << "\n";
+
+    // This is necessary, because `this` may be deleted
+    // after next line. This copy is cheap because we always store a function
+    // pointer (non captured free variable lambda) in cont.
+    std::monostate (*func_ptr)(std::monostate) = nullptr;
+    {
+      auto cont = this->cont;
+      func_ptr = *cont.target<std::monostate (*)(std::monostate)>();
+    }
+
     CURRENT_MCONT = mcont;
-    return cont(std::monostate{});
+
+    return func_ptr(std::monostate{});
   }
 
 private:
