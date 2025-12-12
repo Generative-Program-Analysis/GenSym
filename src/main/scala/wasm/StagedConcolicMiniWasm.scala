@@ -167,6 +167,10 @@ trait StagedWasmEvaluator extends SAIOps {
     "read-current-mkont".reflectCtrlWith[MCont[Unit]]()
   }
 
+  def enterCurrentMCont(): Rep[Unit] = {
+    "enter-current-mkont".reflectCtrlWith[Unit]()
+  }
+
   // a cache storing the compiled code for each function, to reduce re-compilation
   val compileCache = new HashMap[Int, Rep[Unit => Unit]]
 
@@ -185,10 +189,6 @@ trait StagedWasmEvaluator extends SAIOps {
   implicit class MContOps[A:Manifest](mk: Rep[MCont[A]]) {
     def prependCont(k: Rep[Cont[A]]): Rep[MCont[A]] = {
       "mcont-prepend".reflectCtrlWith[MCont[A]](mk, k)
-    }
-
-    def enter(): Rep[A] = {
-      "mcont-enter".reflectCtrlWith[A](mk)
     }
   }
 
@@ -570,7 +570,7 @@ trait StagedWasmEvaluator extends SAIOps {
     }
   }
 
-  def forwardKont: Rep[Cont[Unit]] = topFun((_: Rep[Unit]) => currentMCont.enter())
+  def forwardKont: Rep[Cont[Unit]] = topFun((_: Rep[Unit]) => enterCurrentMCont())
 
   def readFuncTable(index: Rep[Int]): Rep[Func] = {
     "read-func-table".reflectCtrlWith[Func](index)
@@ -618,8 +618,7 @@ trait StagedWasmEvaluator extends SAIOps {
         val offset = ctx.stackTypes.size - ty.out.size
         Stack.shiftC(offset, ty.out.size)
         Stack.shiftS(offset, ty.out.size)
-        val mk = currentMCont
-        mk.enter()
+        enterCurrentMCont()
       })
 
       val func = topFun((_: Rep[Unit]) => {
@@ -896,7 +895,7 @@ trait StagedWasmEvaluator extends SAIOps {
       info(s"Exiting the entry function")
       Frames.popFrameC(locals.size)
       Frames.popFrameS(locals.size)
-      currentMCont.enter()
+      enterCurrentMCont()
     })
 
     startBlock
@@ -2106,8 +2105,8 @@ trait StagedWasmCppGen extends CGenBase with CppSAICodeGenBase {
       emit("MCont_t("); shallow(haltK); emit(")")
     case Node(_, "mcont-prepend", List(mkont, kont), _) =>
       emit("prependCont(");  shallow(kont); emit(", "); shallow(mkont); emit(")")
-    case Node(_, "mcont-enter", List(mkont), _) =>
-      shallow(mkont); emit(".enter()")
+    case Node(_, "enter-current-mkont", List(), _) =>
+      emit("enterCC(std::monostate())")
     case Node(_, "init-func-table", List(offset, i, func), _) =>
       emit("FuncTable.set("); shallow(offset); emit(", "); shallow(i); emit(", "); shallow(func); emit(")")
     case Node(_, "tree-fill-call-indirect", List(s, id), _) =>

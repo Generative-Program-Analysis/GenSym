@@ -33,6 +33,8 @@ inline std::monostate updateCurrentMCont(MCont_t newMCont) {
 }
 
 class MContRepr {
+  friend std::monostate enterCC(std::monostate);
+
 public:
   MContRepr(Cont_t cont, MCont_t mcont) : cont(cont), mcont(mcont) {}
 
@@ -70,6 +72,26 @@ inline MCont_t prependCont(Cont_t k, MCont_t mcont) {
 }
 
 inline std::monostate MCont_t::enter() { return ptr->enter(); }
+
+// Enter the current global MCont (CURRENT_MCONT)
+inline std::monostate enterCC(std::monostate) {
+  // std::cout << "Entering MCont\n";
+  // std::cout << "Cont cont: " << (cont ? "valid" : "null") << "\n";
+  // std::cout << "MCont mcont: " << (mcont ? "valid" : "null") << "\n";
+
+  // This is necessary, because `this` may be deleted
+  // after next line. This copy is cheap because we always store a function
+  // pointer (non captured free variable lambda) in cont.
+  std::monostate (*func_ptr)(std::monostate) = nullptr;
+  {
+    auto cont = CURRENT_MCONT.ptr->cont;
+    func_ptr = *cont.target<std::monostate (*)(std::monostate)>();
+  }
+
+  CURRENT_MCONT = CURRENT_MCONT.ptr->mcont;
+
+  __attribute__((musttail)) return func_ptr(std::monostate{});
+}
 
 struct Control {
   Cont_t cont;
