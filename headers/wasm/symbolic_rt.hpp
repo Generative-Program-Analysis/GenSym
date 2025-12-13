@@ -93,7 +93,7 @@ class Symbolic {
 public:
   Symbolic() {}
   virtual ~Symbolic() = default; // Make Symbolic polymorphic
-  int size();
+  virtual int dag_size() = 0;
   virtual z3::expr z3_expr() { return build_z3_expr(); }
   z3::expr build_z3_expr();
 
@@ -111,6 +111,8 @@ public:
   Symbol(int id) : id(id) { max_id = std::max(max_id, id); }
   int get_id() const { return id; }
 
+  int dag_size() override { return 1; }
+
 private:
   int id;
 };
@@ -119,6 +121,8 @@ class SymConcrete : public Symbolic {
 public:
   Num value;
   SymConcrete(Num num) : value(num) {}
+
+  int dag_size() override { return 1; }
 };
 
 class SmallBV : public Symbolic {
@@ -126,6 +130,8 @@ public:
   SmallBV(int width, int64_t value) : width(width), value(value) {}
   int get_size() const { return width; }
   int64_t get_value() const { return value; }
+
+  int dag_size() override { return 1; }
 
 private:
   int width; // in bits
@@ -140,9 +146,9 @@ static std::shared_ptr<SymConcrete> ZERO =
 static std::shared_ptr<SmallBV> ZeroByte =
     SymBookKeeper.allocate<SmallBV>(8, 0);
 
-SymVal::SymVal() : symptr(ZERO) {}
-SymVal::SymVal(std::shared_ptr<Symbolic> symptr) : symptr(symptr) {}
-int SymVal::size() const { return symptr->size(); }
+inline SymVal::SymVal() : symptr(ZERO) {}
+inline SymVal::SymVal(std::shared_ptr<Symbolic> symptr) : symptr(symptr) {}
+inline int SymVal::size() const { return symptr->dag_size(); }
 
 static SymVal make_symbolic(int index) {
   return SymVal(SymBookKeeper.allocate<Symbol>(index));
@@ -175,23 +181,77 @@ inline SymVal Concrete(Num num) {
 // Extract is different from other operations, it only has one symbolic operand,
 // the other two operands are constants
 // Extract from value, both high and low are inclusive byte indexes
-struct SymExtract : Symbolic {
+struct SymExtract : public Symbolic {
   SymVal value;
   int high;
   int low;
 
   SymExtract(SymVal value, int high, int low)
       : value(value), high(high), low(low) {}
+
+  int dag_size() override {
+    if (_cached_dag_size.has_value()) {
+      return _cached_dag_size.value();
+    }
+    _cached_dag_size = 1 + value.symptr->dag_size();
+    return _cached_dag_size.value();
+  }
+
+private:
+  std::optional<int> _cached_dag_size;
 };
 
-struct SymBinary : Symbolic {
+inline int count_dag_size(const SymVal &val, std::set<Symbolic *> &visited);
+
+struct SymBinary : public Symbolic {
   Operation op;
   SymVal lhs;
   SymVal rhs;
 
   SymBinary(Operation op, SymVal lhs, SymVal rhs)
       : op(op), lhs(lhs), rhs(rhs) {}
+
+  int dag_size() override {
+    if (_cached_dag_size.has_value()) {
+      return _cached_dag_size.value();
+    }
+
+    std::set<Symbolic *> visited;
+    _cached_dag_size =
+        count_dag_size(lhs, visited) + count_dag_size(rhs, visited);
+    return _cached_dag_size.value();
+  }
+
+private:
+  std::optional<int> _cached_dag_size;
 };
+
+inline int count_dag_size(const SymVal &val,
+                              std::set<Symbolic *> &visited) {
+  if (visited.find(val.symptr.get()) != visited.end()) {
+    return 0;
+  }
+  visited.insert(val.symptr.get());
+
+  if (auto binary = dynamic_cast<SymBinary *>(val.symptr.get())) {
+    int size = 1;
+    size += count_dag_size(binary->lhs, visited);
+    size += count_dag_size(binary->rhs, visited);
+    return size;
+  } else if (auto extract = dynamic_cast<SymExtract *>(val.symptr.get())) {
+    int size = 1;
+    size += count_dag_size(extract->value, visited);
+    return size;
+  } else if (auto symbol = dynamic_cast<Symbol *>(val.symptr.get())) {
+    return 1;
+  } else if (auto concrete = dynamic_cast<SymConcrete *>(val.symptr.get())) {
+    return 1;
+  } else if (auto smallbv = dynamic_cast<SmallBV *>(val.symptr.get())) {
+    return 1;
+  } else {
+    throw std::runtime_error("Unknown symbolic type in dag size counting");
+  }
+}
 
 inline SymVal SymVal::add(const SymVal &other) const {
   return make_binary(ADD, *this, other);
@@ -432,7 +492,6 @@ inline z3::expr Symbolic::build_z3_expr() {
   _z3_expr = e;
   return e;
 }
-inline int Symbolic::size() { return get_z3_expr_size(build_z3_expr()); }
 
 inline bool SymVal::is_concrete() const {
   return dynamic_cast<SymConcrete *>(symptr.get()) != nullptr;
