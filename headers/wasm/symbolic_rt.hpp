@@ -721,24 +721,33 @@ public:
     SymVal s1 = value.extract(2, 2);
     SymVal s2 = value.extract(3, 3);
     SymVal s3 = value.extract(4, 4);
-    symbolic_size -= loadSymByte(addr).size();
-    symbolic_size -= loadSymByte(addr + 1).size();
-    symbolic_size -= loadSymByte(addr + 2).size();
-    symbolic_size -= loadSymByte(addr + 3).size();
-    symbolic_size += s0.size();
-    symbolic_size += s1.size();
-    symbolic_size += s2.size();
-    symbolic_size += s3.size();
+    storeSymByte(addr, s0);
+    storeSymByte(addr + 1, s1);
+    storeSymByte(addr + 2, s2);
+    storeSymByte(addr + 3, s3);
+    return std::monostate{};
+  }
+
+  std::monostate storeSymByte(int32_t addr, SymVal value) {
+    // assume the input value is 8-bit symbolic value
+    bool exists;
 #ifdef USE_IMM
-    memory.set(addr, s0);
-    memory.set(addr + 1, s1);
-    memory.set(addr + 2, s2);
-    memory.set(addr + 3, s3);
+    auto it = memory.find(addr);
+    exists = (it != nullptr);
 #else
-    memory[addr] = s0;
-    memory[addr + 1] = s1;
-    memory[addr + 2] = s2;
-    memory[addr + 3] = s3;
+    auto it = memory.find(addr);
+    exists = (it != memory.end());
+#endif
+    auto old_value = loadSymByte(addr);
+    if (exists) {
+      // We are overwriting an existing symbolic value
+      symbolic_size -= old_value.size();
+    }
+    symbolic_size += value.size();
+#ifdef USE_IMM
+    memory.set(addr, value);
+#else
+    memory[addr] = value;
 #endif
     return std::monostate{};
   }
@@ -765,8 +774,8 @@ static std::monostate memoryInitialize(int32_t offset,
   }
   // initialize symbolic memory
   for (size_t i = 0; i < data.size(); ++i) {
-    SymMemory.storeSym(offset + i, 0,
-                       Concrete(I32V(static_cast<uint8_t>(data[i]))));
+    SymMemory.storeSymByte(offset + i,
+                           makeSmallBV(8, static_cast<uint8_t>(data[i])));
   }
   return {};
 }
