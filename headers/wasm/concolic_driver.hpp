@@ -104,19 +104,14 @@ inline void ConcolicDriver::main_exploration_loop() {
     try {
       GENSYM_INFO("Now execute the program with symbolic environment: ");
       GENSYM_INFO(SymEnv.to_string());
-      if (REUSE_SNAPSHOT) {
-        if (auto snapshot = dynamic_cast<SnapshotNode *>(node->node.get())) {
-          assert(REUSE_SNAPSHOT);
-          auto snap = snapshot->get_snapshot();
-          snap.resume_execution_by_model(node, model);
-        } else {
-          auto timer = ManagedTimer(TimeProfileKind::INSTR);
-          ExploreTree.reset_cursor();
-          reset_stacks();
-          CostManager.reset_timer();
-          entrypoint();
-        }
+      auto snapshot = dynamic_cast<SnapshotNode *>(node->node.get());
+      if (REUSE_SNAPSHOT && snapshot && snapshot->worth_to_reuse()) {
+        assert(REUSE_SNAPSHOT);
+        Profile.incr_fromsnapshot_count();
+        auto snap = snapshot->get_snapshot();
+        snap.resume_execution_by_model(node, model);
       } else {
+        Profile.incr_restart_count();
         auto timer = ManagedTimer(TimeProfileKind::INSTR);
         ExploreTree.reset_cursor();
         reset_stacks();

@@ -265,7 +265,7 @@ private:
 };
 
 inline std::tuple<int, bool> count_dag_size_aux(Symbolic &val,
-                              std::set<Symbolic *> &visited) {
+                                                std::set<Symbolic *> &visited) {
   if (visited.find(&val) != visited.end()) {
     return {0, true};
   }
@@ -683,7 +683,14 @@ public:
 
   SymVal operator[](size_t index) const { return stack[index]; }
 
-  int total_sym_size() const { return symbolic_size; }
+  int total_sym_size() const {
+    ManagedTimer timer(TimeProfileKind::COUNT_SYM_SIZE);
+    int total_size = 0;
+    for (const auto &val : stack) {
+      total_size += val.size();
+    }
+    return total_size;
+  }
 
 private:
   int symbolic_size = 0;
@@ -756,7 +763,14 @@ public:
 
   SymVal operator[](size_t index) const { return stack[index]; }
 
-  int total_sym_size() const { return symbolic_size; }
+  int total_sym_size() const {
+    ManagedTimer timer(TimeProfileKind::COUNT_SYM_SIZE);
+    int total_size = 0;
+    for (const auto &val : stack) {
+      total_size += val.size();
+    }
+    return total_size;
+  }
 
 private:
   int symbolic_size = 0;
@@ -877,7 +891,14 @@ public:
     return std::monostate{};
   }
 
-  int total_sym_size() const { return symbolic_size; }
+  int total_sym_size() const {
+    ManagedTimer timer(TimeProfileKind::COUNT_SYM_SIZE);
+    int total_size = 0;
+    for (const auto &[_, val] : memory) {
+      total_size += val.size();
+    }
+    return total_size;
+  }
 };
 
 static SymMemory_t SymMemory;
@@ -987,7 +1008,7 @@ public:
   std::monostate resume_execution_by_model(NodeBox *node,
                                            z3::model &model) const;
 
-  static double cost_of_snapshot();
+  double cost_of_snapshot() const;
 
 private:
   SymStack_t stack;
@@ -1020,8 +1041,8 @@ struct NodeBox {
   explicit NodeBox(NodeBox *parent);
   std::unique_ptr<Node> node;
   NodeBox *parent;
-  std::optional<double> cost;
-  double instr_cost;
+  double instr_cost() const;
+  void set_cost(double c);
 
   bool fillIfElseNode(SymVal cond, int id);
   bool fillCallIndirectNode(SymVal cond, int id);
@@ -1038,6 +1059,8 @@ struct NodeBox {
 
 struct Node {
   virtual ~Node(){};
+  void set_cost(double c) { instr_cost = c; }
+  double get_cost() const { return instr_cost; }
   virtual std::string to_string() = 0;
   void to_graphviz(std::ostream &os) {
     os << "digraph G {\n";
@@ -1070,7 +1093,25 @@ protected:
     }
     os << ";\n";
   }
+
+private:
+  double instr_cost = 0.0;
 };
+
+inline double NodeBox::instr_cost() const {
+  if (node) {
+    return node->get_cost();
+  } else {
+    return 0.0;
+  }
+}
+
+inline void NodeBox::set_cost(double c) {
+  assert(node != nullptr && "Cannot set cost on an empty NodeBox");
+  if (node) {
+    node->set_cost(c);
+  }
+}
 
 // TODO: use this header file in multiple compilation units will cause problems
 // during linking
@@ -1209,6 +1250,24 @@ struct SnapshotNode : Node {
   const Snapshot_t &get_snapshot() const { return snapshot; }
   Snapshot_t move_out_snapshot() { return std::move(snapshot); }
 
+  bool worth_to_reuse() const {
+    if (!ENABLE_COST_MODEL) {
+      // If we are not using cost model, always create snapshot
+      return REUSE_SNAPSHOT;
+    }
+    // find out the best way to reach the current position via our cost model
+    auto snapshot_cost = snapshot.cost_of_snapshot();
+    double re_execution_cost = get_cost();
+    // std::cout << "Snapshot cost: " << snapshot_cost
+    //           << ", re-execution cost: " << re_execution_cost << std::endl;
+    if (snapshot_cost <= re_execution_cost) {
+      GENSYM_INFO("Snapshot is worth to create");
+    } else {
+      GENSYM_INFO("Snapshot is NOT worth to create");
+    }
+    return snapshot_cost <= re_execution_cost;
+  }
+
 protected:
   void generate_dot(std::ostream &os, int parent_dot_id,
                     const std::string &edge_label) override {
@@ -1275,15 +1334,23 @@ protected:
 inline NodeBox::NodeBox(NodeBox *parent)
     : node(std::make_unique<UnExploredNode>()),
       /* TODO: avoid allocation of unexplored node */
-      parent(parent), cost(std::nullopt), instr_cost(0) {}
+      parent(parent) {}
 
 inline bool NodeBox::fillIfElseNode(SymVal cond, int id) {
   // fill the current NodeBox with an ifelse branch node when it's unexplored
+  double cost_from_parent = CostManager.dump_instr_cost();
+  double cost_from_root =
+      cost_from_parent + (this->parent ? this->parent->instr_cost() : 0);
+  // std::cout << "Cost from parent: " << cost_from_parent
+  //           << ", cost from root: " << cost_from_root << std::endl;
+
   if (auto ptr = dynamic_cast<SnapshotNode *>(node.get())) {
     node = std::make_unique<IfElseNode>(cond, this, id);
+    node->set_cost(cost_from_root);
     return true;
   } else if (dynamic_cast<UnExploredNode *>(node.get())) {
     node = std::make_unique<IfElseNode>(cond, this, id);
+    node->set_cost(cost_from_root);
     return true;
   } else if (dynamic_cast<NotToExploreNode *>(node.get()) != nullptr) {
     assert(false &&
@@ -1291,6 +1358,7 @@ inline bool NodeBox::fillIfElseNode(SymVal cond, int id) {
     return false;
   }
 
+  node->set_cost(cost_from_root);
   assert(
       dynamic_cast<IfElseNode *>(node.get()) != nullptr &&
       "Current node is not an Unexplored nor an IfElseNode, cannot fill it!");
@@ -1323,6 +1391,7 @@ inline std::monostate NodeBox::fillSnapshotNode(Snapshot_t snapshot) {
   if (this->isUnexplored()) {
     node = std::make_unique<SnapshotNode>(snapshot);
   }
+  node->set_cost(parent->instr_cost());
   return std::monostate();
 }
 
@@ -1441,19 +1510,20 @@ inline Snapshot_t::Snapshot_t(Cont_t cont, MCont_t mcont, SymStack_t stack,
 
 const double INSTR_COST_SCALING_FACTOR = 1E-03;
 
-inline double Snapshot_t::cost_of_snapshot() {
-  auto stack_sym_size = SymStack.total_sym_size();
+inline double Snapshot_t::cost_of_snapshot() const {
+  auto stack_sym_size = stack.total_sym_size();
   assert(stack_sym_size >= 0);
-  auto frame_sym_size = SymFrames.total_sym_size();
+  auto frame_sym_size = frames.total_sym_size();
   assert(frame_sym_size >= 0);
-  auto memory_sym_size = SymMemory.total_sym_size();
+  auto memory_sym_size = memory.total_sym_size();
   assert(memory_sym_size >= 0);
-  auto global_sym_size = SymGlobals.total_sym_size();
+  auto global_sym_size = globals.total_sym_size();
   assert(global_sym_size >= 0);
   // The speed ratio between symbolic expression instantiation and WebAssembly
   // instruction execution, given by benchmark results
-  return INSTR_COST_SCALING_FACTOR *
-         (stack_sym_size + frame_sym_size + memory_sym_size + global_sym_size);
+  auto total_size =
+      stack_sym_size + frame_sym_size + memory_sym_size + global_sym_size;
+  return INSTR_COST_SCALING_FACTOR * total_size;
 }
 
 struct OverallResult {
@@ -1527,22 +1597,6 @@ public:
     return cursor->collect_path_conds();
   }
 
-  bool worth_to_create_snapshot() {
-    if (!ENABLE_COST_MODEL) {
-      // If we are not using cost model, always create snapshot
-      return REUSE_SNAPSHOT;
-    }
-    // find out the best way to reach the current position via our cost model
-    auto snapshot_cost = Snapshot_t::cost_of_snapshot();
-    double re_execution_cost = cursor->instr_cost;
-    if (snapshot_cost <= re_execution_cost) {
-      GENSYM_INFO("Snapshot is worth to create");
-    } else {
-      GENSYM_INFO("Snapshot is NOT worth to create");
-    }
-    return snapshot_cost <= re_execution_cost;
-  }
-
   std::monostate moveCursor(bool branch, Control control) {
     Profile.step(StepProfileKind::CURSOR_MOVE);
     assert(cursor != nullptr);
@@ -1550,17 +1604,10 @@ public:
     assert(
         if_else_node != nullptr &&
         "Can't move cursor when the branch node is not initialized correctly!");
-    double cost_from_parent = CostManager.dump_instr_cost();
-    double cost_from_root =
-        cost_from_parent + (cursor->parent ? cursor->parent->instr_cost : 0);
-    cursor->instr_cost = cost_from_root;
-    // GENSYM_INFO(
-    //     "Cursor move cost from parent: " + std::to_string(cost_from_parent) +
-    //     ", total cost from root: " + std::to_string(cost_from_root));
+
     if (branch) {
       true_branch_cov_map[if_else_node->id] = true;
-      if (!if_else_node->false_branch->isSnapshotNode() &&
-          worth_to_create_snapshot()) {
+      if (!if_else_node->false_branch->isSnapshotNode()) {
         auto snapshot = makeSnapshot(control);
         if_else_node->false_branch->fillSnapshotNode(snapshot);
       } else {
@@ -1569,8 +1616,7 @@ public:
       cursor = if_else_node->true_branch.get();
     } else {
       false_branch_cov_map[if_else_node->id] = true;
-      if (!if_else_node->true_branch->isSnapshotNode() &&
-          worth_to_create_snapshot()) {
+      if (!if_else_node->true_branch->isSnapshotNode()) {
         auto snapshot = makeSnapshot(control);
         if_else_node->true_branch->fillSnapshotNode(snapshot);
       } else {
@@ -1589,10 +1635,6 @@ public:
     assert(
         if_else_node != nullptr &&
         "Can't move cursor when the branch node is not initialized correctly!");
-    int cost_from_parent = CostManager.dump_instr_cost();
-    int cost_from_root =
-        cost_from_parent + (cursor->parent ? cursor->parent->instr_cost : 0);
-    cursor->instr_cost = cost_from_root;
     if (branch) {
       true_branch_cov_map[if_else_node->id] = true;
       if_else_node->false_branch->fillNotToExploreNode();
@@ -1619,10 +1661,7 @@ public:
       register_new_node(branch_node->branches[branch_index].get());
     }
     cursor = branch_node->branches[branch_index].get();
-    int cost_from_parent = CostManager.dump_instr_cost();
-    int cost_from_root =
-        cost_from_parent + (cursor->parent ? cursor->parent->instr_cost : 0);
-    cursor->instr_cost = cost_from_root;
+
     return std::monostate();
   }
 
