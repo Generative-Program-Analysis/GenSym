@@ -384,10 +384,41 @@ inline SymVal SymVal::bitwise_or(const SymVal &other) const {
   return make_binary(B_OR, *this, other);
 }
 
+struct BinOpKey {
+  Operation op;
+  SymVal lhs;
+  SymVal rhs;
+  BinOpKey(Operation op, const SymVal &lhs, const SymVal &rhs)
+      : op(op), lhs(lhs), rhs(rhs) {}
+
+  bool operator==(const BinOpKey &other) const {
+    return op == other.op && lhs.symptr == other.lhs.symptr &&
+           rhs.symptr == other.rhs.symptr;
+  }
+};
+
+template <> struct std::hash<BinOpKey> {
+  size_t operator()(const BinOpKey &key) const {
+    size_t h1 = std::hash<int>{}(static_cast<int>(key.op));
+    size_t h2 = std::hash<void *>{}(key.lhs.symptr.get());
+    size_t h3 = std::hash<void *>{}(key.rhs.symptr.get());
+    return h1 ^ (h2 << 1) ^ (h3 << 2);
+  }
+};
+
+static std::unordered_map<BinOpKey, SymVal> BinaryOperationStore;
+
 inline SymVal SymVal::make_binary(Operation op, const SymVal &lhs,
                                   const SymVal &rhs) {
   assert(lhs.symptr != nullptr && rhs.symptr != nullptr);
-  return SymVal(SymBookKeeper.allocate<SymBinary>(op, lhs, rhs));
+  BinOpKey key(op, lhs, rhs);
+  auto it = BinaryOperationStore.find(key);
+  if (it != BinaryOperationStore.end()) {
+    return it->second;
+  }
+  auto result = SymVal(SymBookKeeper.allocate<SymBinary>(op, lhs, rhs));
+  BinaryOperationStore[key] = result;
+  return result;
 }
 static std::unordered_map<int, SymVal> SymbolCache;
 
