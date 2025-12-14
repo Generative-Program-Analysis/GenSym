@@ -198,10 +198,13 @@ struct SymExtract : public Symbolic {
   }
 
 private:
+  friend std::tuple<int, bool>
+  count_dag_size_aux(Symbolic &val, std::set<Symbolic *> &visited);
+
   std::optional<int> _cached_dag_size;
 };
 
-inline int count_dag_size(const SymVal &val, std::set<Symbolic *> &visited);
+inline int count_dag_size(Symbolic &val);
 
 struct SymBinary : public Symbolic {
   Operation op;
@@ -216,41 +219,61 @@ struct SymBinary : public Symbolic {
       return _cached_dag_size.value();
     }
 
-    std::set<Symbolic *> visited;
-    _cached_dag_size =
-        count_dag_size(lhs, visited) + count_dag_size(rhs, visited);
-    return _cached_dag_size.value();
+    auto size = count_dag_size(*this);
+    _cached_dag_size = size;
+    return size;
   }
 
 private:
+  friend std::tuple<int, bool>
+  count_dag_size_aux(Symbolic &val, std::set<Symbolic *> &visited);
   std::optional<int> _cached_dag_size;
 };
 
-inline int count_dag_size(const SymVal &val,
+inline std::tuple<int, bool> count_dag_size_aux(Symbolic &val,
                               std::set<Symbolic *> &visited) {
-  if (visited.find(val.symptr.get()) != visited.end()) {
-    return 0;
+  if (visited.find(&val) != visited.end()) {
+    return {0, true};
   }
-  visited.insert(val.symptr.get());
+  visited.insert(&val);
 
-  if (auto binary = dynamic_cast<SymBinary *>(val.symptr.get())) {
+  if (auto binary = dynamic_cast<SymBinary *>(&val)) {
     int size = 1;
-    size += count_dag_size(binary->lhs, visited);
-    size += count_dag_size(binary->rhs, visited);
-    return size;
-  } else if (auto extract = dynamic_cast<SymExtract *>(val.symptr.get())) {
+    auto [lhs_size, lhs_sharing] =
+        count_dag_size_aux(*binary->lhs.symptr, visited);
+    auto [rhs_size, rhs_sharing] =
+        count_dag_size_aux(*binary->rhs.symptr, visited);
+    size += lhs_size + rhs_size;
+    if (!lhs_sharing && !rhs_sharing) {
+      // if there is no sharing in two operands, this temporary size is valid
+      // and reusable
+      binary->_cached_dag_size = size;
+    }
+    return {size, lhs_sharing || rhs_sharing};
+  } else if (auto extract = dynamic_cast<SymExtract *>(&val)) {
     int size = 1;
-    size += count_dag_size(extract->value, visited);
-    return size;
-  } else if (auto symbol = dynamic_cast<Symbol *>(val.symptr.get())) {
-    return 1;
-  } else if (auto concrete = dynamic_cast<SymConcrete *>(val.symptr.get())) {
-    return 1;
-  } else if (auto smallbv = dynamic_cast<SmallBV *>(val.symptr.get())) {
-    return 1;
+    auto [value_size, value_sharing] =
+        count_dag_size_aux(*extract->value.symptr, visited);
+    size += value_size;
+    if (!value_sharing) {
+      extract->_cached_dag_size = size;
+    }
+    return {size, value_sharing};
+  } else if (auto symbol = dynamic_cast<Symbol *>(&val)) {
+    return {1, false};
+  } else if (auto concrete = dynamic_cast<SymConcrete *>(&val)) {
+    return {1, false};
+  } else if (auto smallbv = dynamic_cast<SmallBV *>(&val)) {
+    return {1, false};
   } else {
     throw std::runtime_error("Unknown symbolic type in dag size counting");
   }
+}
+
+inline int count_dag_size(Symbolic &val) {
+  std::set<Symbolic *> visited;
+  auto [size, _] = count_dag_size_aux(val, visited);
+  return size;
 }
 
 inline SymVal SymVal::add(const SymVal &other) const {
