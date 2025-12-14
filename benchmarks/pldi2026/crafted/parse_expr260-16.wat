@@ -98,15 +98,30 @@
         call 0
         local.tee 1
         i32.const 43
-        i32.ne
+        i32.eq
+        local.get 1
+        i32.const 45
+        i32.eq
+        i32.or
+        i32.eqz
         br_if 1 (;@1;)
         call 1
         call 4
         local.set 2
-        local.get 0
-        local.get 2
-        i32.add
-        local.set 0
+        local.get 1
+        i32.const 45
+        i32.eq
+        if  ;; label = @3
+          local.get 0
+          local.get 2
+          i32.sub
+          local.set 0
+        else
+          local.get 0
+          local.get 2
+          i32.add
+          local.set 0
+        end
         br 0 (;@2;)
       end
     end
@@ -126,8 +141,53 @@
     i32.const 1024
     call 6
     local.tee 0
+    local.get 0
+    local.get 0
+    local.get 0
+    local.get 0
+    local.get 0
+    local.get 0
+    local.get 0
+    local.get 0
+    local.get 0
+    local.get 0
+    local.get 0
+    local.get 0
+    local.get 0
+    local.get 0
+    local.get 0
+    local.get 0
+    local.get 0
+    local.get 0
+    local.get 0
+    local.get 0
+    local.get 0
+    local.get 0
+    local.get 0
     if
     end
+    drop
+    drop
+    drop
+    drop
+    drop
+    drop
+    drop
+    drop
+    drop
+    drop
+    drop
+    drop
+    drop
+    drop
+    drop
+    drop
+    drop
+    drop
+    drop
+    drop
+    drop
+    drop
     i32.const 10   ;; x
     i32.const 1024
     call 6
@@ -223,11 +283,6 @@
     i32.add
     if
     end
-    local.get 0
-    i32.const 14
-    i32.add
-    if
-    end
   )
   (import "console" "assert" (func (param i32)))
   (start 7)
@@ -238,4 +293,4 @@
   (export "memory" (memory 0))
   (export "eval_expr" (func 6))
   (data (i32.const 0) "x+1\00")
-  (data (;0;) (i32.const 1024) "3*x+5*x+7*11*x+13*x+17+6*x+10*x+14*11*x+26*x+34+9*x+15*x+21*11*x+39*x+51+12*x+20*x+28*11*x+52*x+68+15*x+25*x*x*x+35*11*x+65*x+85+18*x+30*x+42*11*x+78*x+102+21*x+35*x+49*11*x+91*x+119+24*x+40*x+56*11*x+104*x+136+27*x+45*x+63*11*x+117*x+153+30*x+50*x+70*11*x+130*x+170+33*x+55*x+77*11*x+143*x+187+36*x+60*x+84*11*x+156*x+204+39*x+65*x+91*11*x+169*x+221+42*x+70*x+98*11*x+182*x+238+45*x+75*x+105*11*x+195*x+255+48*x*x*x+80*x+112*11*x+208*x+272+51*x*x*x+85*x+119*11*x+221*x+289+54*x+90*x+126*11*x+234*x+306+57*x*x*x+95*x+133*11*x+247*x+323+60*x+100*x+140*11*x+260*x+340+3*x+5*x+7*11*x+13*x+17+6*x+10*x+14*11*x+26*x+34+9*x+15*x+21*11*x+39*x+51+12*x+20*x+28*11*x+52*x+68+15*x*x*x+25*x+35*11*x+65*x+85+18\00"))
+  (data (;0;) (i32.const 1024) "50+x+70-11+x+130+x+170+33+x+50+x+70-11+x+130+x+170+33+x+50+x+70-11+x+130+x+170+33+x+3+x+5+x+7-11+x+13+x+17+6+1+10+x+14-11+x+26+x+34+9+x+15+x+21-11+x+39+x+51+12+x+20+x+28-11+x+52+x+68+15+x+25+x+x+x+35-11+x+65+x+85+18+x+30+x+42-11+x+78+x+102+21+x+35+x+49-11+x+91+x+119+24+x+40+x+56-11-x+104-x+136+27-x+45-x+63-11-x+117-x+153+30-x+50-x+70-11-x+130-x+170+33-x+55-x+77-11-x+143-x+187+36-x+60-x+84-11-x+156-x+204+39-x+65-x+91-11-x+169-x+221+42-x+70-x+98-11-x+182-x+238+45-x+75-x+105-11-x+1+3-x+5-x+7-11+x+x+17+x+10+x+182+x+238+45+x+75+x+105-11+x+1+3-x+5-x+7-11-x+x+17+x+10+17+6-x+10-x+14-11-x+49-11-x+91-x+119+24-x+40-x+56-11-x+104-x+136+27-x+45-x+49-11-x+91-x+119+24-x+40-x+56-11-x+104-x+136+27-x+45\00"))
