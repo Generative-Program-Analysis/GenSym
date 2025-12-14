@@ -15,24 +15,35 @@
 #include <variant>
 #include <vector>
 
+struct QueryResult {
+  ImmNumMapBox map_box;
+  z3::model model;
+};
+
 class Solver {
 public:
   Solver() {}
-  std::optional<std::pair<NumMap, z3::model>>
-  solve(std::vector<SymVal> &conditions) {
+  std::optional<QueryResult> solve(std::vector<SymVal> &conditions) {
     z3::solver z3_solver(global_z3_ctx());
+    SymVal conjunction;
     z3::check_result solver_result;
     {
       auto timer = ManagedTimer(TimeProfileKind::SOLVER);
       // make an conjunction of all conditions
-      auto conjunction = to_z3_conjunction(conditions);
+      conjunction = make_conjunction(conditions);
       // call z3 to solve the condition
       // NOTE: half of the solver time is spent in solver.add
-      z3_solver.add(conjunction);
+      z3_solver.add(conjunction->z3_expr());
+      if (solver_cache.find(conjunction) != solver_cache.end()) {
+        auto cached_result = solver_cache[conjunction];
+        return cached_result;
+      }
+      GENSYM_INFO("Solving conditions with Z3 solver...");
       solver_result = z3_solver.check();
     }
     switch (solver_result) {
     case z3::unsat:
+      solver_cache[conjunction] = std::nullopt;
       return std::nullopt; // No solution found
     case z3::sat: {
       z3::model model = z3_solver.get_model();
@@ -52,8 +63,10 @@ public:
           GENSYM_INFO("Find a variable that is not created by GenSym: " + name);
         }
       }
-      return std::optional<std::pair<NumMap, z3::model>>(
-          std::in_place, std::move(result), std::move(model));
+      ImmNumMapBox map_box(result);
+      QueryResult query_result{map_box, model};
+      solver_cache[conjunction] = query_result;
+      return query_result;
     }
     case z3::unknown:
       throw std::runtime_error("Z3 solver returned unknown status");
@@ -62,6 +75,15 @@ public:
   }
 
 private:
+  SymVal make_conjunction(const std::vector<SymVal> &conditions) {
+    SymVal result = SymVal().eq_bool(SymVal()); // true
+    for (size_t i = 0; i < conditions.size(); ++i) {
+      result =
+          result.land(conditions[i].neq_bool(SymVal()));
+    }
+    return result;
+  }
+
   z3::expr to_z3_conjunction(std::vector<SymVal> &conditions) {
     z3::expr conjunction = global_z3_ctx().bool_val(true);
     for (auto &cond : conditions) {
@@ -75,6 +97,8 @@ private:
 #endif
     return conjunction;
   }
+
+  std::unordered_map<SymVal, std::optional<QueryResult>> solver_cache;
 };
 
 static Solver solver;

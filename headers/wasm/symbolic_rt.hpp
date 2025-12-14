@@ -29,24 +29,27 @@
 #include <vector>
 
 enum Operation {
-  ADD,    // Addition
-  SUB,    // Subtraction
-  MUL,    // Multiplication
-  DIV,    // Division
-  EQ,     // Equal
-  NEQ,    // Not equal
-  LT,     // Less than
-  LTU,    // Unsigned less than
-  LEQ,    // Less than or equal
-  GT,     // Greater than
-  GTU,    // Unsigned greater than
-  GEQ,    // Greater than or equal
-  GEU,    // Unsigned greater than or equal
-  SHR,    // Shift right
-  B_AND,  // Bitwise AND
-  B_XOR,  // Bitwise XOR
-  B_OR,   // Bitwise OR
-  CONCAT, // Byte-level concatenation
+  ADD,     // Addition
+  SUB,     // Subtraction
+  MUL,     // Multiplication
+  DIV,     // Division
+  AND,     // Logical AND
+  EQ_BOOL, // Equal (return a boolean) TODO: remove bv version of comparison ops
+  NEQ_BOOL, // Not equal (return a boolean)
+  EQ_BV,    // Equal (return a bitvector 0/1)
+  NEQ_BV,   // Not equal
+  LT_BV,    // Less than
+  LTU_BV,   // Unsigned less than
+  LEQ_BV,   // Less than or equal
+  GT_BV,    // Greater than
+  GTU_BV,   // Unsigned greater than
+  GEQ_BV,   // Greater than or equal
+  GEU_BV,   // Unsigned greater than or equal
+  SHR,      // Shift right
+  B_AND,    // Bitwise AND
+  B_XOR,    // Bitwise XOR
+  B_OR,     // Bitwise OR
+  CONCAT,   // Byte-level concatenation
 };
 class Symbolic;
 struct SymVal {
@@ -64,6 +67,9 @@ struct SymVal {
   SymVal minus(const SymVal &other) const;
   SymVal mul(const SymVal &other) const;
   SymVal div(const SymVal &other) const;
+  SymVal eq_bool(const SymVal &other) const;
+  SymVal neq_bool(const SymVal &other) const;
+  SymVal land(const SymVal &other) const;
   SymVal eq(const SymVal &other) const;
   SymVal neq(const SymVal &other) const;
   SymVal lt(const SymVal &other) const;
@@ -90,6 +96,15 @@ struct SymVal {
   static SymVal make_smallbv(int width, int64_t value);
   static SymVal make_binary(Operation op, const SymVal &lhs, const SymVal &rhs);
   static SymVal make_extract(const SymVal &value, int high, int low);
+
+  Symbolic *operator->() const { return symptr.get(); }
+  bool operator==(const SymVal &other) const { return symptr == other.symptr; }
+};
+
+template <> struct std::hash<SymVal> {
+  size_t operator()(const SymVal &key) const {
+    return std::hash<void *>{}(key.symptr.get());
+  }
 };
 
 class Symbolic {
@@ -333,41 +348,53 @@ inline SymVal SymVal::div(const SymVal &other) const {
   return make_binary(DIV, *this, other);
 }
 
+inline SymVal SymVal::land(const SymVal &other) const {
+  return make_binary(AND, *this, other);
+}
+
+inline SymVal SymVal::eq_bool(const SymVal &other) const {
+  return make_binary(EQ_BOOL, *this, other);
+}
+
+inline SymVal SymVal::neq_bool(const SymVal &other) const {
+  return make_binary(NEQ_BOOL, *this, other);
+}
+
 inline SymVal SymVal::eq(const SymVal &other) const {
-  return make_binary(EQ, *this, other);
+  return make_binary(EQ_BV, *this, other);
 }
 
 inline SymVal SymVal::neq(const SymVal &other) const {
-  return make_binary(NEQ, *this, other);
+  return make_binary(NEQ_BV, *this, other);
 }
 
 inline SymVal SymVal::lt(const SymVal &other) const {
-  return make_binary(LT, *this, other);
+  return make_binary(LT_BV, *this, other);
 }
 
 inline SymVal SymVal::ltu(const SymVal &other) const {
   // for now, we treat unsigned less than as signed less than
-  return make_binary(LTU, *this, other);
+  return make_binary(LTU_BV, *this, other);
 }
 
 inline SymVal SymVal::le(const SymVal &other) const {
-  return make_binary(LEQ, *this, other);
+  return make_binary(LEQ_BV, *this, other);
 }
 
 inline SymVal SymVal::gt(const SymVal &other) const {
-  return make_binary(GT, *this, other);
+  return make_binary(GT_BV, *this, other);
 }
 
 inline SymVal SymVal::gtu(const SymVal &other) const {
-  return make_binary(GTU, *this, other);
+  return make_binary(GTU_BV, *this, other);
 }
 
 inline SymVal SymVal::ge(const SymVal &other) const {
-  return make_binary(GEQ, *this, other);
+  return make_binary(GEQ_BV, *this, other);
 }
 
 inline SymVal SymVal::geu(const SymVal &other) const {
-  return make_binary(GEU, *this, other);
+  return make_binary(GEU_BV, *this, other);
 }
 
 inline SymVal SymVal::shr(const SymVal &other) const {
@@ -375,11 +402,11 @@ inline SymVal SymVal::shr(const SymVal &other) const {
 }
 
 inline SymVal SymVal::is_zero() const {
-  return make_binary(EQ, *this, Concrete(I32V(0)));
+  return make_binary(EQ_BV, *this, Concrete(I32V(0)));
 }
 
 inline SymVal SymVal::negate() const {
-  return make_binary(EQ, *this, Concrete(I32V(0)));
+  return make_binary(EQ_BV, *this, Concrete(I32V(0)));
 }
 
 inline SymVal SymVal::concat(const SymVal &other) const {
@@ -529,42 +556,51 @@ inline z3::expr Symbolic::build_z3_expr_aux() {
     z3::expr right = binary->rhs.symptr->build_z3_expr();
     // TODO: make sure the semantics of these operations are aligned with wasm
     switch (binary->op) {
-    case EQ: {
+    case EQ_BOOL: {
+      return left == right;
+    }
+    case NEQ_BOOL: {
+      return left != right;
+    }
+    case AND: {
+      return left && right;
+    }
+    case EQ_BV: {
       auto temp_bool = left == right;
       return z3::ite(temp_bool, one_bv, zero_bv);
     }
-    case NEQ: {
+    case NEQ_BV: {
       auto temp_bool = left != right;
       return z3::ite(temp_bool, one_bv, zero_bv);
     }
-    case LT: {
+    case LT_BV: {
       auto temp_bool = left < right;
       return z3::ite(temp_bool, one_bv, zero_bv);
     }
-    case LTU: {
+    case LTU_BV: {
       auto temp_bool = z3::ult(left, right);
       return z3::ite(temp_bool, one_bv, zero_bv);
     }
-    case LEQ: {
+    case LEQ_BV: {
       auto temp_bool = left <= right;
       return z3::ite(temp_bool, one_bv, zero_bv);
     }
-    case GT: {
+    case GT_BV: {
       auto temp_bool = left > right;
       return z3::ite(temp_bool, one_bv, zero_bv);
     }
-    case GTU: {
+    case GTU_BV: {
       auto temp_bool = z3::ugt(left, right);
       return z3::ite(temp_bool, one_bv, zero_bv);
     }
-    case GEU: {
+    case GEU_BV: {
       auto temp_bool = z3::uge(left, right);
       return z3::ite(temp_bool, one_bv, zero_bv);
     }
     case SHR: {
       return z3::lshr(left, right);
     }
-    case GEQ: {
+    case GEQ_BV: {
       auto temp_bool = left >= right;
       return z3::ite(temp_bool, one_bv, zero_bv);
     }
@@ -694,6 +730,8 @@ public:
     ManagedTimer timer(TimeProfileKind::COUNT_SYM_SIZE);
     int total_size = 0;
     for (const auto &val : stack) {
+      // std::cout << "Symbolic Expression: " << val.symptr->z3_expr() << "\n";
+      // std::cout << "Val size: " << val.size() << "\n";
       total_size += val.size();
     }
     return total_size;
@@ -933,9 +971,8 @@ public:
             sym_env) /* create a immutable copy of SymEnv */
         ) {}
 
-  NumMap persistent() const {
-    return *map_ptr; // return a copy of the map
-  }
+  const NumMap *operator->() const { return map_ptr.get(); }
+  const NumMap &operator*() const { return *map_ptr; }
 
 private:
   std::shared_ptr<NumMap> map_ptr;
@@ -1265,8 +1302,8 @@ struct SnapshotNode : Node {
     // find out the best way to reach the current position via our cost model
     auto snapshot_cost = snapshot.cost_of_snapshot();
     double re_execution_cost = get_cost();
-    // std::cout << "Snapshot cost: " << snapshot_cost
-    //           << ", re-execution cost: " << re_execution_cost << std::endl;
+    std::cout << "Snapshot cost: " << snapshot_cost
+              << ", re-execution cost: " << re_execution_cost << std::endl;
     if (snapshot_cost <= re_execution_cost) {
       GENSYM_INFO("Snapshot is worth to create");
     } else {
@@ -1886,37 +1923,37 @@ static EvalRes eval_sym_expr(const SymVal &sym, SymEnv_t &sym_env) {
       } else {
         assert(false && "TODO");
       }
-    case LT:
+    case LT_BV:
       if (lhs_width == 32 && rhs_width == 32) {
         return EvalRes(lhs.i32_lt_s(rhs), 32);
       } else {
         assert(false && "TODO");
       }
-    case LEQ:
+    case LEQ_BV:
       if (lhs_width == 32 && rhs_width == 32) {
         return EvalRes(lhs.i32_le_s(rhs), 32);
       } else {
         assert(false && "TODO");
       }
-    case GT:
+    case GT_BV:
       if (lhs_width == 32 && rhs_width == 32) {
         return EvalRes(lhs.i32_gt_s(rhs), 32);
       } else {
         assert(false && "TODO");
       }
-    case GEQ:
+    case GEQ_BV:
       if (lhs_width == 32 && rhs_width == 32) {
         return EvalRes(lhs.i32_ge_s(rhs), 32);
       } else {
         assert(false && "TODO");
       }
-    case NEQ:
+    case NEQ_BV:
       if (lhs_width == 32 && rhs_width == 32) {
         return EvalRes(lhs.i32_ne(rhs), 32);
       } else {
         assert(false && "TODO");
       }
-    case EQ:
+    case EQ_BV:
       if (lhs_width == 32 && rhs_width == 32) {
         return EvalRes(lhs.i32_eq(rhs), 32);
       } else {
