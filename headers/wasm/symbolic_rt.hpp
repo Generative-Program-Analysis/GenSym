@@ -195,7 +195,14 @@ static SymVal makeSmallBV(int width, int64_t value) {
   if (width == 64) {
     return SymVal::make_concrete(value);
   }
-  return SymVal(SymBookKeeper.allocate<SmallBV>(width, value));
+  auto key = SmallBVKey(width, value);
+  auto it = SmallBVStore.find(key);
+  if (it != SmallBVStore.end()) {
+    return it->second;
+  }
+  auto new_val = SymVal(SymBookKeeper.allocate<SmallBV>(width, value));
+  SmallBVStore[key] = new_val;
+  return new_val;
 }
 
 static std::unordered_map<int64_t, SymVal> concrete_pool;
