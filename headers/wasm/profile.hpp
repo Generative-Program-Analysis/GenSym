@@ -28,11 +28,20 @@ enum class StepProfileKind {
                  // number of kinds of operations
 };
 
+enum class ExecutionKind {
+  RESTART,
+  FROMSNAPSHOT,
+  ExecutionKindCount // keep this as the last element, this is used to get the
+                     // number of kinds of operations
+};
+
 enum class TimeProfileKind {
   INSTR,
   SOLVER,
+  SOLVER1,
   RESUME_SNAPSHOT,
   COUNT_SYM_SIZE,
+  SPLIT_CONDITIONS,
   TimeOperationCount // keep this as the last element, this is used to get the
                      // number of kinds of operations
 };
@@ -48,6 +57,14 @@ public:
   std::monostate step(StepProfileKind op) {
     if (PROFILE_STEP)
       op_count[static_cast<std::size_t>(op)]++;
+    return std::monostate();
+  }
+  std::monostate incr_restart_count() {
+    exec_kind_count[static_cast<std::size_t>(ExecutionKind::RESTART)]++;
+    return std::monostate();
+  }
+  std::monostate incr_fromsnapshot_count() {
+    exec_kind_count[static_cast<std::size_t>(ExecutionKind::FROMSNAPSHOT)]++;
     return std::monostate();
   }
   void print_summary() {
@@ -94,8 +111,6 @@ public:
       std::cout << "Total SYM_EVAL operations: "
                 << op_count[static_cast<std::size_t>(StepProfileKind::SYM_EVAL)]
                 << std::endl;
-      std::cout << "Total time for instruction execution (s): "
-                << std::setprecision(15) << execution_time << std::endl;
     }
     if (PROFILE_TIME) {
       std::cout << "Time Profile Summary:" << std::endl;
@@ -106,6 +121,11 @@ public:
       std::cout << "Total time in solver (s): " << std::setprecision(15)
                 << time_count[static_cast<std::size_t>(TimeProfileKind::SOLVER)]
                 << std::endl;
+      std::cout
+          << "Total time in solver with independent resolving (s): "
+          << std::setprecision(15)
+          << time_count[static_cast<std::size_t>(TimeProfileKind::SOLVER1)]
+          << std::endl;
       std::cout << "Total time in resuming from snapshot (s): "
                 << std::setprecision(15)
                 << time_count[static_cast<std::size_t>(
@@ -116,7 +136,21 @@ public:
                 << time_count[static_cast<std::size_t>(
                        TimeProfileKind::COUNT_SYM_SIZE)]
                 << std::endl;
+      std::cout << "Total time in splitting path conditions (s): "
+                << std::setprecision(15)
+                << time_count[static_cast<std::size_t>(
+                       TimeProfileKind::SPLIT_CONDITIONS)]
+                << std::endl;
     }
+    std::cout << "Execution Kind Summary:" << std::endl;
+    std::cout
+        << "Total RESTART executions: "
+        << exec_kind_count[static_cast<std::size_t>(ExecutionKind::RESTART)]
+        << std::endl;
+    std::cout << "Total FROMSNAPSHOT executions: "
+              << exec_kind_count[static_cast<std::size_t>(
+                     ExecutionKind::FROMSNAPSHOT)]
+              << std::endl;
   }
 
   void write_as_json(std::ostream &os) const {
@@ -192,7 +226,8 @@ public:
   std::array<double,
              static_cast<std::size_t>(TimeProfileKind::TimeOperationCount)>
       time_count;
-  double execution_time = 0.0;
+  std::array<int, static_cast<std::size_t>(ExecutionKind::ExecutionKindCount)>
+      exec_kind_count;
 };
 
 static Profile_t Profile;
