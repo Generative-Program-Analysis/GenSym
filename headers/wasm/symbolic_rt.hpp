@@ -85,8 +85,11 @@ struct SymVal {
   bool is_concrete() const;
   int size() const;
 
-private:
+  static SymVal make_concrete(Num num);
+  static SymVal make_symbolic(int index);
+  static SymVal make_smallbv(int width, int64_t value);
   static SymVal make_binary(Operation op, const SymVal &lhs, const SymVal &rhs);
+  static SymVal make_extract(const SymVal &value, int high, int low);
 };
 
 class Symbolic {
@@ -150,25 +153,54 @@ inline SymVal::SymVal() : symptr(ZERO) {}
 inline SymVal::SymVal(std::shared_ptr<Symbolic> symptr) : symptr(symptr) {}
 inline int SymVal::size() const { return symptr->dag_size(); }
 
-static SymVal make_symbolic(int index) {
-  return SymVal(SymBookKeeper.allocate<Symbol>(index));
+static std::unordered_map<int, SymVal> SymbolStore;
+
+inline SymVal SymVal::make_symbolic(int index) {
+  auto it = SymbolStore.find(index);
+  if (it != SymbolStore.end()) {
+    return it->second;
+  }
+  SymVal new_symbol = SymVal(SymBookKeeper.allocate<Symbol>(index));
+  SymbolStore[index] = new_symbol;
+  return new_symbol;
 }
+
+inline SymVal make_symbolic(int index) { return SymVal::make_symbolic(index); }
+
+// remove this key later, SmallBV has no need to allocate at all
+struct SmallBVKey {
+  int width;
+  int64_t value;
+  SmallBVKey(int width, int64_t value) : width(width), value(value) {}
+
+  bool operator==(const SmallBVKey &other) const {
+    return width == other.width && value == other.value;
+  }
+};
+
+template <> struct std::hash<SmallBVKey> {
+  size_t operator()(const SmallBVKey &key) const {
+    size_t h1 = std::hash<int>{}(key.width);
+    size_t h2 = std::hash<int64_t>{}(key.value);
+    return h1 ^ (h2 << 1);
+  }
+};
+
+static std::unordered_map<SmallBVKey, SymVal> SmallBVStore;
 
 static SymVal makeSmallBV(int width, int64_t value) {
   if (width == 32) {
-    return SymVal(
-        SymBookKeeper.allocate<SymConcrete>(Num(static_cast<int32_t>(value))));
+    return SymVal::make_concrete(value);
   }
   if (width == 64) {
-    return SymVal(
-        SymBookKeeper.allocate<SymConcrete>(Num(static_cast<int64_t>(value))));
+    return SymVal::make_concrete(value);
   }
   return SymVal(SymBookKeeper.allocate<SmallBV>(width, value));
 }
 
 static std::unordered_map<int64_t, SymVal> concrete_pool;
 
-inline SymVal Concrete(Num num) {
+inline SymVal SymVal::make_concrete(Num num) {
   if (concrete_pool.find(num.toInt()) != concrete_pool.end()) {
     return concrete_pool[num.toInt()];
   }
@@ -177,6 +209,8 @@ inline SymVal Concrete(Num num) {
   concrete_pool[num.toInt()] = new_val;
   return new_val;
 }
+
+inline SymVal Concrete(Num num) { return SymVal::make_concrete(num); }
 
 // Extract is different from other operations, it only has one symbolic operand,
 // the other two operands are constants
@@ -369,7 +403,7 @@ inline SymVal SymVal::extract(int high, int low) const {
     int32_t new_value = (val >> shift_bits) & mask;
     return makeSmallBV(new_width, new_value);
   }
-  return SymVal(SymBookKeeper.allocate<SymExtract>(*this, high, low));
+  return SymVal::make_extract(*this, high, low);
 }
 
 inline SymVal SymVal::bitwise_and(const SymVal &other) const {
@@ -420,20 +454,48 @@ inline SymVal SymVal::make_binary(Operation op, const SymVal &lhs,
   BinaryOperationStore[key] = result;
   return result;
 }
-static std::unordered_map<int, SymVal> SymbolCache;
+
+struct ExtractKey {
+  SymVal value;
+  int high;
+  int low;
+  ExtractKey(const SymVal &value, int high, int low)
+      : value(value), high(high), low(low) {}
+
+  bool operator==(const ExtractKey &other) const {
+    return value.symptr == other.value.symptr && high == other.high &&
+           low == other.low;
+  }
+};
+
+template <> struct std::hash<ExtractKey> {
+  size_t operator()(const ExtractKey &key) const {
+    size_t h1 = std::hash<void *>{}(key.value.symptr.get());
+    size_t h2 = std::hash<int>{}(key.high);
+    size_t h3 = std::hash<int>{}(key.low);
+    return h1 ^ (h2 << 1) ^ (h3 << 2);
+  }
+};
+
+inline SymVal SymVal::make_extract(const SymVal &value, int high, int low) {
+  assert(value.symptr != nullptr);
+  ExtractKey key(value, high, low);
+  static std::unordered_map<ExtractKey, SymVal> ExtractOperationStore;
+  auto it = ExtractOperationStore.find(key);
+  if (it != ExtractOperationStore.end()) {
+    return it->second;
+  }
+  auto result = SymVal(SymBookKeeper.allocate<SymExtract>(value, high, low));
+  ExtractOperationStore[key] = result;
+  return result;
+}
 
 inline SymVal SymVal::makeSymbolic() const {
   auto concrete = dynamic_cast<SymConcrete *>(symptr.get());
   if (concrete) {
     // If the symbolic value is a concrete value, use it to create a symbol
     auto id = concrete->value.toInt();
-    auto it = SymbolCache.find(id);
-    if (it != SymbolCache.end()) {
-      return it->second;
-    }
-    auto sym = Symbol(id);
-    auto ptr = SymBookKeeper.allocate<Symbol>(sym);
-    return SymVal(ptr);
+    return make_symbolic(id);
 
   } else {
     throw std::runtime_error(
