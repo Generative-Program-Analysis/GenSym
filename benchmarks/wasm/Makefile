@@ -5,3 +5,4 @@ clean:
 	find . -type f -name '*.cpp.exe' -delete
 	find . -type d -name '*.dSYM' -exec rm -rf {} +
 	find . -type f -name '*.dot' -delete
+
