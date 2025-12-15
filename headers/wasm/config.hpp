@@ -19,6 +19,12 @@ const bool PROFILE_TIME = true;
 const bool PROFILE_TIME = false;
 #endif
 
+#ifdef ENABLE_PROFILE_CACHE
+const bool PROFILE_CACHE = true;
+#else
+const bool PROFILE_CACHE = false;
+#endif
+
 // This variable define when concolic execution will stop
 enum class ExploreMode {
   EarlyExit, // Stop at the first error encountered

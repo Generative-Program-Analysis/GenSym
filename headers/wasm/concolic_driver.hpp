@@ -90,17 +90,17 @@ inline void ConcolicDriver::main_exploration_loop() {
     }
 
     auto cond = node->collect_path_conds();
-    auto result = solver.solve(cond);
+    auto result = solver.solve_path_conds(cond, true);
     if (!result.has_value()) {
       GENSYM_INFO("Found an unreachable path, marking it as unreachable...");
       node->fillUnreachableNode();
       continue;
     }
-    auto &new_env = result.value().first;
-    auto &model = result.value().second;
+    auto &new_env = *result.value().map_box;
+    auto &model = result.value().model;
 
     // update global symbolic environment from SMT solved model
-    SymEnv.update(std::move(new_env));
+    SymEnv.update(new_env);
     try {
       GENSYM_INFO("Now execute the program with symbolic environment: ");
       GENSYM_INFO(SymEnv.to_string());

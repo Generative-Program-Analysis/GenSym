@@ -120,13 +120,11 @@ private:
   std::optional<z3::expr> _z3_expr;
 };
 
-static int max_id = 0;
-
 class Symbol : public Symbolic {
 public:
   // TODO: add type information to determine the size of bitvector
   // for now we just assume that only i32 will be used
-  Symbol(int id) : id(id) { max_id = std::max(max_id, id); }
+  Symbol(int id) : id(id) {}
   int get_id() const { return id; }
 
   int dag_size() override { return 1; }
@@ -1302,8 +1300,8 @@ struct SnapshotNode : Node {
     // find out the best way to reach the current position via our cost model
     auto snapshot_cost = snapshot.cost_of_snapshot();
     double re_execution_cost = get_cost();
-    std::cout << "Snapshot cost: " << snapshot_cost
-              << ", re-execution cost: " << re_execution_cost << std::endl;
+    // std::cout << "Snapshot cost: " << snapshot_cost
+    //           << ", re-execution cost: " << re_execution_cost << std::endl;
     if (snapshot_cost <= re_execution_cost) {
       GENSYM_INFO("Snapshot is worth to create");
     } else {

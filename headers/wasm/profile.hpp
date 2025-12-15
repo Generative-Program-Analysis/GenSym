@@ -38,7 +38,6 @@ enum class ExecutionKind {
 enum class TimeProfileKind {
   INSTR,
   SOLVER,
-  SOLVER1,
   RESUME_SNAPSHOT,
   COUNT_SYM_SIZE,
   SPLIT_CONDITIONS,
@@ -48,7 +47,18 @@ enum class TimeProfileKind {
 
 class Profile_t {
 public:
-  Profile_t() : step_count(0) {}
+  Profile_t() : step_count(0), cache_hit_count(0), cache_miss_count(0) {}
+
+  void cache_hit() {
+    if (PROFILE_CACHE)
+      cache_hit_count++;
+  }
+
+  void cache_miss() {
+    if (PROFILE_CACHE)
+      cache_miss_count++;
+  }
+
   std::monostate step() {
     if (PROFILE_STEP)
       step_count++;
@@ -121,11 +131,6 @@ public:
       std::cout << "Total time in solver (s): " << std::setprecision(15)
                 << time_count[static_cast<std::size_t>(TimeProfileKind::SOLVER)]
                 << std::endl;
-      std::cout
-          << "Total time in solver with independent resolving (s): "
-          << std::setprecision(15)
-          << time_count[static_cast<std::size_t>(TimeProfileKind::SOLVER1)]
-          << std::endl;
       std::cout << "Total time in resuming from snapshot (s): "
                 << std::setprecision(15)
                 << time_count[static_cast<std::size_t>(
@@ -140,6 +145,15 @@ public:
                 << std::setprecision(15)
                 << time_count[static_cast<std::size_t>(
                        TimeProfileKind::SPLIT_CONDITIONS)]
+                << std::endl;
+    }
+    if (PROFILE_CACHE) {
+      std::cout << "Solver Cache Summary:" << std::endl;
+      std::cout << "Total cache hits: " << cache_hit_count << std::endl;
+      std::cout << "Total cache misses: " << cache_miss_count << std::endl;
+      std::cout << "Cache hit rate: "
+                << static_cast<double>(cache_hit_count) /
+                       static_cast<double>(cache_hit_count + cache_miss_count)
                 << std::endl;
     }
     std::cout << "Execution Kind Summary:" << std::endl;
@@ -208,6 +222,14 @@ public:
                 TimeProfileKind::COUNT_SYM_SIZE)]
          << "\n";
     }
+    if (PROFILE_CACHE) {
+      os << "    \"total_cache_hits\": " << cache_hit_count << ",\n";
+      os << "    \"total_cache_misses\": " << cache_miss_count << ",\n";
+      os << "    \"cache_hit_rate\": "
+         << static_cast<double>(cache_hit_count) /
+                static_cast<double>(cache_hit_count + cache_miss_count)
+         << "\n";
+    }
     os << "  }\n";
   }
 
@@ -228,6 +250,9 @@ public:
       time_count;
   std::array<int, static_cast<std::size_t>(ExecutionKind::ExecutionKindCount)>
       exec_kind_count;
+
+  int cache_hit_count;
+  int cache_miss_count;
 };
 
 static Profile_t Profile;
