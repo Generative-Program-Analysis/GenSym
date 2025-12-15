@@ -9,7 +9,7 @@ import gensym.wasm.parser._
 import gensym.wasm.stagedconcolicminiwasm._
 
 // This 'test file' is not intended to test functionality, but to generate compiled code for btree benchmarks
-class TestBenchmarkBtree extends FunSuite {
+class TestBenchmark extends FunSuite {
   def compileToCpp(filename: String,
                    main: Option[String] = None) = {
     import sys.process._
@@ -38,5 +38,11 @@ class TestBenchmarkBtree extends FunSuite {
   }
 
   test("compile-btree-benchmarks") { compileDirToCpp("./benchmarks/pldi2026/btree/", Some("main")) }
-
+  test("compile-crafted-benchmarks") { compileDirToCpp("./benchmarks/pldi2026/crafted/") }
+  test("compile-a-single-file") {
+    sys.env.get("INPUT") match {
+      case Some(path) => compileToCpp(path)
+      case None => println("Environment variable INPUT not set; skipping compileToCpp")
+    }
+  }
 }
