@@ -25,6 +25,12 @@ const bool PROFILE_CACHE = true;
 const bool PROFILE_CACHE = false;
 #endif
 
+#ifdef ENABLE_PROFILE_PATH_CONDS
+const bool PROFILE_PATH_CONDS = true;
+#else
+const bool PROFILE_PATH_CONDS = false;
+#endif
+
 // This variable define when concolic execution will stop
 enum class ExploreMode {
   EarlyExit, // Stop at the first error encountered

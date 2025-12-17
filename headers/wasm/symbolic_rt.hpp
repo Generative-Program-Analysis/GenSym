@@ -7,6 +7,7 @@
 #include "heap_mem_bookkeeper.hpp"
 #include "immer/map.hpp"
 #include "immer/map_transient.hpp"
+#include "immer/vector.hpp"
 #include "immer/vector_transient.hpp"
 #include "profile.hpp"
 #include "utils.hpp"
@@ -1084,7 +1085,6 @@ struct NodeBox {
   std::unique_ptr<Node> node;
   NodeBox *parent;
   double instr_cost() const;
-  void set_cost(double c);
 
   bool fillIfElseNode(SymVal cond, int id);
   bool fillCallIndirectNode(SymVal cond, int id);
@@ -1096,10 +1096,18 @@ struct NodeBox {
   bool isUnexplored() const;
   bool isSnapshotNode() const;
   std::vector<SymVal> collect_path_conds();
+  immer::vector<SymVal> collect_path_conds_imm();
+
   void reach_here(std::function<void()>);
+
+  Node *operator->() {
+    assert(node != nullptr && "Accessing an empty NodeBox");
+    return node.get();
+  }
 };
 
 struct Node {
+  friend struct NodeBox;
   virtual ~Node(){};
   void set_cost(double c) { instr_cost = c; }
   double get_cost() const { return instr_cost; }
@@ -1138,6 +1146,7 @@ protected:
 
 private:
   double instr_cost = 0.0;
+  std::optional<immer::vector<SymVal>> path_conds_cache;
 };
 
 inline double NodeBox::instr_cost() const {
@@ -1145,13 +1154,6 @@ inline double NodeBox::instr_cost() const {
     return node->get_cost();
   } else {
     return 0.0;
-  }
-}
-
-inline void NodeBox::set_cost(double c) {
-  assert(node != nullptr && "Cannot set cost on an empty NodeBox");
-  if (node) {
-    node->set_cost(c);
   }
 }
 
@@ -1490,6 +1492,7 @@ inline bool NodeBox::isUnexplored() const {
 }
 
 inline std::vector<SymVal> NodeBox::collect_path_conds() {
+  ManagedTimer timer(TimeProfileKind::COLLECT_PATH_CONDITIONS);
   auto box = this;
   auto result = std::vector<SymVal>();
   while (box->parent) {
@@ -1531,10 +1534,74 @@ inline std::vector<SymVal> NodeBox::collect_path_conds() {
         }
         result.push_back(negated_conditions);
       }
+    } else {
+      // should never reach here
     }
     // Move to parent
     box = box->parent;
   }
+  return result;
+}
+
+// same as collect_path_conds but return immer::vector, and cache the result
+inline immer::vector<SymVal> NodeBox::collect_path_conds_imm() {
+  ManagedTimer timer(TimeProfileKind::COLLECT_PATH_CONDITIONS);
+
+  auto box = this;
+  if (box->node->path_conds_cache.has_value()) {
+    return box->node->path_conds_cache.value();
+  }
+
+  if (!box->parent) {
+    // root node, and no path conditions
+    immer::vector<SymVal> empty;
+    box->node->path_conds_cache = empty;
+    return empty;
+  }
+
+  auto parent_conds = box->parent->collect_path_conds_imm();
+  immer::vector<SymVal> result = parent_conds;
+  if (auto if_else_node = dynamic_cast<IfElseNode *>(box->parent->node.get())) {
+    if (if_else_node->true_branch.get() == box) {
+      // If the current box is the true branch, add the condition
+      result = result.push_back(if_else_node->cond);
+    } else if (if_else_node->false_branch.get() == box) {
+      // If the current box is the false branch, add the negated condition
+      result = result.push_back(if_else_node->cond.negate());
+    } else {
+      throw std::runtime_error("Unexpected node structure in explore tree");
+    }
+  } else if (auto call_indirect_node =
+                 dynamic_cast<CallIndirectNode *>(box->parent->node.get())) {
+    // Find which branch we are in
+    bool found = false;
+    for (const auto &pair : call_indirect_node->branches) {
+      if (pair.second.get() == box) {
+        // We are in this branch
+        // Add the condition that leads to this branch
+        result = result.push_back(
+            call_indirect_node->cond.eq(Concrete(I32V(pair.first))));
+        found = true;
+        break;
+      }
+    }
+    if (!found) {
+      // We must be in the otherwise branch
+      if (call_indirect_node->otherwise_branch.get() != box) {
+        throw std::runtime_error("Unexpected node structure in explore tree");
+      }
+      // Add the negated conditions for all other branches
+      SymVal negated_conditions = Concrete(I32V(1)); // true
+      for (const auto &pair : call_indirect_node->branches) {
+        negated_conditions = negated_conditions.bitwise_and(
+            call_indirect_node->cond.neq(Concrete(I32V(pair.first))));
+      }
+      result = result.push_back(negated_conditions);
+    }
+  } else {
+    // should never reach here
+  }
+  box->node->path_conds_cache = result;
   return result;
 }
 

@@ -41,6 +41,7 @@ enum class TimeProfileKind {
   RESUME_SNAPSHOT,
   COUNT_SYM_SIZE,
   SPLIT_CONDITIONS,
+  COLLECT_PATH_CONDITIONS,
   TimeOperationCount // keep this as the last element, this is used to get the
                      // number of kinds of operations
 };
@@ -154,6 +155,14 @@ public:
       std::cout << "Cache hit rate: "
                 << static_cast<double>(cache_hit_count) /
                        static_cast<double>(cache_hit_count + cache_miss_count)
+                << std::endl;
+    }
+    if (PROFILE_PATH_CONDS) {
+      std::cout << "Path Conditions Profile Summary:" << std::endl;
+      std::cout << "Total time in collecting path conditions (s): "
+                << std::setprecision(15)
+                << time_count[static_cast<std::size_t>(
+                       TimeProfileKind::COLLECT_PATH_CONDITIONS)]
                 << std::endl;
     }
     std::cout << "Execution Kind Summary:" << std::endl;
