@@ -37,11 +37,13 @@ enum class ExecutionKind {
 
 enum class TimeProfileKind {
   INSTR,
-  SOLVER,
+  CALL_Z3_SOLVER,
+  SOLVER_TOTAL,
   RESUME_SNAPSHOT,
   COUNT_SYM_SIZE,
   SPLIT_CONDITIONS,
   COLLECT_PATH_CONDITIONS,
+  MAIN_LOOP,
   TimeOperationCount // keep this as the last element, this is used to get the
                      // number of kinds of operations
 };
@@ -130,7 +132,10 @@ public:
                 << time_count[static_cast<std::size_t>(TimeProfileKind::INSTR)]
                 << std::endl;
       std::cout << "Total time in solver (s): " << std::setprecision(15)
-                << time_count[static_cast<std::size_t>(TimeProfileKind::SOLVER)]
+                << time_count[static_cast<std::size_t>(TimeProfileKind::SOLVER_TOTAL)]
+                << std::endl;
+      std::cout << "Total time in z3 api call (s): " << std::setprecision(15)
+                << time_count[static_cast<std::size_t>(TimeProfileKind::CALL_Z3_SOLVER)]
                 << std::endl;
       std::cout << "Total time in resuming from snapshot (s): "
                 << std::setprecision(15)
@@ -147,6 +152,10 @@ public:
                 << time_count[static_cast<std::size_t>(
                        TimeProfileKind::SPLIT_CONDITIONS)]
                 << std::endl;
+      std::cout
+          << "Total time in main loop (s): " << std::setprecision(15)
+          << time_count[static_cast<std::size_t>(TimeProfileKind::MAIN_LOOP)]
+          << std::endl;
     }
     if (PROFILE_CACHE) {
       std::cout << "Solver Cache Summary:" << std::endl;
@@ -218,7 +227,7 @@ public:
          << time_count[static_cast<std::size_t>(TimeProfileKind::INSTR)]
          << ",\n";
       os << "    \"total_time_solver_s\": " << std::setprecision(15)
-         << time_count[static_cast<std::size_t>(TimeProfileKind::SOLVER)]
+         << time_count[static_cast<std::size_t>(TimeProfileKind::CALL_Z3_SOLVER)]
          << ",\n";
       os << "    \"total_time_resuming_from_snapshot_s\": "
          << std::setprecision(15)
@@ -230,6 +239,11 @@ public:
          << time_count[static_cast<std::size_t>(
                 TimeProfileKind::COUNT_SYM_SIZE)]
          << "\n";
+      os << "    \"total_time_splitting_path_conditions_s\": "
+         << std::setprecision(15)
+         << time_count[static_cast<std::size_t>(
+                TimeProfileKind::SPLIT_CONDITIONS)]
+         << ",\n";
     }
     if (PROFILE_CACHE) {
       os << "    \"total_cache_hits\": " << cache_hit_count << ",\n";

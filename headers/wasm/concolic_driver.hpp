@@ -47,9 +47,6 @@ public:
     // Dump the explore tree if needed
     if (driver.tree_file.has_value())
       ExploreTree.dump_graphviz(driver.tree_file.value());
-
-    // Clear the symbol bookkeeper
-    SymBookKeeper.clear();
   }
 };
 
@@ -89,8 +86,13 @@ inline void ConcolicDriver::main_exploration_loop() {
       std::cin.get();
     }
 
-    auto cond = node->collect_path_conds();
-    auto result = solver.solve_path_conds(cond, true);
+    ManagedTimer timer(TimeProfileKind::MAIN_LOOP);
+    std::optional<QueryResult> result;
+    {
+      ManagedTimer timer(TimeProfileKind::SOLVER_TOTAL);
+      auto cond = node->collect_path_conds();
+      result = solver.solve_path_conds(cond, true);
+    }
     if (!result.has_value()) {
       GENSYM_INFO("Found an unreachable path, marking it as unreachable...");
       node->fillUnreachableNode();

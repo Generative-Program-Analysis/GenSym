@@ -25,6 +25,7 @@ struct QueryResult {
 
 static QueryResult
 compose_query_results(const std::vector<QueryResult> &results) {
+  ManagedTimer timer(TimeProfileKind::SPLIT_CONDITIONS);
   NumMap combined_map;
   for (const auto &res : results) {
     auto num_map = res.map_box;
@@ -207,7 +208,7 @@ private:
     SymVal conjunction;
     z3::check_result solver_result;
     {
-      auto timer = ManagedTimer(TimeProfileKind::SOLVER);
+      auto timer = ManagedTimer(TimeProfileKind::CALL_Z3_SOLVER);
       // make an conjunction of all conditions
       conjunction = make_conjunction(conditions);
       // call z3 to solve the condition
@@ -327,8 +328,9 @@ inline EvalRes eval_sym_expr_by_model(const SymVal &sym, z3::model &model) {
 }
 
 inline std::monostate GENSYM_SYM_ASSERT(SymVal &sym_cond) {
-  std::vector<SymVal> conds = ExploreTree.collect_current_path_conds();
+  ManagedTimer timer(TimeProfileKind::SOLVER_TOTAL);
   auto start = std::chrono::steady_clock::now();
+  std::vector<SymVal> conds = ExploreTree.collect_current_path_conds();
   auto result =
       solver.solve_under_reachable_path(std::move(conds), sym_cond.negate());
   auto end = std::chrono::steady_clock::now();
