@@ -19,6 +19,12 @@ const bool PROFILE_TIME = true;
 const bool PROFILE_TIME = false;
 #endif
 
+#ifdef ENABLE_PROFILE_Z3_API_CALL
+const bool PROFILE_Z3_API_CALL = true;
+#else
+const bool PROFILE_Z3_API_CALL = false;
+#endif
+
 #ifdef ENABLE_PROFILE_CACHE
 const bool PROFILE_CACHE = true;
 #else

@@ -207,8 +207,9 @@ private:
     z3::solver z3_solver(global_z3_ctx());
     SymVal conjunction;
     z3::check_result solver_result;
+    double z3_solver_time = 0.0;
     {
-      auto timer = ManagedTimer(TimeProfileKind::CALL_Z3_SOLVER);
+      auto timer = ManagedTimer(TimeProfileKind::CALL_Z3_SOLVER, z3_solver_time);
       // make an conjunction of all conditions
       conjunction = make_conjunction(conditions);
       // call z3 to solve the condition
@@ -223,6 +224,7 @@ private:
       GENSYM_INFO("Solving conditions with Z3 solver...");
       solver_result = z3_solver.check();
     }
+    Profile.record_z3_solver_time(conjunction->z3_expr(), z3_solver_time, solver_result == z3::sat);
     switch (solver_result) {
     case z3::unsat:
       solver_cache[conjunction] = std::nullopt;

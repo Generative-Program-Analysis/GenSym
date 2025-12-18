@@ -3,8 +3,11 @@
 
 #include "config.hpp"
 #include "utils.hpp"
+#include "z3++.h"
 #include <array>
 #include <chrono>
+#include <filesystem>
+#include <fstream>
 #include <iomanip>
 #include <ratio>
 #include <string>
@@ -50,7 +53,33 @@ enum class TimeProfileKind {
 
 class Profile_t {
 public:
-  Profile_t() : step_count(0), cache_hit_count(0), cache_miss_count(0) {}
+  Profile_t() : step_count(0), cache_hit_count(0), cache_miss_count(0) {
+    // refresh the output profile directory
+    if (PROFILE_Z3_API_CALL) {
+      std::filesystem::path out_path(base_profile_output_path);
+      std::error_code ec;
+      std::filesystem::remove_all(out_path, ec);
+      if (ec) {
+        throw std::runtime_error("Failed to clear output directory: " +
+                                 ec.message());
+      }
+      std::filesystem::create_directories(out_path, ec);
+      if (ec) {
+        throw std::runtime_error("Failed to create output directory: " +
+                                 ec.message());
+      }
+      std::string record_file =
+          base_profile_output_path + "/z3_solver_time_record.csv";
+      std::ofstream ofs(record_file);
+      ofs << "Expression file,time spent (s),is_sat\n";
+      ofs.close();
+      std::filesystem::create_directories(z3_expr_output_path, ec);
+      if (ec) {
+        throw std::runtime_error("Failed to create z3 expr output directory: " +
+                                 ec.message());
+      }
+    }
+  }
 
   void cache_hit() {
     if (PROFILE_CACHE)
@@ -131,11 +160,13 @@ public:
                 << std::setprecision(15)
                 << time_count[static_cast<std::size_t>(TimeProfileKind::INSTR)]
                 << std::endl;
-      std::cout << "Total time in solver (s): " << std::setprecision(15)
-                << time_count[static_cast<std::size_t>(TimeProfileKind::SOLVER_TOTAL)]
-                << std::endl;
+      std::cout
+          << "Total time in solver (s): " << std::setprecision(15)
+          << time_count[static_cast<std::size_t>(TimeProfileKind::SOLVER_TOTAL)]
+          << std::endl;
       std::cout << "Total time in z3 api call (s): " << std::setprecision(15)
-                << time_count[static_cast<std::size_t>(TimeProfileKind::CALL_Z3_SOLVER)]
+                << time_count[static_cast<std::size_t>(
+                       TimeProfileKind::CALL_Z3_SOLVER)]
                 << std::endl;
       std::cout << "Total time in resuming from snapshot (s): "
                 << std::setprecision(15)
@@ -227,7 +258,8 @@ public:
          << time_count[static_cast<std::size_t>(TimeProfileKind::INSTR)]
          << ",\n";
       os << "    \"total_time_solver_s\": " << std::setprecision(15)
-         << time_count[static_cast<std::size_t>(TimeProfileKind::CALL_Z3_SOLVER)]
+         << time_count[static_cast<std::size_t>(
+                TimeProfileKind::CALL_Z3_SOLVER)]
          << ",\n";
       os << "    \"total_time_resuming_from_snapshot_s\": "
          << std::setprecision(15)
@@ -256,6 +288,30 @@ public:
     os << "  }\n";
   }
 
+  void record_z3_solver_time(z3::expr expr, double time, bool is_sat) {
+    // Write z3 expression in a file, and write the time spent in solving it and
+    // the file path in another file
+    if (PROFILE_Z3_API_CALL) {
+      static int count = 0;
+      std::string expr_file =
+          z3_expr_output_path + "/z3_expr_" + std::to_string(count) + ".smt2";
+      std::error_code ec;
+      std::ofstream ofs(expr_file);
+      ofs << expr;
+      ofs.close();
+      std::string record_file =
+          base_profile_output_path + "/z3_solver_time_record.csv";
+      std::ofstream rofs(record_file, std::ios::app);
+      rofs << expr_file << "," << std::setprecision(15) << time << ","
+           << (is_sat ? "sat" : "unsat") << "\n";
+      rofs.close();
+      count++;
+    }
+  }
+
+  std::string base_profile_output_path = "genwasym_profile_output";
+  std::string z3_expr_output_path = "genwasym_profile_output/z3_expressions";
+
   // record the time spent in main instruction execution, in seconds
   void add_instruction_time(TimeProfileKind kind, double time) {
     time_count[static_cast<std::size_t>(kind)] += time;
@@ -283,18 +339,26 @@ static Profile_t Profile;
 class ManagedTimer {
 public:
   ManagedTimer() = delete;
-  ManagedTimer(TimeProfileKind kind) : kind(kind) {
+  ManagedTimer(TimeProfileKind kind) : kind(kind), time_ref(nullptr) {
+    start = std::chrono::high_resolution_clock::now();
+  }
+  ManagedTimer(TimeProfileKind kind, double &time_ref)
+      : kind(kind), time_ref(&time_ref) {
     start = std::chrono::high_resolution_clock::now();
   }
   ~ManagedTimer() {
     auto end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> elapsed = end - start;
     Profile.add_instruction_time(kind, elapsed.count());
+    if (time_ref != nullptr) {
+      *time_ref += elapsed.count();
+    }
   }
 
 private:
   TimeProfileKind kind;
   std::chrono::high_resolution_clock::time_point start;
+  double *time_ref;
 };
 
 using Time = std::chrono::time_point<std::chrono::steady_clock>;
