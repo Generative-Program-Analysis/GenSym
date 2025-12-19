@@ -981,13 +981,15 @@ class SymEnv_t {
 public:
   SymEnv_t() : map(), imm_map_box(map) {}
 
-  Num read(const Symbol &symbol) {
+  Num read(const Symbol &symbol) const {
 #if DEBUG
     std::cout << "Read symbol: " << symbol.get_id()
               << " from symbolic environment" << std::endl;
     std::cout << "Current symbolic environment: " << to_string() << std::endl;
 #endif
-    map.try_emplace(symbol.get_id(), Num(I32V(0)));
+    if (map.find(symbol.get_id()) == map.end()) {
+      return Num(I32V(0));
+    }
     return map.at(symbol.get_id());
   }
 
@@ -1939,7 +1941,7 @@ struct EvalRes {
 
 // TODO: reduce the re-computation of the same symbolic expression, it's better
 // if it can be done by the smt solver
-static EvalRes eval_sym_expr(const SymVal &sym, SymEnv_t &sym_env) {
+static EvalRes eval_sym_expr(const SymVal &sym, const SymEnv_t &sym_env) {
   Profile.step(StepProfileKind::SYM_EVAL);
   assert(sym.symptr != nullptr && "Symbolic expression is null");
   if (auto concrete = dynamic_cast<SymConcrete *>(sym.symptr.get())) {
@@ -2043,7 +2045,7 @@ static EvalRes eval_sym_expr(const SymVal &sym, SymEnv_t &sym_env) {
   } else if (auto symbol = dynamic_cast<Symbol *>(sym.symptr.get())) {
     auto sym_id = symbol->get_id();
     GENSYM_INFO("Reading symbol: " + std::to_string(sym_id));
-    return EvalRes(sym_env.read(sym), 32);
+    return EvalRes(sym_env.read(*symbol), 32);
   }
   throw std::runtime_error("Not supported symbolic expression");
 }
@@ -2100,7 +2102,7 @@ static void resume_conc_frames_by_model(const SymFrames_t &sym_frame,
 }
 
 static void resume_conc_memory(const SymMemory_t &sym_memory, Memory_t &memory,
-                               SymEnv_t &sym_env) {
+                               const SymEnv_t &sym_env) {
   GENSYM_INFO("Restoring concrete memory from symbolic memory");
   memory.reset();
   for (const auto &pair : sym_memory.memory) {
