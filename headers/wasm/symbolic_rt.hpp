@@ -963,6 +963,7 @@ static std::monostate memoryInitialize(int32_t offset,
 
 using NumMap = std::unordered_map<int, Num>;
 
+// TODO: remove this class later
 class ImmNumMapBox {
 public:
   ImmNumMapBox(const NumMap &sym_env)

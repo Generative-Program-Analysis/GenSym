@@ -8,6 +8,7 @@
 #include "smt_solver.hpp"
 #include "symbolic_rt.hpp"
 #include "utils.hpp"
+#include "z3++.h"
 #include <cassert>
 #include <chrono>
 #include <functional>
@@ -31,9 +32,12 @@ public:
 
 private:
   void main_exploration_loop();
+  std::optional<QueryResult> get_new_input();
+  std::vector<std::vector<SymVal>> collect_all_unexplored_path_conds();
   std::function<void()> entrypoint;
   std::optional<std::string> tree_file;
   std::vector<NodeBox *> work_list;
+  std::set<NodeBox *> visited;
 };
 
 class ManagedConcolicCleanup {
@@ -52,33 +56,46 @@ public:
 
 static std::monostate reset_stacks();
 
-inline void ConcolicDriver::main_exploration_loop() {
+// A PathFrontier represents the frontier of an unexplored path. From this
+// frontier, we can explore the path by executing the program from the beginning
+// with the model stored in QueryResult.
+struct PathFrontier {
+  QueryResult query_result;
+  NodeBox *node;
+};
 
-  // Register a collector to ExploreTree to add new nodes to work_list
-  ExploreTree.register_new_node_collector(
-      [&](NodeBox *new_node) { work_list.push_back(new_node); });
+class PathPicker {
+public:
+  PathPicker(std::vector<NodeBox *> &unexplored_paths,
+             std::set<NodeBox *> &visited)
+      : unexplored_paths(unexplored_paths), visited(visited) {}
 
-  std::set<NodeBox *> visited;
+  virtual std::optional<PathFrontier> pick_path() = 0;
 
-  assert(ExploreTree.get_root()->isUnexplored() &&
-         "Before main loop, root should be unexplored!");
-  work_list.push_back(ExploreTree.get_root());
+protected:
+  std::vector<NodeBox *> &unexplored_paths;
+  std::set<NodeBox *> &visited;
+};
 
-  while (!work_list.empty()) {
-    ManagedConcolicCleanup cleanup{*this};
-    // Pick an unexplored node from the work list
-    auto node = work_list.back();
-    work_list.pop_back();
+class DefaultPathPicker : public PathPicker {
+public:
+  DefaultPathPicker(std::vector<NodeBox *> &unexplored_paths,
+                    std::set<NodeBox *> &visited)
+      : PathPicker(unexplored_paths, visited) {}
+
+  std::optional<PathFrontier> pick_path() override {
+    auto node = unexplored_paths.back();
+    unexplored_paths.pop_back();
 
     if (visited.find(node) != visited.end()) {
-      continue;
+      return std::nullopt;
     } else {
       visited.insert(node);
     }
 
     if (!node->isUnexplored()) {
       // if it's not unexplored anymore, skip it
-      continue;
+      return std::nullopt;
     }
 
     if (INTERACTIVE_MODE) {
@@ -86,7 +103,6 @@ inline void ConcolicDriver::main_exploration_loop() {
       std::cin.get();
     }
 
-    ManagedTimer timer(TimeProfileKind::MAIN_LOOP);
     std::optional<QueryResult> result;
     {
       ManagedTimer timer(TimeProfileKind::SOLVER_TOTAL);
@@ -96,10 +112,40 @@ inline void ConcolicDriver::main_exploration_loop() {
     if (!result.has_value()) {
       GENSYM_INFO("Found an unreachable path, marking it as unreachable...");
       node->fillUnreachableNode();
+      return std::nullopt;
+    }
+    return PathFrontier{result.value(), node};
+  }
+};
+
+inline void ConcolicDriver::main_exploration_loop() {
+
+  // Register a collector to ExploreTree to add new nodes to work_list
+  ExploreTree.register_new_node_collector([&](NodeBox *new_node) {
+    if (std::find(work_list.begin(), work_list.end(), new_node) ==
+        work_list.end())
+      work_list.push_back(new_node);
+  });
+
+  assert(ExploreTree.get_root()->isUnexplored() &&
+         "Before main loop, root should be unexplored!");
+  work_list.push_back(ExploreTree.get_root());
+
+  PathPicker &&picker = DefaultPathPicker(work_list, visited);
+
+  while (!work_list.empty()) {
+    ManagedConcolicCleanup cleanup{*this};
+    ManagedTimer timer(TimeProfileKind::MAIN_LOOP);
+    // Pick a frontier of an unexplored path from the work list
+    auto frontier = picker.pick_path();
+    if (!frontier.has_value()) {
       continue;
     }
-    auto &new_env = *result.value().map_box;
-    auto &model = result.value().model;
+
+    auto &node = frontier.value().node;
+
+    const NumMap &new_env = *frontier.value().query_result.map_box;
+    z3::model &model = frontier.value().query_result.model;
 
     // update global symbolic environment from SMT solved model
     SymEnv.update(new_env);
@@ -152,6 +198,17 @@ inline void ConcolicDriver::main_exploration_loop() {
     return;
 #endif
   }
+}
+
+inline std::vector<std::vector<SymVal>>
+ConcolicDriver::collect_all_unexplored_path_conds() {
+  std::vector<std::vector<SymVal>> result;
+  for (auto node : work_list) {
+    if (node->isUnexplored()) {
+      result.push_back(node->collect_path_conds());
+    }
+  }
+  return result;
 }
 
 inline void ConcolicDriver::run() {
