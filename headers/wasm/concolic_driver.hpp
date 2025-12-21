@@ -98,11 +98,6 @@ public:
       return std::nullopt;
     }
 
-    if (INTERACTIVE_MODE) {
-      std::cout << "Press Enter to continue to the next path..." << std::endl;
-      std::cin.get();
-    }
-
     std::optional<QueryResult> result;
     {
       ManagedTimer timer(TimeProfileKind::SOLVER_TOTAL);
@@ -115,6 +110,48 @@ public:
       return std::nullopt;
     }
     return PathFrontier{result.value(), node};
+  }
+};
+
+class RandomPathPicker : public PathPicker {
+public:
+  RandomPathPicker(std::vector<NodeBox *> &unexplored_paths,
+                   std::set<NodeBox *> &visited)
+      : PathPicker(unexplored_paths, visited) {}
+  std::optional<PathFrontier> pick_path() override {
+    ManagedTimer timer(TimeProfileKind::SOLVER_TOTAL);
+
+    if (unexplored_paths.empty()) {
+      return std::nullopt;
+    }
+    std::vector<std::vector<SymVal>> all_path_conds;
+    std::vector<NodeBox *> candidate_nodes;
+
+    for (auto node : unexplored_paths) {
+      ManagedTimer timer(TimeProfileKind::COLLECT_PATH_CONDITIONS);
+      if (visited.find(node) != visited.end()) {
+        continue;
+      }
+      if (!node->isUnexplored()) {
+        // I suppose thse should not happen
+        // assert(false);
+        continue;
+      }
+      all_path_conds.push_back(node->collect_path_conds());
+      candidate_nodes.push_back(node);
+    }
+
+    auto result = solver.find_reachable_path_with_witness(all_path_conds,
+                                                          candidate_nodes);
+    if (!result.has_value()) {
+      for (auto node : candidate_nodes) {
+        GENSYM_INFO("Found an unreachable path, marking it as unreachable...");
+        node->fillUnreachableNode();
+      }
+      unexplored_paths.clear();
+      return std::nullopt;
+    }
+    return PathFrontier{.query_result = *result, .node = result->witness};
   }
 };
 
@@ -131,9 +168,13 @@ inline void ConcolicDriver::main_exploration_loop() {
          "Before main loop, root should be unexplored!");
   work_list.push_back(ExploreTree.get_root());
 
-  PathPicker &&picker = DefaultPathPicker(work_list, visited);
+  PathPicker &&picker = RandomPathPicker(work_list, visited);
 
   while (!work_list.empty()) {
+    if (INTERACTIVE_MODE) {
+      std::cout << "Press Enter to continue to the next path..." << std::endl;
+      std::cin.get();
+    }
     ManagedConcolicCleanup cleanup{*this};
     ManagedTimer timer(TimeProfileKind::MAIN_LOOP);
     // Pick a frontier of an unexplored path from the work list

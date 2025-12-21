@@ -35,6 +35,7 @@ enum Operation {
   MUL,     // Multiplication
   DIV,     // Division
   AND,     // Logical AND
+  OR,      // Logical OR
   EQ_BOOL, // Equal (return a boolean) TODO: remove bv version of comparison ops
   NEQ_BOOL, // Not equal (return a boolean)
   EQ_BV,    // Equal (return a bitvector 0/1)
@@ -71,6 +72,7 @@ struct SymVal {
   SymVal eq_bool(const SymVal &other) const;
   SymVal neq_bool(const SymVal &other) const;
   SymVal land(const SymVal &other) const;
+  SymVal lor(const SymVal &other) const;
   SymVal eq(const SymVal &other) const;
   SymVal neq(const SymVal &other) const;
   SymVal lt(const SymVal &other) const;
@@ -97,6 +99,7 @@ struct SymVal {
   static SymVal make_smallbv(int width, int64_t value);
   static SymVal make_binary(Operation op, const SymVal &lhs, const SymVal &rhs);
   static SymVal make_extract(const SymVal &value, int high, int low);
+  static SymVal get_witness_symbol();
 
   Symbolic *operator->() const { return symptr.get(); }
   bool operator==(const SymVal &other) const { return symptr == other.symptr; }
@@ -132,6 +135,11 @@ public:
 
 private:
   int id;
+};
+
+class Witness : public Symbolic {
+public:
+  int dag_size() override { return 1; }
 };
 
 class SymConcrete : public Symbolic {
@@ -320,6 +328,8 @@ inline std::tuple<int, bool> count_dag_size_aux(Symbolic &val,
     return {1, false};
   } else if (auto smallbv = dynamic_cast<SmallBV *>(&val)) {
     return {1, false};
+  } else if (auto witness = dynamic_cast<Witness *>(&val)) {
+    assert(false && "Witness should not appear during instruction execution");
   } else {
     throw std::runtime_error("Unknown symbolic type in dag size counting");
   }
@@ -349,6 +359,10 @@ inline SymVal SymVal::div(const SymVal &other) const {
 
 inline SymVal SymVal::land(const SymVal &other) const {
   return make_binary(AND, *this, other);
+}
+
+inline SymVal SymVal::lor(const SymVal &other) const {
+  return make_binary(OR, *this, other);
 }
 
 inline SymVal SymVal::eq_bool(const SymVal &other) const {
@@ -522,6 +536,9 @@ inline SymVal SymVal::make_extract(const SymVal &value, int high, int low) {
   ExtractOperationStore[key] = result;
   return result;
 }
+static SymVal WitnessSymbol = SymVal(SymBookKeeper.allocate<Witness>());
+
+inline SymVal SymVal::get_witness_symbol() { return WitnessSymbol; }
 
 inline SymVal SymVal::makeSymbolic() const {
   auto concrete = dynamic_cast<SymConcrete *>(symptr.get());
@@ -540,6 +557,8 @@ inline z3::expr Symbolic::build_z3_expr_aux() {
   if (auto sym = dynamic_cast<Symbol *>(this)) {
     return global_z3_ctx().bv_const(
         ("s_" + std::to_string(sym->get_id())).c_str(), 32);
+  } else if (auto witness = dynamic_cast<Witness *>(this)) {
+    return global_z3_ctx().bv_const("witness", 32);
   } else if (auto concrete = dynamic_cast<SymConcrete *>(this)) {
     return global_z3_ctx().bv_val(concrete->value.value, 32);
   } else if (auto smallbv = dynamic_cast<SmallBV *>(this)) {
@@ -563,6 +582,9 @@ inline z3::expr Symbolic::build_z3_expr_aux() {
     }
     case AND: {
       return left && right;
+    }
+    case OR: {
+      return left || right;
     }
     case EQ_BV: {
       auto temp_bool = left == right;

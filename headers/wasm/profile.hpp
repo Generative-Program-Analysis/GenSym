@@ -183,6 +183,11 @@ public:
                 << time_count[static_cast<std::size_t>(
                        TimeProfileKind::SPLIT_CONDITIONS)]
                 << std::endl;
+      std::cout << "Total time in collecting path conditions (s): "
+                << std::setprecision(15)
+                << time_count[static_cast<std::size_t>(
+                       TimeProfileKind::COLLECT_PATH_CONDITIONS)]
+                << std::endl;
       std::cout
           << "Total time in main loop (s): " << std::setprecision(15)
           << time_count[static_cast<std::size_t>(TimeProfileKind::MAIN_LOOP)]

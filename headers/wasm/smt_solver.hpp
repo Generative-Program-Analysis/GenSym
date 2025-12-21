@@ -23,6 +23,13 @@ struct QueryResult {
   z3::model model;
 };
 
+struct QueryResultWithWitness : public QueryResult {
+  QueryResultWithWitness(ImmNumMapBox map_box, z3::model model,
+                         NodeBox *witness)
+      : QueryResult{map_box, model}, witness(witness) {}
+  NodeBox *witness;
+};
+
 static QueryResult
 compose_query_results(const std::vector<QueryResult> &results) {
   ManagedTimer timer(TimeProfileKind::SPLIT_CONDITIONS);
@@ -201,9 +208,48 @@ public:
     return solve_by_groups(groups, group_map, conditions.size());
   }
 
+  std::optional<QueryResultWithWitness> find_reachable_path_with_witness(
+      const std::vector<std::vector<SymVal>> &all_conditions,
+      const std::vector<NodeBox *> &candidate_nodes) {
+    assert(all_conditions.size() == candidate_nodes.size() &&
+           "Conditions size and candidate nodes size must be equal");
+    std::vector<SymVal> disjuncts;
+    auto witness = SymVal::get_witness_symbol();
+    SymVal disjunction;
+    {
+      ManagedTimer timer(TimeProfileKind::COLLECT_PATH_CONDITIONS);
+      for (size_t i = 0; i < all_conditions.size(); ++i) {
+        const auto &conds = all_conditions[i];
+        auto clause = make_conjunction(conds, true);
+        witness.eq_bool(SymVal::make_concrete(Num(i)))->z3_expr();
+        clause = clause.land(witness.eq_bool(SymVal::make_concrete(Num(i))));
+        clause->z3_expr();
+
+        disjuncts.push_back(clause);
+      }
+      disjunction = make_disjunction(disjuncts);
+    }
+
+    auto result = solve_group({disjunction}, false);
+    if (!result.has_value()) {
+      return std::nullopt;
+    }
+    z3::model &model = result->model;
+    // find which clause in disjunct is satisfied
+    z3::expr witness_expr = model.eval(witness.symptr->z3_expr(), true);
+    int witness_index = witness_expr.get_numeral_int64();
+
+    return QueryResultWithWitness{
+        result->map_box,
+        result->model,
+        candidate_nodes[witness_index],
+    };
+  }
+
 private:
-  std::optional<QueryResult>
-  solve_group(const std::vector<SymVal> &conditions) {
+  std::optional<QueryResult> solve_group(const std::vector<SymVal> &conditions,
+                                         bool is_bv) {
+
     z3::solver z3_solver(global_z3_ctx());
     SymVal conjunction;
     z3::check_result solver_result;
@@ -212,7 +258,7 @@ private:
       auto timer =
           ManagedTimer(TimeProfileKind::CALL_Z3_SOLVER, z3_solver_time);
       // make an conjunction of all conditions
-      conjunction = make_conjunction(conditions);
+      conjunction = make_conjunction(conditions, is_bv);
       // call z3 to solve the condition
       // NOTE: half of the solver time is spent in solver.add
       z3_solver.add(conjunction->z3_expr());
@@ -264,7 +310,7 @@ private:
                                              const VectorGroupMap &group_map,
                                              int condition_size) {
 
-    if (!solve_group(groups.ungrouped_conds).has_value()) {
+    if (!solve_group(groups.ungrouped_conds, true).has_value()) {
       return std::nullopt;
     }
 
@@ -282,7 +328,7 @@ private:
       }
       processed_groups.insert(group_id);
       auto &group_conds = groups.conds_in_groups.at(group_id);
-      auto group_result = solve_group(group_conds);
+      auto group_result = solve_group(group_conds, true);
       if (!group_result.has_value()) {
         // this group is unsatisfiable, so the whole condition is
         // unsatisfiable
@@ -295,10 +341,25 @@ private:
     return compose_query_results(group_results);
   }
 
-  SymVal make_conjunction(const std::vector<SymVal> &conditions) {
+  // make a big conjunction from a list of bitvector symbolic values
+  SymVal make_conjunction(const std::vector<SymVal> &conditions, bool is_bv) {
     SymVal result = SymVal().eq_bool(SymVal()); // true
     for (size_t i = 0; i < conditions.size(); ++i) {
-      result = result.land(conditions[i].neq_bool(SymVal()));
+      if (is_bv)
+        result = result.land(conditions[i].neq_bool(SymVal()));
+      else
+        result = result.land(conditions[i]);
+      result->z3_expr();
+    }
+    return result;
+  }
+
+  // make a big disjunction from a list of bool symbolic values
+  SymVal make_disjunction(const std::vector<SymVal> &conditions) {
+    SymVal fls = SymVal().neq_bool(SymVal()); // false
+    SymVal result = fls;
+    for (size_t i = 0; i < conditions.size(); ++i) {
+      result = result.lor(conditions[i]);
     }
     return result;
   }
