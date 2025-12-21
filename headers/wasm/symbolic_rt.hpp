@@ -1719,7 +1719,7 @@ public:
 
     if (branch) {
       true_branch_cov_map[if_else_node->id] = true;
-      if (!if_else_node->false_branch->isSnapshotNode()) {
+      if (REUSE_SNAPSHOT && !if_else_node->false_branch->isSnapshotNode()) {
         auto snapshot = makeSnapshot(control);
         if_else_node->false_branch->fillSnapshotNode(snapshot);
       } else {
@@ -1728,7 +1728,7 @@ public:
       cursor = if_else_node->true_branch.get();
     } else {
       false_branch_cov_map[if_else_node->id] = true;
-      if (!if_else_node->true_branch->isSnapshotNode()) {
+      if (REUSE_SNAPSHOT && !if_else_node->true_branch->isSnapshotNode()) {
         auto snapshot = makeSnapshot(control);
         if_else_node->true_branch->fillSnapshotNode(snapshot);
       } else {
