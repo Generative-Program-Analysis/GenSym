@@ -221,9 +221,7 @@ public:
       for (size_t i = 0; i < all_conditions.size(); ++i) {
         const auto &conds = all_conditions[i];
         auto clause = make_conjunction(conds, true);
-        witness.eq_bool(SymVal::make_concrete(Num(i)))->z3_expr();
-        clause = clause.land(witness.eq_bool(SymVal::make_concrete(Num(i))));
-        clause->z3_expr();
+        clause = clause.land(witness.eq_bool(SymVal::make_concrete_bv(Num(i))));
 
         disjuncts.push_back(clause);
       }
@@ -257,6 +255,7 @@ private:
     {
       auto timer =
           ManagedTimer(TimeProfileKind::CALL_Z3_SOLVER, z3_solver_time);
+      Profile.incr_call_solver_count();
       // make an conjunction of all conditions
       conjunction = make_conjunction(conditions, is_bv);
       // call z3 to solve the condition
@@ -349,7 +348,6 @@ private:
         result = result.land(conditions[i].bv2bool());
       else
         result = result.land(conditions[i]);
-      result->z3_expr();
     }
     return result;
   }
@@ -389,7 +387,7 @@ inline EvalRes eval_sym_expr_by_model(const SymVal &sym, z3::model &model) {
   z3::expr value = model.eval(expr, true);
   // every value is bitvector
   int width = expr.get_sort().bv_size();
-  return EvalRes(Num(value.get_numeral_int64()), width);
+  return EvalRes(Num(value.get_numeral_int64()), width, KindBV);
 }
 
 inline std::monostate GENSYM_SYM_ASSERT(SymVal &sym_cond) {

@@ -95,7 +95,8 @@ struct SymVal {
   bool is_concrete() const;
   int size() const;
 
-  static SymVal make_concrete(Num num);
+  static SymVal make_concrete_bv(Num num);
+  static SymVal make_concrete_bool(bool b);
   static SymVal make_symbolic(int index);
   static SymVal make_smallbv(int width, int64_t value);
   static SymVal make_binary(Operation op, const SymVal &lhs, const SymVal &rhs);
@@ -143,10 +144,13 @@ public:
   int dag_size() override { return 1; }
 };
 
+enum ValueKind { KindBV, KindBool };
+
 class SymConcrete : public Symbolic {
 public:
   Num value;
-  SymConcrete(Num num) : value(num) {}
+  ValueKind kind;
+  SymConcrete(Num num, ValueKind kind) : value(num), kind(kind) {}
 
   int dag_size() override { return 1; }
 };
@@ -168,7 +172,14 @@ struct SymBinary;
 static MemBookKeeper<Symbolic> SymBookKeeper;
 
 static std::shared_ptr<SymConcrete> ZERO =
-    SymBookKeeper.allocate<SymConcrete>(I32V(0));
+    SymBookKeeper.allocate<SymConcrete>(I32V(0), KindBV);
+
+static std::shared_ptr<SymConcrete> TRUE =
+    SymBookKeeper.allocate<SymConcrete>(I32V(1), KindBool);
+
+static std::shared_ptr<SymConcrete> FALSE =
+    SymBookKeeper.allocate<SymConcrete>(I32V(0), KindBool);
+
 static std::shared_ptr<SmallBV> ZeroByte =
     SymBookKeeper.allocate<SmallBV>(8, 0);
 
@@ -213,10 +224,10 @@ static std::unordered_map<SmallBVKey, SymVal> SmallBVStore;
 
 static SymVal makeSmallBV(int width, int64_t value) {
   if (width == 32) {
-    return SymVal::make_concrete(value);
+    return SymVal::make_concrete_bv(value);
   }
   if (width == 64) {
-    return SymVal::make_concrete(value);
+    return SymVal::make_concrete_bv(value);
   }
   auto key = SmallBVKey(width, value);
   auto it = SmallBVStore.find(key);
@@ -230,17 +241,25 @@ static SymVal makeSmallBV(int width, int64_t value) {
 
 static std::unordered_map<int64_t, SymVal> concrete_pool;
 
-inline SymVal SymVal::make_concrete(Num num) {
+inline SymVal SymVal::make_concrete_bv(Num num) {
   if (concrete_pool.find(num.toInt()) != concrete_pool.end()) {
     return concrete_pool[num.toInt()];
   }
 
-  auto new_val = SymVal(SymBookKeeper.allocate<SymConcrete>(num));
+  auto new_val = SymVal(SymBookKeeper.allocate<SymConcrete>(num, KindBV));
   concrete_pool[num.toInt()] = new_val;
   return new_val;
 }
 
-inline SymVal Concrete(Num num) { return SymVal::make_concrete(num); }
+inline SymVal SymVal::make_concrete_bool(bool b) {
+  if (b) {
+    return SymVal(TRUE);
+  } else {
+    return SymVal(FALSE);
+  }
+}
+
+inline SymVal Concrete(Num num) { return SymVal::make_concrete_bv(num); }
 
 // Extract is different from other operations, it only has one symbolic operand,
 // the other two operands are constants
@@ -436,6 +455,15 @@ inline SymVal SymVal::concat(const SymVal &other) const {
       return makeSmallBV(new_width, new_value);
     }
   }
+  if (auto extract1 = std::dynamic_pointer_cast<SymExtract>(symptr)) {
+    if (auto extract2 = std::dynamic_pointer_cast<SymExtract>(other.symptr)) {
+      if (extract1->low == extract2->high + 1 &&
+          extract1->value == extract2->value) {
+        // two extracts are adjacent, we can merge them
+        return extract1->value.extract(extract1->high, extract2->low);
+      }
+    }
+  }
   return make_binary(CONCAT, *this, other);
 }
 
@@ -448,13 +476,23 @@ inline SymVal SymVal::extract(int high, int low) const {
     int64_t mask = (1LL << new_width) - 1;
     int64_t new_value = (bv->get_value() >> shift_bits) & mask;
     return makeSmallBV(new_width, new_value);
-  } else if (auto concrete = std::dynamic_pointer_cast<SymConcrete>(symptr)) {
+  }
+
+  if (auto concrete = std::dynamic_pointer_cast<SymConcrete>(symptr)) {
     // extract from concrete value
     int32_t val = concrete->value.toInt();
     int32_t mask = (1LL << ((high - low + 1) * 8)) - 1;
     int32_t new_value = (val >> shift_bits) & mask;
     return makeSmallBV(new_width, new_value);
   }
+
+  if (auto extract = std::dynamic_pointer_cast<SymExtract>(symptr)) {
+    if (extract->low == low && extract->high == high) {
+      // extracting the same range, return directly
+      return *this;
+    }
+  }
+
   return SymVal::make_extract(*this, high, low);
 }
 
@@ -493,19 +531,6 @@ template <> struct std::hash<BinOpKey> {
 };
 
 static std::unordered_map<BinOpKey, SymVal> BinaryOperationStore;
-
-inline SymVal SymVal::make_binary(Operation op, const SymVal &lhs,
-                                  const SymVal &rhs) {
-  assert(lhs.symptr != nullptr && rhs.symptr != nullptr);
-  BinOpKey key(op, lhs, rhs);
-  auto it = BinaryOperationStore.find(key);
-  if (it != BinaryOperationStore.end()) {
-    return it->second;
-  }
-  auto result = SymVal(SymBookKeeper.allocate<SymBinary>(op, lhs, rhs));
-  BinaryOperationStore[key] = result;
-  return result;
-}
 
 struct ExtractKey {
   SymVal value;
@@ -565,6 +590,9 @@ inline z3::expr Symbolic::build_z3_expr_aux() {
   } else if (auto witness = dynamic_cast<Witness *>(this)) {
     return global_z3_ctx().bv_const("witness", 32);
   } else if (auto concrete = dynamic_cast<SymConcrete *>(this)) {
+    if (concrete->kind == KindBool) {
+      return global_z3_ctx().bool_val(concrete->value.toInt() != 0);
+    }
     return global_z3_ctx().bv_val(concrete->value.value, 32);
   } else if (auto smallbv = dynamic_cast<SmallBV *>(this)) {
     return global_z3_ctx().bv_val(smallbv->get_value(), smallbv->get_size());
@@ -1971,9 +1999,140 @@ NodeBox::reach_here(std::function<void()> entrypoint) {
 
 struct EvalRes {
   Num value;
+  ValueKind kind;
   int width; // in bits
-  EvalRes(Num value, int width) : value(value), width(width) {}
+  EvalRes(Num value, int width, ValueKind kind)
+      : value(value), width(width), kind(kind) {}
 };
+
+static EvalRes eval_binary_op(EvalRes lhs_res, EvalRes rhs_res,
+                              Operation operation) {
+  auto lhs = lhs_res.value;
+  auto rhs = rhs_res.value;
+  auto lhs_width = lhs_res.width;
+  auto rhs_width = rhs_res.width;
+  switch (operation) {
+  case ADD:
+    if (lhs_width == 32 && rhs_width == 32) {
+      return EvalRes(lhs.i32_add(rhs), 32, KindBV);
+    } else {
+      assert(false && "TODO");
+    }
+  case SUB:
+    if (lhs_width == 32 && rhs_width == 32) {
+      return EvalRes(lhs.i32_sub(rhs), 32, KindBV);
+    } else {
+      assert(false && "TODO");
+    }
+  case MUL:
+    if (lhs_width == 32 && rhs_width == 32) {
+      return EvalRes(lhs.i32_mul(rhs), 32, KindBV);
+    } else {
+      assert(false && "TODO");
+    }
+  case DIV:
+    if (lhs_width == 32 && rhs_width == 32) {
+      return EvalRes(lhs.i32_div_s(rhs), 32, KindBV);
+    } else {
+      assert(false && "TODO");
+    }
+  case LT_BV:
+    if (lhs_width == 32 && rhs_width == 32) {
+      return EvalRes(lhs.i32_lt_s(rhs), 32, KindBV);
+    } else {
+      assert(false && "TODO");
+    }
+  case LEQ_BV:
+    if (lhs_width == 32 && rhs_width == 32) {
+      return EvalRes(lhs.i32_le_s(rhs), 32, KindBV);
+    } else {
+      assert(false && "TODO");
+    }
+  case GT_BV:
+    if (lhs_width == 32 && rhs_width == 32) {
+      return EvalRes(lhs.i32_gt_s(rhs), 32, KindBV);
+    } else {
+      assert(false && "TODO");
+    }
+  case GEQ_BV:
+    if (lhs_width == 32 && rhs_width == 32) {
+      return EvalRes(lhs.i32_ge_s(rhs), 32, KindBV);
+    } else {
+      assert(false && "TODO");
+    }
+  case NEQ_BV:
+    if (lhs_width == 32 && rhs_width == 32) {
+      return EvalRes(lhs.i32_ne(rhs), 32, KindBV);
+    } else {
+      assert(false && "TODO");
+    }
+  case EQ_BV:
+    if (lhs_width == 32 && rhs_width == 32) {
+      return EvalRes(lhs.i32_eq(rhs), 32, KindBV);
+    } else {
+      assert(false && "TODO");
+    }
+  case B_AND:
+    if (lhs_width == 32 && rhs_width == 32) {
+      return EvalRes(lhs.i32_and(rhs), 32, KindBV);
+    } else {
+      assert(false && "TODO");
+    }
+  case CONCAT: {
+    auto lhs_width = lhs_res.width;
+    auto rhs_width = rhs_res.width;
+    auto conc_value = (lhs.value << rhs_width) | (rhs.value);
+    auto new_width = lhs_width + rhs_width;
+    return EvalRes(Num(I64V(conc_value)), new_width, KindBV);
+  }
+  case B_XOR:
+    if (lhs_width == 32 && rhs_width == 32) {
+      return EvalRes(lhs.i32_xor(rhs), 32, KindBV);
+    } else {
+      assert(false && "TODO");
+    }
+  case B_OR:
+    if (lhs_width == 32 && rhs_width == 32) {
+      return EvalRes(lhs.i32_or(rhs), 32, KindBV);
+    } else {
+      assert(false && "TODO");
+    }
+  case SHR:
+    if (lhs_width == 32 && rhs_width == 32) {
+      return EvalRes(lhs.i32_shr_u(rhs), 32, KindBV);
+    } else {
+      assert(false && "TODO");
+    }
+  case LTU_BV:
+    if (lhs_width == 32 && rhs_width == 32) {
+      return EvalRes(lhs.i32_lt_u(rhs), 32, KindBV);
+    } else {
+      assert(false && "TODO");
+    }
+  case GTU_BV:
+    if (lhs_width == 32 && rhs_width == 32) {
+      return EvalRes(lhs.i32_gt_u(rhs), 32, KindBV);
+    } else {
+      assert(false && "TODO");
+    }
+  case GEU_BV:
+    if (lhs_width == 32 && rhs_width == 32) {
+      return EvalRes(lhs.i32_ge_u(rhs), 32, KindBV);
+    } else {
+      assert(false && "TODO");
+    }
+  case AND:
+    return EvalRes(lhs.logical_and(rhs), 32, KindBool);
+  case OR:
+    return EvalRes(lhs.logical_or(rhs), 32, KindBool);
+  case EQ_BOOL:
+    return EvalRes(lhs.value == rhs.value, 32, KindBool);
+  case NEQ_BOOL:
+    return EvalRes(lhs.value != rhs.value, 32, KindBool);
+  default:
+    assert(false && "Operation not supported in evaluation");
+  }
+}
 
 // TODO: reduce the re-computation of the same symbolic expression, it's better
 // if it can be done by the smt solver
@@ -1981,7 +2140,7 @@ static EvalRes eval_sym_expr(const SymVal &sym, const SymEnv_t &sym_env) {
   Profile.step(StepProfileKind::SYM_EVAL);
   assert(sym.symptr != nullptr && "Symbolic expression is null");
   if (auto concrete = dynamic_cast<SymConcrete *>(sym.symptr.get())) {
-    return EvalRes(concrete->value, 32);
+    return EvalRes(concrete->value, 32, KindBV);
   } else if (auto extract = dynamic_cast<SymExtract *>(sym.symptr.get())) {
     auto res = eval_sym_expr(extract->value, sym_env);
     int high = extract->high;
@@ -1990,9 +2149,10 @@ static EvalRes eval_sym_expr(const SymVal &sym, const SymEnv_t &sym_env) {
     int size = high - low + 1; // size in bytes
     int64_t mask = (1LL << (size * 8)) - 1;
     int64_t extracted_value = (res.value.toInt() >> ((low - 1) * 8)) & mask;
-    return EvalRes(Num(I64V(extracted_value)), size * 8);
+    return EvalRes(Num(I64V(extracted_value)), size * 8, KindBV);
   } else if (auto smallbv = dynamic_cast<SmallBV *>(sym.symptr.get())) {
-    return EvalRes(Num(I64V(smallbv->get_value())), smallbv->get_size());
+    return EvalRes(Num(I64V(smallbv->get_value())), smallbv->get_size(),
+                   KindBV);
   } else if (auto operation = dynamic_cast<SymBinary *>(sym.symptr.get())) {
     // If it's a operation, we need to evaluate it
     auto lhs_res = eval_sym_expr(operation->lhs, sym_env);
@@ -2001,91 +2161,46 @@ static EvalRes eval_sym_expr(const SymVal &sym, const SymEnv_t &sym_env) {
     auto rhs = rhs_res.value;
     auto lhs_width = lhs_res.width;
     auto rhs_width = rhs_res.width;
-    switch (operation->op) {
-    case ADD:
-      if (lhs_width == 32 && rhs_width == 32) {
-        return EvalRes(lhs.i32_add(rhs), 32);
-      } else {
-        assert(false && "TODO");
-      }
-    case SUB:
-      if (lhs_width == 32 && rhs_width == 32) {
-        return EvalRes(lhs.i32_sub(rhs), 32);
-      } else {
-        assert(false && "TODO");
-      }
-    case MUL:
-      if (lhs_width == 32 && rhs_width == 32) {
-        return EvalRes(lhs.i32_mul(rhs), 32);
-      } else {
-        assert(false && "TODO");
-      }
-    case DIV:
-      if (lhs_width == 32 && rhs_width == 32) {
-        return EvalRes(lhs.i32_div_s(rhs), 32);
-      } else {
-        assert(false && "TODO");
-      }
-    case LT_BV:
-      if (lhs_width == 32 && rhs_width == 32) {
-        return EvalRes(lhs.i32_lt_s(rhs), 32);
-      } else {
-        assert(false && "TODO");
-      }
-    case LEQ_BV:
-      if (lhs_width == 32 && rhs_width == 32) {
-        return EvalRes(lhs.i32_le_s(rhs), 32);
-      } else {
-        assert(false && "TODO");
-      }
-    case GT_BV:
-      if (lhs_width == 32 && rhs_width == 32) {
-        return EvalRes(lhs.i32_gt_s(rhs), 32);
-      } else {
-        assert(false && "TODO");
-      }
-    case GEQ_BV:
-      if (lhs_width == 32 && rhs_width == 32) {
-        return EvalRes(lhs.i32_ge_s(rhs), 32);
-      } else {
-        assert(false && "TODO");
-      }
-    case NEQ_BV:
-      if (lhs_width == 32 && rhs_width == 32) {
-        return EvalRes(lhs.i32_ne(rhs), 32);
-      } else {
-        assert(false && "TODO");
-      }
-    case EQ_BV:
-      if (lhs_width == 32 && rhs_width == 32) {
-        return EvalRes(lhs.i32_eq(rhs), 32);
-      } else {
-        assert(false && "TODO");
-      }
-    case B_AND:
-      if (lhs_width == 32 && rhs_width == 32) {
-        return EvalRes(lhs.i32_and(rhs), 32);
-      } else {
-        assert(false && "TODO");
-      }
-    case CONCAT: {
-      auto lhs_width = lhs_res.width;
-      auto rhs_width = rhs_res.width;
-      auto conc_value = (lhs.value << rhs_width) | (rhs.value);
-      auto new_width = lhs_width + rhs_width;
-      return EvalRes(Num(I64V(conc_value)), new_width);
-    }
-    default:
-      assert(false && "Operation not supported in evaluation");
-    }
+    return eval_binary_op(lhs_res, rhs_res, operation->op);
   } else if (auto symbol = dynamic_cast<Symbol *>(sym.symptr.get())) {
     auto sym_id = symbol->get_id();
     GENSYM_INFO("Reading symbol: " + std::to_string(sym_id));
-    return EvalRes(sym_env.read(*symbol), 32);
+    return EvalRes(sym_env.read(*symbol), 32, KindBV);
   }
   throw std::runtime_error("Not supported symbolic expression");
 }
 
+inline SymVal SymVal::make_binary(Operation op, const SymVal &lhs,
+                                  const SymVal &rhs) {
+  assert(lhs.symptr != nullptr && rhs.symptr != nullptr);
+
+  BinOpKey key(op, lhs, rhs);
+  auto it = BinaryOperationStore.find(key);
+  if (it != BinaryOperationStore.end()) {
+    return it->second;
+  }
+  if (auto lhs_concrete = dynamic_cast<SymConcrete *>(lhs.symptr.get())) {
+    if (auto rhs_concrete = dynamic_cast<SymConcrete *>(rhs.symptr.get())) {
+      // both sides are concrete, we can compute the result directly
+      auto lhs_value = lhs_concrete->value;
+      auto rhs_value = rhs_concrete->value;
+      EvalRes res = eval_binary_op(EvalRes(lhs_value, 32, KindBV),
+                                   EvalRes(rhs_value, 32, KindBV), op);
+      if (res.kind == KindBool) {
+        auto result = SymVal::make_concrete_bool(res.value.value);
+        BinaryOperationStore[key] = result;
+        return result;
+      }
+      auto result = SymVal::make_concrete_bv(res.value);
+      BinaryOperationStore[key] = result;
+      return result;
+    }
+  }
+
+  auto result = SymVal(SymBookKeeper.allocate<SymBinary>(op, lhs, rhs));
+  BinaryOperationStore[key] = result;
+  return result;
+}
 inline EvalRes eval_sym_expr_by_model(const SymVal &sym, z3::model &model);
 
 static void resume_conc_stack(const SymStack_t &sym_stack, Stack_t &stack,

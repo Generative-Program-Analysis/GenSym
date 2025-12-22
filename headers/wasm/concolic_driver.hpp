@@ -168,7 +168,8 @@ inline void ConcolicDriver::main_exploration_loop() {
          "Before main loop, root should be unexplored!");
   work_list.push_back(ExploreTree.get_root());
 
-  PathPicker &&picker = RandomPathPicker(work_list, visited);
+  PathPicker &&picker = DefaultPathPicker(work_list, visited);
+
 
   while (!work_list.empty()) {
     if (INTERACTIVE_MODE) {
@@ -208,8 +209,7 @@ inline void ConcolicDriver::main_exploration_loop() {
         entrypoint();
       }
 
-      GENSYM_INFO("Execution finished successfully with symbolic environment:");
-      GENSYM_INFO(SymEnv.to_string());
+      GENSYM_INFO("Execution finished successfully");
     } catch (std::runtime_error &e) {
       std::cout << "Caught runtime error: " << e.what() << std::endl;
       ExploreTree.fillFailedNode();
@@ -219,8 +219,7 @@ inline void ConcolicDriver::main_exploration_loop() {
         continue;
       }
 
-      GENSYM_INFO("Caught runtime error with symbolic environment:");
-      GENSYM_INFO(SymEnv.to_string());
+      GENSYM_INFO("Caught runtime error during execution");
       switch (EXPLORE_MODE) {
       case ExploreMode::EarlyExit:
         return;

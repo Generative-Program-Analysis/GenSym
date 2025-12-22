@@ -109,6 +109,11 @@ public:
     exec_kind_count[static_cast<std::size_t>(ExecutionKind::FROMSNAPSHOT)]++;
     return std::monostate();
   }
+  std::monostate incr_call_solver_count() {
+    call_solver_count++;
+    return std::monostate();
+  }
+
   void print_summary() {
     if (PROFILE_STEP) {
       std::cout << "Profile Summary:" << std::endl;
@@ -210,6 +215,7 @@ public:
                        TimeProfileKind::COLLECT_PATH_CONDITIONS)]
                 << std::endl;
     }
+    std::cout << "Number of calls to solver: " << call_solver_count << std::endl;
     std::cout << "Execution Kind Summary:" << std::endl;
     std::cout
         << "Total RESTART executions: "
@@ -337,6 +343,7 @@ public:
 
   int cache_hit_count;
   int cache_miss_count;
+  int call_solver_count;
 };
 
 static Profile_t Profile;

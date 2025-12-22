@@ -428,6 +428,16 @@ struct Num {
     debug_print("f32.copysign", *this, other, res);
     return res;
   }
+
+  // logic and
+  inline bool logical_and(const Num &other) const {
+    return (this->toUInt() != 0) && (other.toUInt() != 0);
+  }
+
+  // logic or
+  inline bool logical_or(const Num &other) const {
+    return (this->toUInt() != 0) || (other.toUInt() != 0);
+  }
 };
 
 static Num I32V(int v) { return v; }
