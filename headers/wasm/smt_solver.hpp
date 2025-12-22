@@ -346,7 +346,7 @@ private:
     SymVal result = SymVal().eq_bool(SymVal()); // true
     for (size_t i = 0; i < conditions.size(); ++i) {
       if (is_bv)
-        result = result.land(conditions[i].neq_bool(SymVal()));
+        result = result.land(conditions[i].bv2bool());
       else
         result = result.land(conditions[i]);
       result->z3_expr();

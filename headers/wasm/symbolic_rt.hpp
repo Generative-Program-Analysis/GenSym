@@ -89,6 +89,7 @@ struct SymVal {
   SymVal bitwise_or(const SymVal &other) const;
   SymVal concat(const SymVal &other) const;
   SymVal extract(int high, int low) const;
+  SymVal bv2bool() const;
   // TODO: add bitwise operations, and use the underlying bitvector theory
 
   bool is_concrete() const;
@@ -379,6 +380,10 @@ inline SymVal SymVal::eq(const SymVal &other) const {
 
 inline SymVal SymVal::neq(const SymVal &other) const {
   return make_binary(NEQ_BV, *this, other);
+}
+
+inline SymVal SymVal::bv2bool() const {
+  return make_binary(NEQ_BOOL, *this, Concrete(I32V(0)));
 }
 
 inline SymVal SymVal::lt(const SymVal &other) const {
