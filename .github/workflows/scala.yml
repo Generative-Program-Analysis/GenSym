@@ -71,6 +71,7 @@ jobs:
       run: sbt 'runMain gensym.GenerateExternal'
     - name: Run tests
       run: |
+        export CPLUS_INCLUDE_PATH=$CPLUS_INCLUDE_PATH:./headers:./third-party/immer
         sbt 'testOnly gensym.TestImpCPSGS'
         sbt 'testOnly gensym.TestImpCPSGS_Z3'
         sbt 'testOnly gensym.TestLibrary'
