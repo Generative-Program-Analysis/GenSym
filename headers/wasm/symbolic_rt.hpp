@@ -113,12 +113,15 @@ template <> struct std::hash<SymVal> {
   }
 };
 
+enum ValueKind { KindBV, KindBool };
+
 class Symbolic {
 public:
   Symbolic() {}
   virtual ~Symbolic() = default; // Make Symbolic polymorphic
   virtual int dag_size() = 0;
   virtual z3::expr z3_expr() { return build_z3_expr(); }
+  virtual ValueKind value_kind() = 0;
   z3::expr build_z3_expr();
 
 private:
@@ -135,6 +138,8 @@ public:
 
   int dag_size() override { return 1; }
 
+  ValueKind value_kind() override { return KindBV; }
+
 private:
   int id;
 };
@@ -142,9 +147,9 @@ private:
 class Witness : public Symbolic {
 public:
   int dag_size() override { return 1; }
-};
 
-enum ValueKind { KindBV, KindBool };
+  ValueKind value_kind() override { return KindBV; }
+};
 
 class SymConcrete : public Symbolic {
 public:
@@ -153,6 +158,8 @@ public:
   SymConcrete(Num num, ValueKind kind) : value(num), kind(kind) {}
 
   int dag_size() override { return 1; }
+
+  ValueKind value_kind() override { return kind; }
 };
 
 class SmallBV : public Symbolic {
@@ -162,6 +169,8 @@ public:
   int64_t get_value() const { return value; }
 
   int dag_size() override { return 1; }
+
+  ValueKind value_kind() override { return KindBV; }
 
 private:
   int width; // in bits
@@ -280,6 +289,8 @@ struct SymExtract : public Symbolic {
     return _cached_dag_size.value();
   }
 
+  ValueKind value_kind() override { return KindBV; }
+
 private:
   friend std::tuple<int, bool>
   count_dag_size_aux(Symbolic &val, std::set<Symbolic *> &visited);
@@ -305,6 +316,16 @@ struct SymBinary : public Symbolic {
     auto size = count_dag_size(*this);
     _cached_dag_size = size;
     return size;
+  }
+
+  ValueKind value_kind() override {
+    switch (op) {
+    case EQ_BOOL:
+    case NEQ_BOOL:
+      return KindBool;
+    default:
+      return KindBV;
+    }
   }
 
 private:
@@ -459,6 +480,12 @@ inline SymVal SymVal::concat(const SymVal &other) const {
     if (auto extract2 = std::dynamic_pointer_cast<SymExtract>(other.symptr)) {
       if (extract1->low == extract2->high + 1 &&
           extract1->value == extract2->value) {
+        if (extract1->high == 4 && extract2->low == 1) {
+          // special case for full 4-byte extract concatenation
+          // TODO: support 64-bit later, this optimization is only valid when we
+          // only work on 32-bit values
+          return extract1->value;
+        }
         // two extracts are adjacent, we can merge them
         return extract1->value.extract(extract1->high, extract2->low);
       }
