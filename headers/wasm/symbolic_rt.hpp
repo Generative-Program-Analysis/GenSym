@@ -1746,20 +1746,28 @@ public:
 
     if (branch) {
       true_branch_cov_map[if_else_node->id] = true;
-      if (REUSE_SNAPSHOT && !if_else_node->false_branch->isSnapshotNode()) {
-        auto snapshot = makeSnapshot(control);
-        if_else_node->false_branch->fillSnapshotNode(snapshot);
+      if (if_else_node->cond.is_concrete()) {
+        if_else_node->false_branch->fillUnreachableNode();
       } else {
-        // Do nothing, the initial value of the branch is an unexplored node
+        if (REUSE_SNAPSHOT && !if_else_node->false_branch->isSnapshotNode()) {
+          auto snapshot = makeSnapshot(control);
+          if_else_node->false_branch->fillSnapshotNode(snapshot);
+        } else {
+          // Do nothing, the initial value of the branch is an unexplored node
+        }
       }
       cursor = if_else_node->true_branch.get();
     } else {
       false_branch_cov_map[if_else_node->id] = true;
-      if (REUSE_SNAPSHOT && !if_else_node->true_branch->isSnapshotNode()) {
-        auto snapshot = makeSnapshot(control);
-        if_else_node->true_branch->fillSnapshotNode(snapshot);
+      if (if_else_node->cond.is_concrete()) {
+        if_else_node->true_branch->fillUnreachableNode();
       } else {
-        // Do nothing, the initial value of the branch is an unexplored node
+        if (REUSE_SNAPSHOT && !if_else_node->true_branch->isSnapshotNode()) {
+          auto snapshot = makeSnapshot(control);
+          if_else_node->true_branch->fillSnapshotNode(snapshot);
+        } else {
+          // Do nothing, the initial value of the branch is an unexplored node
+        }
       }
       cursor = if_else_node->false_branch.get();
     }
