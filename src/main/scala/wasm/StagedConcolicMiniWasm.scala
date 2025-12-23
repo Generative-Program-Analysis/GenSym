@@ -1978,7 +1978,7 @@ trait StagedWasmCppGen extends CGenBase with CppSAICodeGenBase {
     case Node(_, "is-zero", List(num), _) =>
       emit("(0 == "); shallow(num); emit(")")
     case Node(_, "sym-is-zero", List(s_num), _) =>
-      shallow(s_num); emit(".is_zero()")
+      shallow(s_num); emit(".is_zero().bool2bv()")
     case Node(_, "i32-binary-add", List(lhs, rhs), _) =>
       shallow(lhs); emit(".i32_add("); shallow(rhs); emit(")")
     case Node(_, "i32-binary-sub", List(lhs, rhs), _) =>
@@ -2046,29 +2046,29 @@ trait StagedWasmCppGen extends CGenBase with CppSAICodeGenBase {
     case Node(_, "sym-binary-and", List(lhs, rhs), _) =>
       shallow(lhs); emit(".bitwise_and("); shallow(rhs); emit(")")
     case Node(_, "sym-relation-les", List(lhs, rhs), _) =>
-      shallow(lhs); emit(".le("); shallow(rhs); emit(")")
+      shallow(lhs); emit(".le("); shallow(rhs); emit(").bool2bv()")
     case Node(_, "sym-relation-leu", List(lhs, rhs), _) =>
-      shallow(lhs); emit(".leu("); shallow(rhs); emit(")")
+      shallow(lhs); emit(".leu("); shallow(rhs); emit(").bool2bv()")
     case Node(_, "sym-relation-lts", List(lhs, rhs), _) =>
-      shallow(lhs); emit(".lt("); shallow(rhs); emit(")")
+      shallow(lhs); emit(".lt("); shallow(rhs); emit(").bool2bv()")
     case Node(_, "sym-binary-xor", List(lhs, rhs), _) =>
       shallow(lhs); emit(".bitwise_xor("); shallow(rhs); emit(")")
     case Node(_, "sym-binary-or", List(lhs, rhs), _) =>
       shallow(lhs); emit(".bitwise_or("); shallow(rhs); emit(")")
     case Node(_, "relation-ltu", List(lhs, rhs), _) =>
-      shallow(lhs); emit(".ltu("); shallow(rhs); emit(")")
+      shallow(lhs); emit(".ltu("); shallow(rhs); emit(").bool2bv()")
     case Node(_, "sym-relation-ges", List(lhs, rhs), _) =>
-      shallow(lhs); emit(".ge("); shallow(rhs); emit(")")
+      shallow(lhs); emit(".ge("); shallow(rhs); emit(").bool2bv()")
     case Node(_, "sym-relation-geu", List(lhs, rhs), _) =>
-      shallow(lhs); emit(".geu("); shallow(rhs); emit(")")
+      shallow(lhs); emit(".geu("); shallow(rhs); emit(").bool2bv()")
     case Node(_, "sym-relation-eq", List(lhs, rhs), _) =>
-      shallow(lhs); emit(".eq("); shallow(rhs); emit(")")
+      shallow(lhs); emit(".eq("); shallow(rhs); emit(").bool2bv()")
     case Node(_, "sym-relation-ne", List(lhs, rhs), _) =>
-      shallow(lhs); emit(".neq("); shallow(rhs); emit(")")
+      shallow(lhs); emit(".neq("); shallow(rhs); emit(").bool2bv()")
     case Node(_, "sym-relation-gt", List(lhs, rhs), _) =>
-      shallow(lhs); emit(".gt("); shallow(rhs); emit(")")
+      shallow(lhs); emit(".gt("); shallow(rhs); emit(").bool2bv()")
     case Node(_, "sym-relation-gtu", List(lhs, rhs), _) =>
-      shallow(lhs); emit(".gtu("); shallow(rhs); emit(")")
+      shallow(lhs); emit(".gtu("); shallow(rhs); emit(").bool2bv()")
     case Node(_, "sym-binary-shr", List(lhs, rhs), _) =>
       shallow(lhs); emit(".shr("); shallow(rhs); emit(")")
     case Node(_, "num-to-int", List(num), _) =>
@@ -2100,7 +2100,7 @@ trait StagedWasmCppGen extends CGenBase with CppSAICodeGenBase {
     case Node(_, "tree-dump-graphviz", List(f), _) =>
       emit("ExploreTree.dump_graphviz("); shallow(f); emit(")")
     case Node(_, "sym-not", List(s), _) =>
-      shallow(s); emit(".negate()")
+      shallow(s); emit(".negate().bool2bv()")
     case Node(_, "make-init-mcont", List(haltK), _) =>
       emit("MCont_t("); shallow(haltK); emit(")")
     case Node(_, "mcont-prepend", List(mkont, kont), _) =>

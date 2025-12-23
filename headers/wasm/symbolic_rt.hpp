@@ -29,7 +29,7 @@
 #include <variant>
 #include <vector>
 
-enum Operation {
+enum BinOperation {
   ADD,     // Addition
   SUB,     // Subtraction
   MUL,     // Multiplication
@@ -38,21 +38,25 @@ enum Operation {
   OR,      // Logical OR
   EQ_BOOL, // Equal (return a boolean) TODO: remove bv version of comparison ops
   NEQ_BOOL, // Not equal (return a boolean)
-  EQ_BV,    // Equal (return a bitvector 0/1)
-  NEQ_BV,   // Not equal
-  LT_BV,    // Less than
-  LTU_BV,   // Unsigned less than
-  LEQ_BV,   // Less than or equal
-  GT_BV,    // Greater than
-  GTU_BV,   // Unsigned greater than
-  GEQ_BV,   // Greater than or equal
-  GEU_BV,   // Unsigned greater than or equal
+  LT_BOOL,  // Less than (return a boolean)
+  LTU_BOOL, // Unsigned less than (return a boolean)
+  LEQ_BOOL, // Less than or equal (return a boolean)
+  GT_BOOL,  // Greater than (return a boolean)
+  GTU_BOOL, // Unsigned greater than (return a boolean)
+  GEQ_BOOL, // Greater than or equal (return a boolean)
+  GEU_BOOL, // Unsigned greater than or equal (return a boolean)
   SHR,      // Shift right
   B_AND,    // Bitwise AND
   B_XOR,    // Bitwise XOR
   B_OR,     // Bitwise OR
   CONCAT,   // Byte-level concatenation
 };
+
+enum UnaryOperation {
+  NOT,     // bool not
+  BOOL2BV, // bool to bitvector
+};
+
 class Symbolic;
 struct SymVal {
   std::shared_ptr<Symbolic> symptr;
@@ -90,6 +94,7 @@ struct SymVal {
   SymVal concat(const SymVal &other) const;
   SymVal extract(int high, int low) const;
   SymVal bv2bool() const;
+  SymVal bool2bv() const;
   // TODO: add bitwise operations, and use the underlying bitvector theory
 
   bool is_concrete() const;
@@ -99,7 +104,9 @@ struct SymVal {
   static SymVal make_concrete_bool(bool b);
   static SymVal make_symbolic(int index);
   static SymVal make_smallbv(int width, int64_t value);
-  static SymVal make_binary(Operation op, const SymVal &lhs, const SymVal &rhs);
+  static SymVal make_binary(BinOperation op, const SymVal &lhs,
+                            const SymVal &rhs);
+  static SymVal make_unary(UnaryOperation op, const SymVal &value);
   static SymVal make_extract(const SymVal &value, int high, int low);
   static SymVal get_witness_symbol();
 
@@ -301,11 +308,11 @@ private:
 inline int count_dag_size(Symbolic &val);
 
 struct SymBinary : public Symbolic {
-  Operation op;
+  BinOperation op;
   SymVal lhs;
   SymVal rhs;
 
-  SymBinary(Operation op, SymVal lhs, SymVal rhs)
+  SymBinary(BinOperation op, SymVal lhs, SymVal rhs)
       : op(op), lhs(lhs), rhs(rhs) {}
 
   int dag_size() override {
@@ -325,6 +332,40 @@ struct SymBinary : public Symbolic {
       return KindBool;
     default:
       return KindBV;
+    }
+  }
+
+private:
+  friend std::tuple<int, bool>
+  count_dag_size_aux(Symbolic &val, std::set<Symbolic *> &visited);
+  std::optional<int> _cached_dag_size;
+};
+
+struct SymUnary : public Symbolic {
+  UnaryOperation op;
+  SymVal value;
+
+  SymUnary(UnaryOperation op, SymVal value) : op(op), value(value) {}
+
+  int dag_size() override {
+    if (_cached_dag_size.has_value()) {
+      return _cached_dag_size.value();
+    }
+    _cached_dag_size = 1 + value.symptr->dag_size();
+    return _cached_dag_size.value();
+  }
+
+  ValueKind value_kind() override {
+    switch (op) {
+    case NOT: {
+      return ValueKind::KindBool;
+    }
+    case BOOL2BV: {
+      return ValueKind::KindBV;
+    }
+    default: {
+      assert(false);
+    }
     }
   }
 
@@ -354,6 +395,16 @@ inline std::tuple<int, bool> count_dag_size_aux(Symbolic &val,
       binary->_cached_dag_size = size;
     }
     return {size, lhs_sharing || rhs_sharing};
+  } else if (auto unary = dynamic_cast<SymUnary *>(&val)) {
+    int size = 1;
+    auto [value_size, value_sharing] =
+        count_dag_size_aux(*unary->value.symptr, visited);
+    size += value_size;
+    if (!value_sharing) {
+      unary->_cached_dag_size = size;
+    }
+    return {size, value_sharing};
+
   } else if (auto extract = dynamic_cast<SymExtract *>(&val)) {
     int size = 1;
     auto [value_size, value_sharing] =
@@ -415,44 +466,46 @@ inline SymVal SymVal::neq_bool(const SymVal &other) const {
 }
 
 inline SymVal SymVal::eq(const SymVal &other) const {
-  return make_binary(EQ_BV, *this, other);
+  return make_binary(EQ_BOOL, *this, other);
 }
 
 inline SymVal SymVal::neq(const SymVal &other) const {
-  return make_binary(NEQ_BV, *this, other);
+  return make_binary(NEQ_BOOL, *this, other);
 }
 
 inline SymVal SymVal::bv2bool() const {
   return make_binary(NEQ_BOOL, *this, Concrete(I32V(0)));
 }
 
+inline SymVal SymVal::bool2bv() const { return make_unary(BOOL2BV, *this); }
+
 inline SymVal SymVal::lt(const SymVal &other) const {
-  return make_binary(LT_BV, *this, other);
+  return make_binary(LT_BOOL, *this, other);
 }
 
 inline SymVal SymVal::ltu(const SymVal &other) const {
   // for now, we treat unsigned less than as signed less than
-  return make_binary(LTU_BV, *this, other);
+  return make_binary(LTU_BOOL, *this, other);
 }
 
 inline SymVal SymVal::le(const SymVal &other) const {
-  return make_binary(LEQ_BV, *this, other);
+  return make_binary(LEQ_BOOL, *this, other);
 }
 
 inline SymVal SymVal::gt(const SymVal &other) const {
-  return make_binary(GT_BV, *this, other);
+  return make_binary(GT_BOOL, *this, other);
 }
 
 inline SymVal SymVal::gtu(const SymVal &other) const {
-  return make_binary(GTU_BV, *this, other);
+  return make_binary(GTU_BOOL, *this, other);
 }
 
 inline SymVal SymVal::ge(const SymVal &other) const {
-  return make_binary(GEQ_BV, *this, other);
+  return make_binary(GEQ_BOOL, *this, other);
 }
 
 inline SymVal SymVal::geu(const SymVal &other) const {
-  return make_binary(GEU_BV, *this, other);
+  return make_binary(GEU_BOOL, *this, other);
 }
 
 inline SymVal SymVal::shr(const SymVal &other) const {
@@ -460,11 +513,11 @@ inline SymVal SymVal::shr(const SymVal &other) const {
 }
 
 inline SymVal SymVal::is_zero() const {
-  return make_binary(EQ_BV, *this, Concrete(I32V(0)));
+  return make_binary(EQ_BOOL, *this, Concrete(I32V(0)));
 }
 
 inline SymVal SymVal::negate() const {
-  return make_binary(EQ_BV, *this, Concrete(I32V(0)));
+  return make_binary(EQ_BOOL, *this, Concrete(I32V(0)));
 }
 
 inline SymVal SymVal::concat(const SymVal &other) const {
@@ -536,10 +589,10 @@ inline SymVal SymVal::bitwise_or(const SymVal &other) const {
 }
 
 struct BinOpKey {
-  Operation op;
+  BinOperation op;
   SymVal lhs;
   SymVal rhs;
-  BinOpKey(Operation op, const SymVal &lhs, const SymVal &rhs)
+  BinOpKey(BinOperation op, const SymVal &lhs, const SymVal &rhs)
       : op(op), lhs(lhs), rhs(rhs) {}
 
   bool operator==(const BinOpKey &other) const {
@@ -558,6 +611,26 @@ template <> struct std::hash<BinOpKey> {
 };
 
 static std::unordered_map<BinOpKey, SymVal> BinaryOperationStore;
+
+struct UnaryOpKey {
+  UnaryOperation op;
+  SymVal value;
+  UnaryOpKey(UnaryOperation op, const SymVal &value) : op(op), value(value) {}
+
+  bool operator==(const UnaryOpKey &other) const {
+    return op == other.op && value.symptr == other.value.symptr;
+  }
+};
+
+template <> struct std::hash<UnaryOpKey> {
+  size_t operator()(const UnaryOpKey &key) const {
+    size_t h1 = std::hash<int>{}(static_cast<int>(key.op));
+    size_t h2 = std::hash<void *>{}(key.value.symptr.get());
+    return h1 ^ (h2 << 1);
+  }
+};
+
+static std::unordered_map<UnaryOpKey, SymVal> UnaryOperationStore;
 
 struct ExtractKey {
   SymVal value;
@@ -646,44 +719,29 @@ inline z3::expr Symbolic::build_z3_expr_aux() {
     case OR: {
       return left || right;
     }
-    case EQ_BV: {
-      auto temp_bool = left == right;
-      return z3::ite(temp_bool, one_bv, zero_bv);
+    case LT_BOOL: {
+      return left < right;
     }
-    case NEQ_BV: {
-      auto temp_bool = left != right;
-      return z3::ite(temp_bool, one_bv, zero_bv);
+    case LTU_BOOL: {
+      return z3::ult(left, right);
     }
-    case LT_BV: {
-      auto temp_bool = left < right;
-      return z3::ite(temp_bool, one_bv, zero_bv);
+    case LEQ_BOOL: {
+      return left <= right;
     }
-    case LTU_BV: {
-      auto temp_bool = z3::ult(left, right);
-      return z3::ite(temp_bool, one_bv, zero_bv);
+    case GT_BOOL: {
+      return left > right;
     }
-    case LEQ_BV: {
-      auto temp_bool = left <= right;
-      return z3::ite(temp_bool, one_bv, zero_bv);
+    case GTU_BOOL: {
+      return z3::ugt(left, right);
     }
-    case GT_BV: {
-      auto temp_bool = left > right;
-      return z3::ite(temp_bool, one_bv, zero_bv);
-    }
-    case GTU_BV: {
-      auto temp_bool = z3::ugt(left, right);
-      return z3::ite(temp_bool, one_bv, zero_bv);
-    }
-    case GEU_BV: {
-      auto temp_bool = z3::uge(left, right);
-      return z3::ite(temp_bool, one_bv, zero_bv);
+    case GEU_BOOL: {
+      return z3::uge(left, right);
     }
     case SHR: {
       return z3::lshr(left, right);
     }
-    case GEQ_BV: {
-      auto temp_bool = left >= right;
-      return z3::ite(temp_bool, one_bv, zero_bv);
+    case GEQ_BOOL: {
+      return left >= right;
     }
     case ADD: {
       return left + right;
@@ -713,11 +771,29 @@ inline z3::expr Symbolic::build_z3_expr_aux() {
       throw std::runtime_error("Operation not supported: " +
                                std::to_string(binary->op));
     }
+  } else if (auto unary = dynamic_cast<SymUnary *>(this)) {
+    auto bit_width = 32;
+    z3::expr zero_bv = global_z3_ctx().bv_val(
+        0, bit_width); // Represents 0 as a 32-bit bitvector
+    z3::expr one_bv = global_z3_ctx().bv_val(
+        1, bit_width); // Represents 1 as a 32-bit bitvector
+    switch (unary->op) {
+    case NOT: {
+      return !unary->value->build_z3_expr();
+    }
+    case BOOL2BV: {
+      z3::expr bool_expr = unary->value->build_z3_expr();
+      return z3::ite(bool_expr, one_bv, zero_bv);
+    }
+    default:
+      throw std::runtime_error("Unary operation not supported: " +
+                               std::to_string(unary->op));
+    }
   } else if (auto extract = dynamic_cast<SymExtract *>(this)) {
     assert(extract);
     int high = extract->high * 8 - 1;
     int low = extract->low * 8 - 8;
-    auto s = extract->value.symptr->build_z3_expr();
+    auto s = extract->value->build_z3_expr();
     auto res = s.extract(high, low);
     return res;
   }
@@ -1588,7 +1664,7 @@ inline std::vector<SymVal> NodeBox::collect_path_conds() {
         result.push_back(if_else_node->cond);
       } else if (if_else_node->false_branch.get() == box) {
         // If the current box is the false branch, add the negated condition
-        result.push_back(if_else_node->cond.negate());
+        result.push_back(if_else_node->cond.negate().bool2bv());
       } else {
         throw std::runtime_error("Unexpected node structure in explore tree");
       }
@@ -1652,7 +1728,7 @@ inline immer::vector<SymVal> NodeBox::collect_path_conds_imm() {
       result = result.push_back(if_else_node->cond);
     } else if (if_else_node->false_branch.get() == box) {
       // If the current box is the false branch, add the negated condition
-      result = result.push_back(if_else_node->cond.negate());
+      result = result.push_back(if_else_node->cond.negate().bool2bv());
     } else {
       throw std::runtime_error("Unexpected node structure in explore tree");
     }
@@ -2033,7 +2109,7 @@ struct EvalRes {
 };
 
 static EvalRes eval_binary_op(EvalRes lhs_res, EvalRes rhs_res,
-                              Operation operation) {
+                              BinOperation operation) {
   auto lhs = lhs_res.value;
   auto rhs = rhs_res.value;
   auto lhs_width = lhs_res.width;
@@ -2063,39 +2139,39 @@ static EvalRes eval_binary_op(EvalRes lhs_res, EvalRes rhs_res,
     } else {
       assert(false && "TODO");
     }
-  case LT_BV:
+  case LT_BOOL:
     if (lhs_width == 32 && rhs_width == 32) {
-      return EvalRes(lhs.i32_lt_s(rhs), 32, KindBV);
+      return EvalRes(lhs.i32_lt_s(rhs), 32, KindBool);
     } else {
       assert(false && "TODO");
     }
-  case LEQ_BV:
+  case LEQ_BOOL:
     if (lhs_width == 32 && rhs_width == 32) {
-      return EvalRes(lhs.i32_le_s(rhs), 32, KindBV);
+      return EvalRes(lhs.i32_le_s(rhs), 32, KindBool);
     } else {
       assert(false && "TODO");
     }
-  case GT_BV:
+  case GT_BOOL:
     if (lhs_width == 32 && rhs_width == 32) {
-      return EvalRes(lhs.i32_gt_s(rhs), 32, KindBV);
+      return EvalRes(lhs.i32_gt_s(rhs), 32, KindBool);
     } else {
       assert(false && "TODO");
     }
-  case GEQ_BV:
+  case GEQ_BOOL:
     if (lhs_width == 32 && rhs_width == 32) {
-      return EvalRes(lhs.i32_ge_s(rhs), 32, KindBV);
+      return EvalRes(lhs.i32_ge_s(rhs), 32, KindBool);
     } else {
       assert(false && "TODO");
     }
-  case NEQ_BV:
+  case NEQ_BOOL:
     if (lhs_width == 32 && rhs_width == 32) {
-      return EvalRes(lhs.i32_ne(rhs), 32, KindBV);
+      return EvalRes(lhs.i32_ne(rhs), 32, KindBool);
     } else {
       assert(false && "TODO");
     }
-  case EQ_BV:
+  case EQ_BOOL:
     if (lhs_width == 32 && rhs_width == 32) {
-      return EvalRes(lhs.i32_eq(rhs), 32, KindBV);
+      return EvalRes(lhs.i32_eq(rhs), 32, KindBool);
     } else {
       assert(false && "TODO");
     }
@@ -2130,21 +2206,21 @@ static EvalRes eval_binary_op(EvalRes lhs_res, EvalRes rhs_res,
     } else {
       assert(false && "TODO");
     }
-  case LTU_BV:
+  case LTU_BOOL:
     if (lhs_width == 32 && rhs_width == 32) {
-      return EvalRes(lhs.i32_lt_u(rhs), 32, KindBV);
+      return EvalRes(lhs.i32_lt_u(rhs), 32, KindBool);
     } else {
       assert(false && "TODO");
     }
-  case GTU_BV:
+  case GTU_BOOL:
     if (lhs_width == 32 && rhs_width == 32) {
-      return EvalRes(lhs.i32_gt_u(rhs), 32, KindBV);
+      return EvalRes(lhs.i32_gt_u(rhs), 32, KindBool);
     } else {
       assert(false && "TODO");
     }
-  case GEU_BV:
+  case GEU_BOOL:
     if (lhs_width == 32 && rhs_width == 32) {
-      return EvalRes(lhs.i32_ge_u(rhs), 32, KindBV);
+      return EvalRes(lhs.i32_ge_u(rhs), 32, KindBool);
     } else {
       assert(false && "TODO");
     }
@@ -2152,10 +2228,6 @@ static EvalRes eval_binary_op(EvalRes lhs_res, EvalRes rhs_res,
     return EvalRes(lhs.logical_and(rhs), 32, KindBool);
   case OR:
     return EvalRes(lhs.logical_or(rhs), 32, KindBool);
-  case EQ_BOOL:
-    return EvalRes(lhs.value == rhs.value, 32, KindBool);
-  case NEQ_BOOL:
-    return EvalRes(lhs.value != rhs.value, 32, KindBool);
   default:
     assert(false && "Operation not supported in evaluation");
   }
@@ -2197,7 +2269,7 @@ static EvalRes eval_sym_expr(const SymVal &sym, const SymEnv_t &sym_env) {
   throw std::runtime_error("Not supported symbolic expression");
 }
 
-inline SymVal SymVal::make_binary(Operation op, const SymVal &lhs,
+inline SymVal SymVal::make_binary(BinOperation op, const SymVal &lhs,
                                   const SymVal &rhs) {
   assert(lhs.symptr != nullptr && rhs.symptr != nullptr);
 
@@ -2211,7 +2283,7 @@ inline SymVal SymVal::make_binary(Operation op, const SymVal &lhs,
       // both sides are concrete, we can compute the result directly
       auto lhs_value = lhs_concrete->value;
       auto rhs_value = rhs_concrete->value;
-      EvalRes res = eval_binary_op(EvalRes(lhs_value, 32, KindBV),
+      EvalRes res = eval_binary_op(EvalRes(lhs_value, 32, lhs_concrete->kind),
                                    EvalRes(rhs_value, 32, KindBV), op);
       if (res.kind == KindBool) {
         auto result = SymVal::make_concrete_bool(res.value.value);
@@ -2226,8 +2298,24 @@ inline SymVal SymVal::make_binary(Operation op, const SymVal &lhs,
 
   auto result = SymVal(SymBookKeeper.allocate<SymBinary>(op, lhs, rhs));
   BinaryOperationStore[key] = result;
+  result->z3_expr();
   return result;
 }
+
+inline SymVal SymVal::make_unary(UnaryOperation op, const SymVal &value) {
+  assert(value.symptr != nullptr);
+
+  UnaryOpKey key(op, value);
+  auto it = UnaryOperationStore.find(key);
+  if (it != UnaryOperationStore.end()) {
+    return it->second;
+  }
+
+  auto result = SymVal(SymBookKeeper.allocate<SymUnary>(op, value));
+  UnaryOperationStore[key] = result;
+  return result;
+}
+
 inline EvalRes eval_sym_expr_by_model(const SymVal &sym, z3::model &model);
 
 static void resume_conc_stack(const SymStack_t &sym_stack, Stack_t &stack,

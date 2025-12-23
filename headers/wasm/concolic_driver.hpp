@@ -51,6 +51,8 @@ public:
     // Dump the explore tree if needed
     if (driver.tree_file.has_value())
       ExploreTree.dump_graphviz(driver.tree_file.value());
+
+    Profile.print_summary();
   }
 };
 
@@ -169,7 +171,6 @@ inline void ConcolicDriver::main_exploration_loop() {
   work_list.push_back(ExploreTree.get_root());
 
   PathPicker &&picker = DefaultPathPicker(work_list, visited);
-
 
   while (!work_list.empty()) {
     if (INTERACTIVE_MODE) {

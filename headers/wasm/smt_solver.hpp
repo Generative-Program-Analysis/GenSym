@@ -88,6 +88,8 @@ static std::optional<int> group_of_symval(const SymVal &sym, UnionFind &uf) {
     } else {
       return std::nullopt;
     }
+  } else if (auto unary = dynamic_cast<SymUnary *>(sym.symptr.get())) {
+    return group_of_symval(unary->value, uf);
   } else if (auto extract = dynamic_cast<SymExtract *>(sym.symptr.get())) {
     return group_of_symval(extract->value, uf);
   }
@@ -342,11 +344,12 @@ private:
 
   // make a big conjunction from a list of bitvector symbolic values
   SymVal make_conjunction(const std::vector<SymVal> &conditions, bool is_bv) {
-    SymVal result = SymVal().eq_bool(SymVal()); // true
+    SymVal result = SymVal::make_concrete_bool(true); // true
     for (size_t i = 0; i < conditions.size(); ++i) {
-      if (is_bv)
+      if (is_bv) {
+        conditions[i].bv2bool()->z3_expr();
         result = result.land(conditions[i].bv2bool());
-      else
+      } else
         result = result.land(conditions[i]);
     }
     return result;
@@ -354,7 +357,7 @@ private:
 
   // make a big disjunction from a list of bool symbolic values
   SymVal make_disjunction(const std::vector<SymVal> &conditions) {
-    SymVal fls = SymVal().neq_bool(SymVal()); // false
+    SymVal fls = SymVal::make_concrete_bool(false); // false
     SymVal result = fls;
     for (size_t i = 0; i < conditions.size(); ++i) {
       result = result.lor(conditions[i]);
@@ -394,8 +397,8 @@ inline std::monostate GENSYM_SYM_ASSERT(SymVal &sym_cond) {
   ManagedTimer timer(TimeProfileKind::SOLVER_TOTAL);
   auto start = std::chrono::steady_clock::now();
   std::vector<SymVal> conds = ExploreTree.collect_current_path_conds();
-  auto result =
-      solver.solve_under_reachable_path(std::move(conds), sym_cond.negate());
+  auto result = solver.solve_under_reachable_path(std::move(conds),
+                                                  sym_cond.negate().bool2bv());
   auto end = std::chrono::steady_clock::now();
   auto time_need_to_be_removed = std::chrono::duration<double>(end - start);
   Profile.remove_instruction_time(TimeProfileKind::INSTR,
