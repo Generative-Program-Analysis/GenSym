@@ -345,11 +345,19 @@ private:
   // make a big conjunction from a list of bitvector symbolic values
   SymVal make_conjunction(const std::vector<SymVal> &conditions, bool is_bv) {
     SymVal result = SymVal::make_concrete_bool(true); // true
+    std::unordered_set<SymVal> added_conds;
     for (size_t i = 0; i < conditions.size(); ++i) {
+      SymVal temp;
       if (is_bv) {
-        result = result.land(conditions[i].bv2bool());
-      } else
-        result = result.land(conditions[i]);
+        temp = conditions[i].bv2bool();
+      } else {
+        temp = conditions[i];
+      }
+      if (added_conds.find(temp) != added_conds.end()) {
+        continue;
+      }
+      added_conds.insert(temp);
+      result = result.land(temp);
     }
     return result;
   }
@@ -358,7 +366,12 @@ private:
   SymVal make_disjunction(const std::vector<SymVal> &conditions) {
     SymVal fls = SymVal::make_concrete_bool(false); // false
     SymVal result = fls;
+    std::unordered_set<SymVal> added_conds;
     for (size_t i = 0; i < conditions.size(); ++i) {
+      if (added_conds.find(conditions[i]) != added_conds.end()) {
+        continue;
+      }
+      added_conds.insert(conditions[i]);
       result = result.lor(conditions[i]);
     }
     return result;
@@ -396,8 +409,8 @@ inline std::monostate GENSYM_SYM_ASSERT(SymVal &sym_cond) {
   ManagedTimer timer(TimeProfileKind::SOLVER_TOTAL);
   auto start = std::chrono::steady_clock::now();
   std::vector<SymVal> conds = ExploreTree.collect_current_path_conds();
-  auto result = solver.solve_under_reachable_path(std::move(conds),
-                                                  sym_cond.bv_negate().bool2bv());
+  auto result = solver.solve_under_reachable_path(
+      std::move(conds), sym_cond.bv_negate().bool2bv());
   auto end = std::chrono::steady_clock::now();
   auto time_need_to_be_removed = std::chrono::duration<double>(end - start);
   Profile.remove_instruction_time(TimeProfileKind::INSTR,
