@@ -41,6 +41,7 @@ enum class ExecutionKind {
 enum class TimeProfileKind {
   INSTR,
   CALL_Z3_SOLVER,
+  MAKE_CONJUNCTION,
   SOLVER_TOTAL,
   RESUME_SNAPSHOT,
   COUNT_SYM_SIZE,
@@ -202,6 +203,10 @@ public:
       std::cout << "Solver Cache Summary:" << std::endl;
       std::cout << "Total cache hits: " << cache_hit_count << std::endl;
       std::cout << "Total cache misses: " << cache_miss_count << std::endl;
+      std::cout << "Time of making conjunctions (s): " << std::setprecision(15)
+                << time_count[static_cast<std::size_t>(
+                       TimeProfileKind::MAKE_CONJUNCTION)]
+                << std::endl;
       std::cout << "Cache hit rate: "
                 << static_cast<double>(cache_hit_count) /
                        static_cast<double>(cache_hit_count + cache_miss_count)
@@ -215,7 +220,8 @@ public:
                        TimeProfileKind::COLLECT_PATH_CONDITIONS)]
                 << std::endl;
     }
-    std::cout << "Number of calls to solver: " << call_solver_count << std::endl;
+    std::cout << "Number of calls to solver: " << call_solver_count
+              << std::endl;
     std::cout << "Execution Kind Summary:" << std::endl;
     std::cout
         << "Total RESTART executions: "
@@ -299,7 +305,7 @@ public:
     os << "  }\n";
   }
 
-  void record_z3_solver_time(z3::expr expr, double time, bool is_sat) {
+  void record_z3_solver_time(z3::solver expr, double time, bool is_sat) {
     // Write z3 expression in a file, and write the time spent in solving it and
     // the file path in another file
     if (PROFILE_Z3_API_CALL) {

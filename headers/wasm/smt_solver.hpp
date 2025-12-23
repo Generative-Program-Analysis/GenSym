@@ -261,18 +261,29 @@ private:
       // make an conjunction of all conditions
       conjunction = make_conjunction(conditions, is_bv);
       // call z3 to solve the condition
-      // NOTE: half of the solver time is spent in solver.add
-      z3_solver.add(conjunction->z3_expr());
-      if (solver_cache.find(conjunction) != solver_cache.end()) {
+      if (auto it = solver_cache.find(conjunction); it != solver_cache.end()) {
         Profile.cache_hit();
-        auto cached_result = solver_cache[conjunction];
-        return cached_result;
+        return it->second;
       }
       Profile.cache_miss();
+      std::unordered_set<SymVal> added_conds;
+      for (size_t i = 0; i < conditions.size(); ++i) {
+        SymVal temp;
+        if (is_bv) {
+          temp = conditions[i].bv2bool();
+        } else {
+          temp = conditions[i];
+        }
+        if (added_conds.find(temp) != added_conds.end()) {
+          continue;
+        }
+        z3_solver.add(temp->z3_expr());
+        added_conds.insert(temp);
+      }
       GENSYM_INFO("Solving conditions with Z3 solver...");
       solver_result = z3_solver.check();
     }
-    Profile.record_z3_solver_time(conjunction->z3_expr(), z3_solver_time,
+    Profile.record_z3_solver_time(z3_solver, z3_solver_time,
                                   solver_result == z3::sat);
     switch (solver_result) {
     case z3::unsat:
@@ -344,6 +355,7 @@ private:
 
   // make a big conjunction from a list of bitvector symbolic values
   SymVal make_conjunction(const std::vector<SymVal> &conditions, bool is_bv) {
+    ManagedTimer timer(TimeProfileKind::MAKE_CONJUNCTION);
     SymVal result = SymVal::make_concrete_bool(true); // true
     std::unordered_set<SymVal> added_conds;
     for (size_t i = 0; i < conditions.size(); ++i) {
