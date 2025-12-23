@@ -87,7 +87,8 @@ struct SymVal {
   SymVal ge(const SymVal &other) const;
   SymVal geu(const SymVal &other) const;
   SymVal shr(const SymVal &other) const;
-  SymVal negate() const;
+  SymVal bv_negate() const;
+  SymVal bool_not() const;
   SymVal bitwise_and(const SymVal &other) const;
   SymVal bitwise_xor(const SymVal &other) const;
   SymVal bitwise_or(const SymVal &other) const;
@@ -516,9 +517,11 @@ inline SymVal SymVal::is_zero() const {
   return make_binary(EQ_BOOL, *this, Concrete(I32V(0)));
 }
 
-inline SymVal SymVal::negate() const {
+inline SymVal SymVal::bv_negate() const {
   return make_binary(EQ_BOOL, *this, Concrete(I32V(0)));
 }
+
+inline SymVal SymVal::bool_not() const { return make_unary(NOT, *this); }
 
 inline SymVal SymVal::concat(const SymVal &other) const {
   if (auto bv1 = std::dynamic_pointer_cast<SmallBV>(symptr)) {
@@ -1664,7 +1667,7 @@ inline std::vector<SymVal> NodeBox::collect_path_conds() {
         result.push_back(if_else_node->cond);
       } else if (if_else_node->false_branch.get() == box) {
         // If the current box is the false branch, add the negated condition
-        result.push_back(if_else_node->cond.negate().bool2bv());
+        result.push_back(if_else_node->cond.bv_negate().bool2bv());
       } else {
         throw std::runtime_error("Unexpected node structure in explore tree");
       }
@@ -1728,7 +1731,7 @@ inline immer::vector<SymVal> NodeBox::collect_path_conds_imm() {
       result = result.push_back(if_else_node->cond);
     } else if (if_else_node->false_branch.get() == box) {
       // If the current box is the false branch, add the negated condition
-      result = result.push_back(if_else_node->cond.negate().bool2bv());
+      result = result.push_back(if_else_node->cond.bv_negate().bool2bv());
     } else {
       throw std::runtime_error("Unexpected node structure in explore tree");
     }
@@ -2296,9 +2299,98 @@ inline SymVal SymVal::make_binary(BinOperation op, const SymVal &lhs,
     }
   }
 
+  if (op == EQ_BOOL) {
+    if (auto lhs_unary = dynamic_cast<SymUnary *>(lhs.symptr.get())) {
+      if (auto rhs_concrete = dynamic_cast<SymConcrete *>(rhs.symptr.get())) {
+        if (lhs_unary->op == BOOL2BV) {
+          auto rhs_value = rhs_concrete->value;
+          if (rhs_value.value == 0) {
+            auto result = lhs_unary->value.bool_not();
+            BinaryOperationStore[key] = result;
+            return result;
+          }
+        }
+      }
+    }
+
+    if (auto rhs_unary = dynamic_cast<SymUnary *>(rhs.symptr.get())) {
+      if (auto lhs_concrete = dynamic_cast<SymConcrete *>(lhs.symptr.get())) {
+        if (rhs_unary->op == BOOL2BV) {
+          auto lhs_value = lhs_concrete->value;
+          if (lhs_value.value == 0) {
+            auto result = rhs_unary->value.bool_not();
+            BinaryOperationStore[key] = result;
+            return result;
+          }
+        }
+      }
+    }
+  }
+
+  // NEQ_BOOL(ToBV(s), Value(0x0)) => s
+  if (op == NEQ_BOOL) {
+    if (auto lhs_unary = dynamic_cast<SymUnary *>(lhs.symptr.get())) {
+      if (auto rhs_concrete = dynamic_cast<SymConcrete *>(rhs.symptr.get())) {
+        if (rhs_concrete->kind == KindBV && rhs_concrete->value.value == 0) {
+          if (lhs_unary->op == BOOL2BV) {
+            auto result = lhs_unary->value;
+            BinaryOperationStore[key] = result;
+            return result;
+          }
+        }
+      }
+    }
+    if (auto rhs_unary = dynamic_cast<SymUnary *>(rhs.symptr.get())) {
+      if (auto lhs_concrete = dynamic_cast<SymConcrete *>(lhs.symptr.get())) {
+        if (lhs_concrete->kind == KindBV && lhs_concrete->value.value == 0) {
+          if (rhs_unary->op == BOOL2BV) {
+            auto result = rhs_unary->value;
+            BinaryOperationStore[key] = result;
+            return result;
+          }
+        }
+      }
+    }
+  }
+
+  if (op == B_AND) {
+    // B_And(ToBV(s1), ToBV(s2)) ==> ToBV(s1 && s2)
+    if (auto lhs_unary = dynamic_cast<SymUnary *>(lhs.symptr.get())) {
+      if (auto rhs_unary = dynamic_cast<SymUnary *>(rhs.symptr.get())) {
+        if (lhs_unary->op == BOOL2BV && rhs_unary->op == BOOL2BV) {
+          auto result = lhs_unary->value.land(rhs_unary->value).bool2bv();
+          BinaryOperationStore[key] = result;
+          return result;
+        }
+      }
+    }
+
+    // B_And(ToBV(s), Value(0x01)) ==> ToBV(s)
+    if (auto rhs_concrete = dynamic_cast<SymConcrete *>(rhs.symptr.get())) {
+      if (rhs_concrete->kind == KindBV && rhs_concrete->value.value == 1) {
+        if (auto lhs_unary = dynamic_cast<SymUnary *>(lhs.symptr.get())) {
+          if (lhs_unary->op == BOOL2BV) {
+            BinaryOperationStore[key] = lhs;
+            return lhs;
+          }
+        }
+      }
+    }
+    // B_And(Value(0x01), ToBV(s)) ==> ToBV(s)
+    if (auto lhs_concrete = dynamic_cast<SymConcrete *>(lhs.symptr.get())) {
+      if (lhs_concrete->kind == KindBV && lhs_concrete->value.value == 1) {
+        if (auto rhs_unary = dynamic_cast<SymUnary *>(rhs.symptr.get())) {
+          if (rhs_unary->op == BOOL2BV) {
+            BinaryOperationStore[key] = rhs;
+            return rhs;
+          }
+        }
+      }
+    }
+  }
+
   auto result = SymVal(SymBookKeeper.allocate<SymBinary>(op, lhs, rhs));
   BinaryOperationStore[key] = result;
-  result->z3_expr();
   return result;
 }
 
@@ -2309,6 +2401,23 @@ inline SymVal SymVal::make_unary(UnaryOperation op, const SymVal &value) {
   auto it = UnaryOperationStore.find(key);
   if (it != UnaryOperationStore.end()) {
     return it->second;
+  }
+
+  if (op == BOOL2BV) {
+    if (auto concrete = dynamic_cast<SymConcrete *>(value.symptr.get())) {
+      auto value_conc = concrete->value;
+      if (concrete->kind == KindBool) {
+        if (value_conc.value != 0) {
+          auto result = SymVal::make_concrete_bv(Num(I32V(1)));
+          UnaryOperationStore[key] = result;
+          return result;
+        } else {
+          auto result = SymVal::make_concrete_bv(Num(I32V(0)));
+          UnaryOperationStore[key] = result;
+          return result;
+        }
+      }
+    }
   }
 
   auto result = SymVal(SymBookKeeper.allocate<SymUnary>(op, value));

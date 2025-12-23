@@ -347,7 +347,6 @@ private:
     SymVal result = SymVal::make_concrete_bool(true); // true
     for (size_t i = 0; i < conditions.size(); ++i) {
       if (is_bv) {
-        conditions[i].bv2bool()->z3_expr();
         result = result.land(conditions[i].bv2bool());
       } else
         result = result.land(conditions[i]);
@@ -398,7 +397,7 @@ inline std::monostate GENSYM_SYM_ASSERT(SymVal &sym_cond) {
   auto start = std::chrono::steady_clock::now();
   std::vector<SymVal> conds = ExploreTree.collect_current_path_conds();
   auto result = solver.solve_under_reachable_path(std::move(conds),
-                                                  sym_cond.negate().bool2bv());
+                                                  sym_cond.bv_negate().bool2bv());
   auto end = std::chrono::steady_clock::now();
   auto time_need_to_be_removed = std::chrono::duration<double>(end - start);
   Profile.remove_instruction_time(TimeProfileKind::INSTR,
