@@ -52,7 +52,7 @@ public:
     if (driver.tree_file.has_value())
       ExploreTree.dump_graphviz(driver.tree_file.value());
 
-    Profile.print_summary();
+    // Profile.print_summary();
   }
 };
 
@@ -86,7 +86,7 @@ public:
       : PathPicker(unexplored_paths, visited) {}
 
   std::optional<PathFrontier> pick_path() override {
-    auto node = unexplored_paths.back();
+    NodeBox *node = unexplored_paths.back();
     unexplored_paths.pop_back();
 
     if (visited.find(node) != visited.end()) {

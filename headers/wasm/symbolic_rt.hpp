@@ -2353,6 +2353,66 @@ inline SymVal SymVal::make_binary(BinOperation op, const SymVal &lhs,
     }
   }
 
+  // EQ_BOOL(s1, s2) when s1 == s2 ==> true
+  if (op == EQ_BOOL) {
+    if (lhs == rhs) {
+      auto result = SymVal::make_concrete_bool(true);
+      BinaryOperationStore[key] = result;
+      return result;
+    }
+  }
+
+  // NEQ_BOOL(s1, s2) when s1 == s2 ==> false
+  if (op == NEQ_BOOL) {
+    if (lhs == rhs) {
+      auto result = SymVal::make_concrete_bool(false);
+      BinaryOperationStore[key] = result;
+      return result;
+    }
+  }
+
+  // GT(s1, s2)  when s1 == s2 ==> false
+  if (op == GT_BOOL || op == LT_BOOL || NEQ_BOOL) {
+    if (lhs == rhs) {
+      auto result = SymVal::make_concrete_bool(false);
+      BinaryOperationStore[key] = result;
+      return result;
+    }
+  }
+
+  if (op == AND) {
+    // AND(s, false) ==> false
+    if (auto rhs_concrete = dynamic_cast<SymConcrete *>(rhs.symptr.get())) {
+      if (rhs_concrete->kind == KindBool && rhs_concrete->value.value == 0) {
+        auto result = SymVal::make_concrete_bool(false);
+        BinaryOperationStore[key] = result;
+        return result;
+      }
+    }
+    // AND(false, s) ==> false
+    if (auto lhs_concrete = dynamic_cast<SymConcrete *>(lhs.symptr.get())) {
+      if (lhs_concrete->kind == KindBool && lhs_concrete->value.value == 0) {
+        auto result = SymVal::make_concrete_bool(false);
+        BinaryOperationStore[key] = result;
+        return result;
+      }
+    }
+    // AND(s, true) ==> s
+    if (auto rhs_concrete = dynamic_cast<SymConcrete *>(rhs.symptr.get())) {
+      if (rhs_concrete->kind == KindBool && rhs_concrete->value.value != 0) {
+        BinaryOperationStore[key] = lhs;
+        return lhs;
+      }
+    }
+    // AND(true, s) ==> s
+    if (auto lhs_concrete = dynamic_cast<SymConcrete *>(lhs.symptr.get())) {
+      if (lhs_concrete->kind == KindBool && lhs_concrete->value.value != 0) {
+        BinaryOperationStore[key] = rhs;
+        return rhs;
+      }
+    }
+  }
+
   if (op == B_AND) {
     // B_And(ToBV(s1), ToBV(s2)) ==> ToBV(s1 && s2)
     if (auto lhs_unary = dynamic_cast<SymUnary *>(lhs.symptr.get())) {
@@ -2416,6 +2476,34 @@ inline SymVal SymVal::make_unary(UnaryOperation op, const SymVal &value) {
           UnaryOperationStore[key] = result;
           return result;
         }
+      }
+    }
+  }
+
+  if (op == NOT) {
+    // Not(true) => false
+    // Not(false) => true
+    if (auto concrete = dynamic_cast<SymConcrete *>(value.symptr.get())) {
+      auto value_conc = concrete->value;
+      if (concrete->kind == KindBool) {
+        if (value_conc.value != 0) {
+          auto result = SymVal::make_concrete_bool(false);
+          UnaryOperationStore[key] = result;
+          return result;
+        } else {
+          auto result = SymVal::make_concrete_bool(true);
+          UnaryOperationStore[key] = result;
+          return result;
+        }
+      }
+    }
+
+    // Not(Not(s)) => s
+    if (auto inner_unary = dynamic_cast<SymUnary *>(value.symptr.get())) {
+      if (inner_unary->op == NOT) {
+        auto result = inner_unary->value;
+        UnaryOperationStore[key] = result;
+        return result;
       }
     }
   }
