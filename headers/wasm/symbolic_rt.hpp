@@ -2480,21 +2480,14 @@ inline SymVal SymVal::make_unary(UnaryOperation op, const SymVal &value) {
     }
   }
 
+  // Not(_) ==> ...
   if (op == NOT) {
-    // Not(true) => false
-    // Not(false) => true
+    // Not(concrete bool) => opposite bool
     if (auto concrete = dynamic_cast<SymConcrete *>(value.symptr.get())) {
-      auto value_conc = concrete->value;
       if (concrete->kind == KindBool) {
-        if (value_conc.value != 0) {
-          auto result = SymVal::make_concrete_bool(false);
-          UnaryOperationStore[key] = result;
-          return result;
-        } else {
-          auto result = SymVal::make_concrete_bool(true);
-          UnaryOperationStore[key] = result;
-          return result;
-        }
+        auto result = SymVal::make_concrete_bool(concrete->value.value == 0);
+        UnaryOperationStore[key] = result;
+        return result;
       }
     }
 
@@ -2502,6 +2495,40 @@ inline SymVal SymVal::make_unary(UnaryOperation op, const SymVal &value) {
     if (auto inner_unary = dynamic_cast<SymUnary *>(value.symptr.get())) {
       if (inner_unary->op == NOT) {
         auto result = inner_unary->value;
+        UnaryOperationStore[key] = result;
+        return result;
+      }
+    }
+
+    // Not(comparison) => negated comparison
+    if (auto inner_binary = dynamic_cast<SymBinary *>(value.symptr.get())) {
+      BinOperation negated_op;
+      switch (inner_binary->op) {
+      case EQ_BOOL:
+        negated_op = NEQ_BOOL;
+        break;
+      case NEQ_BOOL:
+        negated_op = EQ_BOOL;
+        break;
+      case LT_BOOL:
+        negated_op = GEQ_BOOL;
+        break;
+      case GT_BOOL:
+        negated_op = LEQ_BOOL;
+        break;
+      case LEQ_BOOL:
+        negated_op = GT_BOOL;
+        break;
+      case GEQ_BOOL:
+        negated_op = LT_BOOL;
+        break;
+      default:
+        negated_op = inner_binary->op;
+        break;
+      }
+      if (negated_op != inner_binary->op) {
+        auto result = SymVal::make_binary(negated_op, inner_binary->lhs,
+                                          inner_binary->rhs);
         UnaryOperationStore[key] = result;
         return result;
       }
