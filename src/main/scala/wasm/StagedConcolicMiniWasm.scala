@@ -2100,7 +2100,7 @@ trait StagedWasmCppGen extends CGenBase with CppSAICodeGenBase {
     case Node(_, "tree-dump-graphviz", List(f), _) =>
       emit("ExploreTree.dump_graphviz("); shallow(f); emit(")")
     case Node(_, "sym-not", List(s), _) =>
-      shallow(s); emit(".negate().bool2bv()")
+      shallow(s); emit(".bv_negate().bool2bv()")
     case Node(_, "make-init-mcont", List(haltK), _) =>
       emit("MCont_t("); shallow(haltK); emit(")")
     case Node(_, "mcont-prepend", List(mkont, kont), _) =>
