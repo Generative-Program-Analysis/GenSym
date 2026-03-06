@@ -4,26 +4,113 @@ import org.scalatest.FunSuite
 
 import lms.core.stub.Adapter
 
+import java.io.{File, PrintWriter}
 import gensym.wasm.miniwasm.{ModuleInstance}
 import gensym.wasm.parser._
 import gensym.wasm.stagedconcolicminiwasm._
 
 class TestStagedConcolicEval extends FunSuite {
+  import sys.process._
+
+  private def firstExistingDir(candidates: Seq[String]): Option[String] =
+    candidates.map(path => new File(path)).find(file => file.isDirectory).map(_.getCanonicalPath)
+
+  // Get the z3 include path from the GenSym project root
+  private lazy val z3IncludeDir: String = {
+    val fromEnv = sys.env.get("Z3_INCLUDE_DIR")
+    val fromRepo = firstExistingDir(
+      Seq(
+        "./third-party/z3/build/z3_install/include",
+        "./third-party/z3/src/api/c++"
+      )
+    )
+    fromEnv.orElse(fromRepo).getOrElse {
+      throw new RuntimeException(
+        "Cannot locate Z3 include directory. Set Z3_INCLUDE_DIR or build third-party/z3."
+      )
+    }
+  }
+
+  private lazy val z3LibDir: String = {
+    val fromEnv = sys.env.get("Z3_LIB_DIR")
+    val fromRepo = firstExistingDir(Seq("./third-party/z3/build/z3_install/lib"))
+    fromEnv.orElse(fromRepo).getOrElse {
+      throw new RuntimeException(
+        "Cannot locate Z3 library directory. Set Z3_LIB_DIR or build third-party/z3."
+      )
+    }
+  }
+
+  private lazy val immerIncludeDir: String = {
+    val fromEnv = sys.env.get("IMMER_INCLUDE_DIR")
+    val fromRepo = firstExistingDir(Seq("./third-party/immer",
+                                        "./GenSym/third-party/immer"
+                                        ))
+    fromEnv.orElse(fromRepo).getOrElse {
+      throw new RuntimeException(
+        "Cannot locate immer header directory. Set IMMER_INCLUDE_DIR or initialize third-party/immer."
+      )
+    }
+  }
+
+  private def prependPath(existing: Option[String], prefix: String): String =
+    existing.filter(_.nonEmpty).map(old => s"$prefix:$old").getOrElse(prefix)
+
+  private lazy val extraIncludeDirs: Seq[String] =
+    Seq(immerIncludeDir)
+      .map(path => new File(path))
+      .filter(_.isDirectory)
+      .map(_.getCanonicalPath)
+
+  private lazy val exeEnv: Seq[(String, String)] = Seq(
+    "LD_LIBRARY_PATH" -> prependPath(sys.env.get("LD_LIBRARY_PATH"), z3LibDir),
+    "DYLD_LIBRARY_PATH" -> prependPath(sys.env.get("DYLD_LIBRARY_PATH"), z3LibDir)
+  )
+
+  private def compileToExeWithZ3(moduleInst: ModuleInstance,
+                                 main: Option[String],
+                                 inputCpp: String,
+                                 outputExe: String,
+                                 printRes: Boolean,
+                                 optimizeLevel: Int,
+                                 macros: String*): Unit = {
+    val generated = WasmToCppCompiler.compile(moduleInst, main, printRes)
+    val writer = new PrintWriter(new File(inputCpp))
+    try {
+      writer.write(generated.source)
+    } finally {
+      writer.close()
+    }
+
+    val includeFlags =
+      generated.headerFolders.flatMap(f => Seq("-I", f)) ++
+      extraIncludeDirs.flatMap(d => Seq("-I", d)) ++
+      Seq("-I", z3IncludeDir)
+    val macroFlags = macros.map(m => s"-D$m")
+    val compileCmd = Seq("clang++", "-std=c++17", inputCpp, "-o", outputExe, s"-O$optimizeLevel", "-g") ++
+      includeFlags ++ macroFlags ++ Seq("-L", z3LibDir, s"-Wl,-rpath,$z3LibDir", "-lz3")
+    println(s"Compile command: ${compileCmd.mkString(" ")}")
+
+    if (Process(compileCmd).! != 0) {
+      throw new RuntimeException(s"Compilation failed for $inputCpp")
+    }
+  }
+
+  private def runExe(exePath: String, extraEnv: (String, String)*): String =
+    Process(Seq(exePath), None, (exeEnv ++ extraEnv): _*).!!
+
   def testFileConcolicCpp(filename: String,
                           main: Option[String] = None,
                           exitByCoverage: Boolean = false) = {
-    import sys.process._
-
-
     val moduleInst = ModuleInstance(Parser.parseFile(filename))
     val cppFile = s"$filename.cpp"
     val exploreTreeFile = {
       // Do concolic execution with snapshot reuse
       val exe = s"$cppFile.exe"
       val exploreTreeFile = s"$filename.tree.dot"
-      WasmToCppCompiler.compileToExe(moduleInst, main, cppFile, exe, true, optimizeLevel=0, if (exitByCoverage) "BY_COVERAGE" else "EARLY_EXIT")
+      compileToExeWithZ3(moduleInst, main, cppFile, exe, true, optimizeLevel=0, if (exitByCoverage) "BY_COVERAGE" else "EARLY_EXIT")
       println(s"Running compiled concolic execution with snapshot reuse: $exe")
-      val result = Process(s"./$exe", None, "TREE_FILE" -> exploreTreeFile).!!
+      val result = runExe(s"./$exe", "TREE_FILE" -> exploreTreeFile)
       println(result)
       exploreTreeFile
     }
@@ -31,9 +118,9 @@ class TestStagedConcolicEval extends FunSuite {
       // Do concolic execution without snapshot reuse
       val exe = s"$cppFile.noreuse.exe"
       val exploreTreeFile = s"$filename.noreuse.tree.dot"
-      WasmToCppCompiler.compileToExe(moduleInst, main, cppFile, exe, false, optimizeLevel=0, if (exitByCoverage) "BY_COVERAGE" else "EARLY_EXIT")
+      compileToExeWithZ3(moduleInst, main, cppFile, exe, false, optimizeLevel=0, if (exitByCoverage) "BY_COVERAGE" else "EARLY_EXIT")
       println(s"Running compiled concolic execution without snapshot reuse: $exe")
-      val result = Process(s"./$exe", None, "TREE_FILE" -> exploreTreeFile).!!
+      val result = runExe(s"./$exe", "TREE_FILE" -> exploreTreeFile)
       println(result)
       exploreTreeFile
     }
@@ -41,9 +128,9 @@ class TestStagedConcolicEval extends FunSuite {
       // Do concolic execution with immutable data structure and snapshot reuse
       val exe = s"$cppFile.imm.exe"
       val exploreTreeFile = s"$filename.imm.tree.dot"
-      WasmToCppCompiler.compileToExe(moduleInst, main, cppFile, exe, true, optimizeLevel=0, if (exitByCoverage) "BY_COVERAGE" else "EARLY_EXIT", "USE_IMM")
+      compileToExeWithZ3(moduleInst, main, cppFile, exe, true, optimizeLevel=0, if (exitByCoverage) "BY_COVERAGE" else "EARLY_EXIT", "USE_IMM")
       println(s"Running compiled concolic execution with immutable data structure and snapshot reuse: $exe")
-      val result = Process(s"./$exe", None, "TREE_FILE" -> exploreTreeFile).!!
+      val result = runExe(s"./$exe", "TREE_FILE" -> exploreTreeFile)
       println(result)
       exploreTreeFile
     }
@@ -66,10 +153,8 @@ class TestStagedConcolicEval extends FunSuite {
     val moduleInst = ModuleInstance(Parser.parseFile(filename))
     val cppFile = s"$filename.cpp"
     val exe = s"$cppFile.exe"
-    WasmToCppCompiler.compileToExe(moduleInst, main, cppFile, exe, true, optimizeLevel=0, "NO_INFO", "RUN_ONCE", "USE_IMM")
-
-    import sys.process._
-    val result = s"./$exe".!!
+    compileToExeWithZ3(moduleInst, main, cppFile, exe, true, optimizeLevel=0, "NO_INFO", "RUN_ONCE", "USE_IMM")
+    val result = runExe(s"./$exe")
     println(result)
 
     expect.map(vs => {
