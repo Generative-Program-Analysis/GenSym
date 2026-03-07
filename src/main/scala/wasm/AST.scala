@@ -15,7 +15,7 @@ case class Table(id: Option[String], f: TableField) extends Definition
 case class Memory(id: Option[String], f: MemoryField) extends Definition
 case class Global(id: Option[String], f: GlobalField) extends Definition
 case class Elem(id: Option[Int], offset: List[Instr], elemList: ElemList) extends Definition
-case class Data(id: Option[String], value: String) extends Definition
+case class Data(id: Option[String], offset: Instr, value: String) extends Definition
 case class Start(id: Int) extends Definition
 case class Import(mod: String, name: String, desc: ImportDesc) extends Definition with Callable
 case class Export(name: String, desc: ExportDesc) extends Definition
@@ -27,7 +27,7 @@ case class ImportFuncTy(name: Option[String], t: FuncType) extends ImportDesc
 case class ImportFuncTyUse(name: Option[String], u: Int) extends ImportDesc
 
 abstract class ElemList extends WIR
-case class ElemListFunc(funcs: List[String]) extends ElemList
+case class ElemListFunc(funcs: List[Int]) extends ElemList
 case class ElemListExpr(exprs: List[List[Instr]]) extends ElemList
 
 abstract class FuncField extends WIR

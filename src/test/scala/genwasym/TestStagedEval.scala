@@ -1,13 +1,12 @@
 package gensym.wasm
 
-import org.scalatest.FunSuite
-
 import lms.core.stub.Adapter
 
 import gensym.wasm.parser._
 import gensym.wasm.miniwasm._
+import gensym.wasm.stagedminiwasm._
 
-class TestStagedEval extends FunSuite {
+class TestStagedEval extends CppCompilationTestBase {
   def testFileToScala(filename: String, main: Option[String] = None, printRes: Boolean = false) = {
     val moduleInst = ModuleInstance(Parser.parseFile(filename))
     val code = WasmToScalaCompiler.compile(moduleInst, main, true)
@@ -28,19 +27,20 @@ class TestStagedEval extends FunSuite {
     val moduleInst = ModuleInstance(Parser.parseFile(filename))
     val cppFile = s"$filename.cpp"
     val exe = s"$cppFile.exe"
-    WasmToCppCompiler.compileToExe(moduleInst, main, cppFile, exe, true)
+    val generated = WasmToCppCompiler.compile(moduleInst, main, true)
+    compileGeneratedCppWithZ3Immer(
+      source = generated.source,
+      headerFolders = generated.headerFolders,
+      outputCpp = cppFile,
+      outputExe = exe,
+      optimizeLevel = 0
+    )
 
-    import sys.process._
-    val result = s"./$exe".!!
+    val result = runExeWithZ3(s"./$exe")
     println(result)
 
     expect.map(vs => {
-      val stackValues = result
-        .split("Stack contents: \n")(1)
-        .split("\n")
-        .map(_.toFloat)
-        .toList
-      assert(vs == stackValues)
+      assert(vs == parseStackValues(result))
     })
   }
 

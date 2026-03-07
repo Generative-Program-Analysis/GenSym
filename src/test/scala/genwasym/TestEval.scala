@@ -53,7 +53,7 @@ class TestEval extends FunSuite {
   test("loop") { testFile("./benchmarks/wasm/loop.wat", None, ExpInt(10)) }
   test("even-odd") { testFile("./benchmarks/wasm/even_odd.wat", None, ExpInt(1)) }
   test("load") { testFile("./benchmarks/wasm/load.wat", None, ExpInt(1)) }
-  test("btree") { testFile("./benchmarks/wasm/btree/2o1u-unlabeled.wat") }
+  test("btree") { testFile("./benchmarks/wasm/btree/2o1u-unlabeled.wat", Some("concrete_main")) }
   test("fib") { testFile("./benchmarks/wasm/fib.wat", None, ExpInt(144)) }
   test("tribonacci") { testFile("./benchmarks/wasm/tribonacci.wat", None, ExpInt(504)) }
 

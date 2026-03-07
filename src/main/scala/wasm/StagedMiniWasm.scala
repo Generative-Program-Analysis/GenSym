@@ -1,4 +1,4 @@
-package gensym.wasm.miniwasm
+package gensym.wasm.stagedminiwasm
 
 import scala.collection.mutable.{ArrayBuffer, HashMap}
 
@@ -12,6 +12,7 @@ import lms.core.Graph
 
 import gensym.wasm.ast._
 import gensym.wasm.ast.{Const => WasmConst, Block => WasmBlock}
+import gensym.wasm.miniwasm.ModuleInstance
 import gensym.lmsx.{SAIDriver, StringOps, SAIOps, SAICodeGenBase, CppSAIDriver, CppSAICodeGenBase}
 
 @virtualize
@@ -433,10 +434,10 @@ trait StagedWasmEvaluator extends SAIOps {
 
     def push(v: StagedNum)(implicit ctx: Context): Context = {
       v match {
-        case I32(v) => NumType(I32Type); "stack-push".reflectCtrlWith[Unit](v)
-        case I64(v) => NumType(I64Type); "stack-push".reflectCtrlWith[Unit](v)
-        case F32(v) => NumType(F32Type); "stack-push".reflectCtrlWith[Unit](v)
-        case F64(v) => NumType(F64Type); "stack-push".reflectCtrlWith[Unit](v)
+        case I32(v) => "stack-push".reflectCtrlWith[Unit](v)
+        case I64(v) => "stack-push".reflectCtrlWith[Unit](v)
+        case F32(v) => "stack-push".reflectCtrlWith[Unit](v)
+        case F64(v) => "stack-push".reflectCtrlWith[Unit](v)
       }
       ctx.push(v.tipe)
     }

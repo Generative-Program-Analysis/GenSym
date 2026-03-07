@@ -10,6 +10,10 @@ jobs:
   build:
 
     runs-on: ubuntu-22.04
+    env:
+      Z3_INCLUDE_DIR: /usr/include
+      Z3_LIB_DIR: /usr/lib/x86_64-linux-gnu
+      IMMER_INCLUDE_DIR: ${{ github.workspace }}/third-party/immer
     defaults:
       run:
         working-directory: ./
@@ -78,4 +82,4 @@ jobs:
         sbt 'testOnly gensym.wasm.TestScriptRun'
         sbt 'testOnly gensym.wasm.TestConcolic'
         sbt 'testOnly gensym.wasm.TestDriver'
-        sbt 'testOnly gensym.wasm.TestStagedEval'
+        sbt 'testOnly gensym.wasm.TestStagedConcolicEval'
