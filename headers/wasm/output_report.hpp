@@ -2,7 +2,7 @@
 #define WASM_OUTPUT_REPORT_HPP
 
 #include "profile.hpp"
-#include "symbolic_rt.hpp"
+#include "sym_rt.hpp"
 #include "config.hpp"
 #include <filesystem>
 

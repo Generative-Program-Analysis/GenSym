@@ -39,6 +39,7 @@ class TestBenchmark extends FunSuite {
 
   test("compile-btree-benchmarks") { compileDirToCpp("./benchmarks/pldi2026/btree/", Some("main")) }
   test("compile-crafted-benchmarks") { compileDirToCpp("./benchmarks/pldi2026/crafted/") }
+  test("compile-aws-aws-encryption-sdk") { compileDirToCpp("./benchmarks/pldi2026/aws-encryption-sdk/tests-original-normalized/", Some("__original_main")) }
   test("compile-a-single-file") {
     sys.env.get("INPUT") match {
       case Some(path) => compileToCpp(path)

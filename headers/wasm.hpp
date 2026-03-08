@@ -5,7 +5,7 @@
 #include "wasm/concrete_rt.hpp"
 #include "wasm/controls.hpp"
 #include "wasm/profile.hpp"
-#include "wasm/symbolic_rt.hpp"
+#include "wasm/sym_rt.hpp"
 #include "wasm/utils.hpp"
 
 #endif
