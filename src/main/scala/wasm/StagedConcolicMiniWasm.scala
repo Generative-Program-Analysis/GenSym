@@ -59,7 +59,10 @@ trait StagedWasmEvaluator extends SAIOps {
 
   case class StagedConcreteNum(tipe: ValueType, i: Rep[Num]) {
     def toStagedSymbolicNum: StagedSymbolicNum = {
-      StagedSymbolicNum(tipe, "Concrete".reflectCtrlWith[SymVal](i))
+      tipe match {
+        case NumType(I32Type) => StagedSymbolicNum(NumType(I32Type), "Concrete".reflectCtrlWith[SymVal](i, 32))
+        case NumType(I64Type) => StagedSymbolicNum(NumType(I64Type), "Concrete".reflectCtrlWith[SymVal](i, 64))
+      }
     }
   }
 
@@ -77,10 +80,10 @@ trait StagedWasmEvaluator extends SAIOps {
 
   def toStagedSymbolicNum(num: Num): StagedSymbolicNum = {
     num match {
-      case I32V(_) => StagedSymbolicNum(NumType(I32Type), Concrete(num))
-      case I64V(_) => StagedSymbolicNum(NumType(I64Type), Concrete(num))
-      case F32V(_) => StagedSymbolicNum(NumType(F32Type), Concrete(num))
-      case F64V(_) => StagedSymbolicNum(NumType(F64Type), Concrete(num))
+      case I32V(_) => StagedSymbolicNum(NumType(I32Type), "Concrete".reflectCtrlWith[SymVal](num, 32))
+      case I64V(_) => StagedSymbolicNum(NumType(I64Type), "Concrete".reflectCtrlWith[SymVal](num, 64))
+      case F32V(_) => StagedSymbolicNum(NumType(F32Type), "Concrete".reflectCtrlWith[SymVal](num, 32))
+      case F64V(_) => StagedSymbolicNum(NumType(F64Type), "Concrete".reflectCtrlWith[SymVal](num, 64))
     }
   }
 
@@ -348,7 +351,7 @@ trait StagedWasmEvaluator extends SAIOps {
         val retNum = Values.I32V(ret)
         // For now, we assume that the result of memory.grow only depends on the execution path, 
         // we can relax this by turning it return to a symbol value and mimic the memory.grow's result as input. 
-        val retSym = "Concrete".reflectCtrlWith[SymVal](retNum)
+        val retSym = "Concrete".reflectCtrlWith[SymVal](retNum, 32)
         Stack.pushC(StagedConcreteNum(NumType(I32Type), retNum))
         Stack.pushS(StagedSymbolicNum(NumType(I32Type), retSym))
         endBlock
@@ -725,7 +728,7 @@ trait StagedWasmEvaluator extends SAIOps {
         val b = Stack.popC(NumType(I32Type))
         Stack.popS(NumType(I32Type))
         Stack.pushC(b)
-        val s = "Concrete".reflectCtrlWith[SymVal](Values.I32V(b.toInt))
+        val s = "Concrete".reflectCtrlWith[SymVal](Values.I32V(b.toInt), 32)
         Stack.pushS(StagedSymbolicNum(NumType(I32Type), s))
         eval(rest, kont, trail)(newCtx1)
       case Import("mem", "free", _) =>
@@ -778,8 +781,8 @@ trait StagedWasmEvaluator extends SAIOps {
     case Mul(_) => v1 * v2
     case Sub(_) => v1 - v2
     case Shl(_) => v1 << v2
-    // case ShrS(_) => v1 >> v2 // TODO: signed shift right
-    case ShrU(_) => v1 >> v2
+    case ShrS(_) => v1 shrS v2 // TODO: signed shift right
+    case ShrU(_) => v1 shrU v2
     case And(_) => v1 & v2
     case DivS(_) => v1 divs v2
     case DivU(_) => v1 divu v2
@@ -800,8 +803,8 @@ trait StagedWasmEvaluator extends SAIOps {
         case Mul(_) => v1 * v2
         case Sub(_) => v1 - v2
         case Shl(_) => v1 << v2
-        // case ShrS(_) => v1 >> v2 // TODO: signed shift right
-        case ShrU(_) => v1 >> v2
+        case ShrS(_) => v1 shrS v2 // TODO: signed shift right
+        case ShrU(_) => v1 shrU v2
         case And(_) => v1 & v2
         case DivS(_) => v1 divs v2
         case DivU(_) => v1 divu v2
@@ -1022,7 +1025,9 @@ trait StagedWasmEvaluator extends SAIOps {
     def pushFrameS(locals: List[ValueType]): Rep[Unit] = {
       // Predef.println(s"[DEBUG] push frame: $locals")
       val size = locals.size
-      "sym-frame-push".reflectCtrlWith[Unit](size)
+      for (ty <- locals) {
+        "sym-frame-push-slot".reflectCtrlWith[Unit](ty.size * 8)
+      }
     }
 
     def extendFrameS(size: Int): Rep[Unit] = {
@@ -1088,7 +1093,7 @@ trait StagedWasmEvaluator extends SAIOps {
   def initGlobals(globals: List[RTGlobal]): Rep[Unit] = {
     def initGlobalsTopFun = topFun((_: Rep[Unit]) => {
       info("Initializing globals...")
-      Globals.reserveSpace(globals.size)
+      Globals.reserveSpace(globals.map(_.ty.ty))
       for ((g, i) <- globals.view.zipWithIndex) {
         val initValue = g.value match {
           case n: Num => n
@@ -1172,9 +1177,11 @@ trait StagedWasmEvaluator extends SAIOps {
 
   // global read/write
   object Globals {
-    def reserveSpace(size: Int): Rep[Unit] = {
-      "global-reserve".reflectCtrlWith[Unit](size)
-      "sym-global-reserve".reflectCtrlWith[Unit](size)
+    def reserveSpace(tps: List[ValueType]): Rep[Unit] = {
+      "global-reserve".reflectCtrlWith[Unit](tps.length)
+      for (tp <- tps) {
+        "sym-global-reserve-slot".reflectCtrlWith[Unit](tp.size * 8)
+      }
     }
 
     def getC(i: Int): StagedConcreteNum = {
@@ -1246,7 +1253,9 @@ trait StagedWasmEvaluator extends SAIOps {
 
     def makeSymbolic(ty: ValueType): StagedSymbolicNum = num.tipe match {
       case NumType(I32Type) =>
-        StagedSymbolicNum(NumType(I32Type), "make-symbolic-concrete".reflectCtrlWith[SymVal](num.toInt))
+        StagedSymbolicNum(NumType(I32Type), "make-symbolic-concrete".reflectCtrlWith[SymVal](num.toInt, 32))
+      case NumType(I64Type) =>
+        StagedSymbolicNum(NumType(I64Type), "make-symbolic-concrete".reflectCtrlWith[SymVal](num.toInt, 64))
     }
 
     def toInt: Rep[Int] = "num-to-int".reflectCtrlWith[Int](num.i)
@@ -1362,10 +1371,19 @@ trait StagedWasmEvaluator extends SAIOps {
       }
     }
 
-    def >>(rhs: StagedConcreteNum): StagedConcreteNum = {
+    def shrS(rhs: StagedConcreteNum): StagedConcreteNum = {
       (num.tipe, rhs.tipe) match {
         case (NumType(I32Type), NumType(I32Type)) =>
-          StagedConcreteNum(NumType(I32Type), "i32-binary-shr".reflectCtrlWith[Num](num.i, rhs.i))
+          StagedConcreteNum(NumType(I32Type), "i32-binary-shr-s".reflectCtrlWith[Num](num.i, rhs.i))
+        case (NumType(I64Type), NumType(I64Type)) =>
+          StagedConcreteNum(NumType(I64Type), "i64-binary-shr-s".reflectCtrlWith[Num](num.i, rhs.i))
+      }
+    }
+
+    def shrU(rhs: StagedConcreteNum): StagedConcreteNum = {
+      (num.tipe, rhs.tipe) match {
+        case (NumType(I32Type), NumType(I32Type)) =>
+          StagedConcreteNum(NumType(I32Type), "i32-binary-shr-u".reflectCtrlWith[Num](num.i, rhs.i))
         case (NumType(I64Type), NumType(I64Type)) =>
           StagedConcreteNum(NumType(I64Type), "i64-binary-shr".reflectCtrlWith[Num](num.i, rhs.i))
         case (NumType(F32Type), NumType(F32Type)) =>
@@ -1517,8 +1535,9 @@ trait StagedWasmEvaluator extends SAIOps {
 
   implicit class StagedSymbolicNumOps(num: StagedSymbolicNum) {
     def makeSymbolic(ty: ValueType): StagedSymbolicNum = num.tipe match {
-      case NumType(I32Type) => StagedSymbolicNum(NumType(I32Type), "make-symbolic".reflectCtrlWith[SymVal](num.s))
-      case _ => throw new RuntimeException("Symbol index must be an i32")
+      case NumType(I32Type) => StagedSymbolicNum(NumType(I32Type), "make-symbolic".reflectCtrlWith[SymVal](num.s, 32))
+      case NumType(I64Type) => StagedSymbolicNum(NumType(I64Type), "make-symbolic".reflectCtrlWith[SymVal](num.s, 64))
+      case _ => throw new RuntimeException("Symbol index must be an i32 or i64")
     }
 
     def isZero(): StagedSymbolicNum = num.tipe match {
@@ -1648,16 +1667,25 @@ trait StagedWasmEvaluator extends SAIOps {
       }
     }
 
-    def >>(rhs: StagedSymbolicNum): StagedSymbolicNum = {
+    def shrS(rhs: StagedSymbolicNum): StagedSymbolicNum = {
       (num.tipe, rhs.tipe) match {
         case (NumType(I32Type), NumType(I32Type)) =>
-          StagedSymbolicNum(NumType(I32Type), "sym-binary-shr".reflectCtrlWith[SymVal](num.s, rhs.s))
+          StagedSymbolicNum(NumType(I32Type), "sym-binary-shr-s".reflectCtrlWith[SymVal](num.s, rhs.s))
         case (NumType(I64Type), NumType(I64Type)) =>
-          StagedSymbolicNum(NumType(I64Type), "sym-binary-shr".reflectCtrlWith[SymVal](num.s, rhs.s))
+          StagedSymbolicNum(NumType(I64Type), "sym-binary-shr-s".reflectCtrlWith[SymVal](num.s, rhs.s))
+      }
+    }
+
+    def shrU(rhs: StagedSymbolicNum): StagedSymbolicNum = {
+      (num.tipe, rhs.tipe) match {
+        case (NumType(I32Type), NumType(I32Type)) =>
+          StagedSymbolicNum(NumType(I32Type), "sym-binary-shr-u".reflectCtrlWith[SymVal](num.s, rhs.s))
+        case (NumType(I64Type), NumType(I64Type)) =>
+          StagedSymbolicNum(NumType(I64Type), "sym-binary-shr-u".reflectCtrlWith[SymVal](num.s, rhs.s))
         case (NumType(F32Type), NumType(F32Type)) =>
-          StagedSymbolicNum(NumType(F32Type), "sym-binary-shr".reflectCtrlWith[SymVal](num.s, rhs.s))
+          StagedSymbolicNum(NumType(F32Type), "sym-binary-shr-u".reflectCtrlWith[SymVal](num.s, rhs.s))
         case (NumType(F64Type), NumType(F64Type)) =>
-          StagedSymbolicNum(NumType(F64Type), "sym-binary-shr".reflectCtrlWith[SymVal](num.s, rhs.s))
+          StagedSymbolicNum(NumType(F64Type), "sym-binary-shr-u".reflectCtrlWith[SymVal](num.s, rhs.s))
       }
     }
 
@@ -1870,8 +1898,8 @@ trait StagedWasmCppGen extends CGenBase with CppSAICodeGenBase {
       emit("Stack.print();\n")
     case Node(_, "frame-push", List(i), _) =>
       emit("Frames.pushFrame("); shallow(i); emit(");\n")
-    case Node(_, "sym-frame-push", List(i), _) =>
-      emit("SymFrames.pushFrame("); shallow(i); emit(");\n")
+    case Node(_, "sym-frame-push-slot", List(width), _) =>
+      emit("SymFrames.pushFrameSlot("); shallow(width); emit(");\n")
     case Node(_, "frame-pop", List(i), _) =>
       emit("Frames.popFrame("); shallow(i); emit(");\n")
     case Node(_, "frame-set", List(i, value), _) =>
@@ -1975,6 +2003,8 @@ trait StagedWasmCppGen extends CGenBase with CppSAICodeGenBase {
       emit("Globals.pushFrame("); shallow(i); emit(")")
     case Node(_, "sym-global-reserve", List(i), _) =>
       emit("SymGlobals.pushFrame("); shallow(i); emit(")")
+    case Node(_, "sym-global-reserve-slot", List(width), _) =>
+      emit("SymGlobals.pushFrameSlot("); shallow(width); emit(")")
     case Node(_, "is-zero", List(num), _) =>
       emit("(0 == "); shallow(num); emit(")")
     case Node(_, "sym-is-zero", List(s_num), _) =>
@@ -1989,7 +2019,9 @@ trait StagedWasmCppGen extends CGenBase with CppSAICodeGenBase {
       shallow(lhs); emit(".i32_div_s("); shallow(rhs); emit(")")
     case Node(_, "i32-binary-shl", List(lhs, rhs), _) =>
       shallow(lhs); emit(".i32_shl("); shallow(rhs); emit(")")
-    case Node(_, "i32-binary-shr", List(lhs, rhs), _) =>
+    case Node(_, "i32-binary-shr-u", List(lhs, rhs), _) =>
+      shallow(lhs); emit(".i32_shr_u("); shallow(rhs); emit(")")
+    case Node(_, "i32-binary-shr-s", List(lhs, rhs), _) =>
       shallow(lhs); emit(".i32_shr_s("); shallow(rhs); emit(")")
     case Node(_, "i32-binary-and", List(lhs, rhs), _) =>
       shallow(lhs); emit(".i32_and("); shallow(rhs); emit(")")
@@ -2069,14 +2101,16 @@ trait StagedWasmCppGen extends CGenBase with CppSAICodeGenBase {
       shallow(lhs); emit(".gt("); shallow(rhs); emit(").bool2bv()")
     case Node(_, "sym-relation-gtu", List(lhs, rhs), _) =>
       shallow(lhs); emit(".gtu("); shallow(rhs); emit(").bool2bv()")
-    case Node(_, "sym-binary-shr", List(lhs, rhs), _) =>
-      shallow(lhs); emit(".shr("); shallow(rhs); emit(")")
+    case Node(_, "sym-binary-shr-u", List(lhs, rhs), _) =>
+      shallow(lhs); emit(".shr_u("); shallow(rhs); emit(")")
+    case Node(_, "sym-binary-shr-s", List(lhs, rhs), _) =>
+      shallow(lhs); emit(".shr_s("); shallow(rhs); emit(")")
     case Node(_, "num-to-int", List(num), _) =>
       shallow(num); emit(".toInt()")
-    case Node(_, "make-symbolic", List(num), _) =>
-      shallow(num); emit(".makeSymbolic()")
-    case Node(_, "make-symbolic-concrete", List(num), _) => 
-      emit("make_symbolic("); shallow(num); emit(")")
+    case Node(_, "make-symbolic", List(num, width), _) =>
+      shallow(num); emit(".makeSymbolic("); shallow(width); emit(")")
+    case Node(_, "make-symbolic-concrete", List(num, width), _) => 
+      emit("make_symbolic("); shallow(num); emit(", "); shallow(width); emit(")")
     case Node(_, "sym-env-read", List(sym), _) =>
       emit("SymEnv.read("); shallow(sym); emit(")")
     case Node(_, "assert-true", List(cond), _) =>

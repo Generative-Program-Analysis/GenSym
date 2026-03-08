@@ -2,7 +2,7 @@
 #define SMT_SOLVER_HPP
 
 #include "concrete_rt.hpp"
-#include "symbolic_rt.hpp"
+#include "sym_rt.hpp"
 #include "union_find.hpp"
 #include "utils.hpp"
 #include "wasm/profile.hpp"
@@ -217,13 +217,13 @@ public:
            "Conditions size and candidate nodes size must be equal");
     std::vector<SymVal> disjuncts;
     auto witness = SymVal::get_witness_symbol();
-    SymVal disjunction;
+    SymVal disjunction = SVFactory::FALSE;
     {
       ManagedTimer timer(TimeProfileKind::COLLECT_PATH_CONDITIONS);
       for (size_t i = 0; i < all_conditions.size(); ++i) {
         const auto &conds = all_conditions[i];
         auto clause = make_conjunction(conds, true);
-        clause = clause.land(witness.eq_bool(SymVal::make_concrete_bv(Num(i))));
+        clause = clause.land(witness.eq_bool(SVFactory::make_concrete_bv(Num(i), 32)));
 
         disjuncts.push_back(clause);
       }
@@ -236,7 +236,7 @@ public:
     }
     z3::model &model = result->model;
     // find which clause in disjunct is satisfied
-    z3::expr witness_expr = model.eval(witness.symptr->z3_expr(), true);
+    z3::expr witness_expr = model.eval(witness->z3_expr(), true);
     int witness_index = witness_expr.get_numeral_int64();
 
     return QueryResultWithWitness{
@@ -251,7 +251,7 @@ private:
                                          bool is_bv) {
 
     z3::solver z3_solver(global_z3_ctx());
-    SymVal conjunction;
+    SymVal conjunction = SVFactory::TRUE;
     z3::check_result solver_result;
     double z3_solver_time = 0.0;
     {
@@ -266,14 +266,9 @@ private:
         return it->second;
       }
       Profile.cache_miss();
-      std::unordered_set<SymVal> added_conds;
+      SymValSet added_conds;
       for (size_t i = 0; i < conditions.size(); ++i) {
-        SymVal temp;
-        if (is_bv) {
-          temp = conditions[i].bv2bool();
-        } else {
-          temp = conditions[i];
-        }
+        SymVal temp = is_bv ? conditions[i].bv2bool() : conditions[i];
         if (added_conds.find(temp) != added_conds.end()) {
           continue;
         }
@@ -356,15 +351,10 @@ private:
   // make a big conjunction from a list of bitvector symbolic values
   SymVal make_conjunction(const std::vector<SymVal> &conditions, bool is_bv) {
     ManagedTimer timer(TimeProfileKind::MAKE_CONJUNCTION);
-    SymVal result = SymVal::make_concrete_bool(true); // true
-    std::unordered_set<SymVal> added_conds;
+    SymVal result = SVFactory::make_concrete_bool(true); // true
+    SymValSet added_conds;
     for (size_t i = 0; i < conditions.size(); ++i) {
-      SymVal temp;
-      if (is_bv) {
-        temp = conditions[i].bv2bool();
-      } else {
-        temp = conditions[i];
-      }
+      SymVal temp = is_bv ? conditions[i].bv2bool() : conditions[i];
       if (added_conds.find(temp) != added_conds.end()) {
         continue;
       }
@@ -376,9 +366,9 @@ private:
 
   // make a big disjunction from a list of bool symbolic values
   SymVal make_disjunction(const std::vector<SymVal> &conditions) {
-    SymVal fls = SymVal::make_concrete_bool(false); // false
+    SymVal fls = SVFactory::make_concrete_bool(false); // false
     SymVal result = fls;
-    std::unordered_set<SymVal> added_conds;
+    SymValSet added_conds;
     for (size_t i = 0; i < conditions.size(); ++i) {
       if (added_conds.find(conditions[i]) != added_conds.end()) {
         continue;
@@ -392,7 +382,7 @@ private:
   z3::expr to_z3_conjunction(std::vector<SymVal> &conditions) {
     z3::expr conjunction = global_z3_ctx().bool_val(true);
     for (auto &cond : conditions) {
-      auto z3_cond = cond.symptr->build_z3_expr();
+      auto z3_cond = cond->z3_expr();
       conjunction = conjunction && z3_cond != global_z3_ctx().bv_val(0, 32);
     }
 #ifdef DEBUG
@@ -403,13 +393,13 @@ private:
     return conjunction;
   }
 
-  std::unordered_map<SymVal, std::optional<QueryResult>> solver_cache;
+  SymValMap<std::optional<QueryResult>> solver_cache;
 };
 
 static Solver solver;
 
 inline EvalRes eval_sym_expr_by_model(const SymVal &sym, z3::model &model) {
-  auto expr = sym.symptr->build_z3_expr();
+  auto expr = sym->z3_expr();
   // let z3 decide the value of symbols that are not in the model
   z3::expr value = model.eval(expr, true);
   // every value is bitvector

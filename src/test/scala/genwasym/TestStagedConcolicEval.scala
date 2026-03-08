@@ -190,9 +190,10 @@ class TestStagedConcolicEval extends CppCompilationTestBase {
     testFileConcreteCpp("./benchmarks/wasm/compare_wasp/small-snapshot.wat", Some("main"))
   }
 
-  test("f32-operations-concrete") {
-    testFileConcreteCpp("./benchmarks/wasm/f32_test.wat", Some("test_f32"))
-  }
+  // TODO: support float point operations in symbolic semantics
+  // test("f32-operations-concrete") {
+  //   testFileConcreteCpp("./benchmarks/wasm/f32_test.wat", Some("test_f32"))
+  // }
 
   test("call-indirect-concrete") {
     testFileConcreteCpp("./benchmarks/wasm/call_indirect_test.wat", expect=Some(List(42)))

@@ -6,7 +6,7 @@
 #include "output_report.hpp"
 #include "profile.hpp"
 #include "smt_solver.hpp"
-#include "symbolic_rt.hpp"
+#include "sym_rt.hpp"
 #include "utils.hpp"
 #include "z3++.h"
 #include <cassert>
