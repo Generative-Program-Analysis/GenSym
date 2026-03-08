@@ -227,6 +227,13 @@ trait StagedWasmEvaluator extends SAIOps {
       eval(rest, kont, trail)(newCtx)
   }
 
+  def withBlock[T](block: => Rep[T]): Rep[T] = {
+    startBlock
+    val res = block
+    endBlock
+    res
+  }
+
   // We rely on the convention that eval function must be at tail position, to
   // safely enforce tail call by the control effect "musttail-return"
   def eval(insts: List[Instr],
@@ -406,6 +413,16 @@ trait StagedWasmEvaluator extends SAIOps {
         endBlock
         val newCtx3 = newCtx2.push(res.tipe)
         eval(rest, kont, trail)(newCtx3)
+      case Convert(cvt) =>
+        startBlock
+        val (ty, newCtx) = ctx.pop()
+        val num = Stack.popC(ty)
+        val sym = Stack.popS(ty)
+        val newNum = evalCvtOpC(cvt, num)
+        val newSym = evalCvtOpS(cvt, sym, newNum)
+        Stack.pushC(newNum)
+        Stack.pushS(newSym)
+        endBlock
       case WasmBlock(ty, inner) =>
         // no need to modify the stack when entering a block
         // the type system guarantees that we will never take more than the input size from the stack
@@ -789,6 +806,9 @@ trait StagedWasmEvaluator extends SAIOps {
     case Div(_) => v1 div v2
     case Or(_) => v1 or v2
     case Xor(_) => v1 xor v2
+    case Rotl(_) => v1 rotl v2
+    case Rotr(_) => v1 rotr v2
+    case RemU(_) => v1 remu v2
     // case Or(_) => v1 or v2
     case _ =>
       throw new Exception(s"Unknown binary operation $op")
@@ -811,6 +831,9 @@ trait StagedWasmEvaluator extends SAIOps {
         case Div(_) => v1 div v2
         case Or(_) => v1 or v2
         case Xor(_) => v1 xor v2
+        case Rotl(_) => v1 rotl v2
+        case Rotr(_) => v1 rotr v2
+        case RemU(_) => v1 remu v2
         case _ =>
           throw new Exception(s"Unknown binary operation $op")
       }).s
@@ -857,6 +880,21 @@ trait StagedWasmEvaluator extends SAIOps {
         case Ge(_)  => v1 ge v2
         case _      => throw new Exception(s"Unknown relational operation $op")
       }).s
+    }
+    StagedSymbolicNum(c.tipe, res)
+  }
+
+  def evalCvtOpC(op: CvtOp, value: StagedConcreteNum): StagedConcreteNum = op match {
+    case Extend(NumType(I32Type), NumType(I64Type), ZX) => value.extend
+  }
+
+  def evalCvtOpS(op: CvtOp, value: StagedSymbolicNum, c: StagedConcreteNum): StagedSymbolicNum = {
+    val res = if (allConcrete(value)) {
+      c.toStagedSymbolicNum.s
+    } else {
+      op match {
+        case Extend(NumType(I32Type), NumType(I64Type), ZX) => value.extend().s
+      }
     }
     StagedSymbolicNum(c.tipe, res)
   }
@@ -1263,6 +1301,8 @@ trait StagedWasmEvaluator extends SAIOps {
     def isZero(): StagedConcreteNum = num.tipe match {
       case NumType(I32Type) =>
         StagedConcreteNum(NumType(I32Type), Values.I32V("is-zero".reflectCtrlWith[Int](num.toInt)))
+      case NumType(I64Type) =>
+        StagedConcreteNum(NumType(I32Type), Values.I32V("is-zero".reflectCtrlWith[Int](num.toInt)))
     }
 
     def clz(): StagedConcreteNum = num.tipe match {
@@ -1346,6 +1386,35 @@ trait StagedWasmEvaluator extends SAIOps {
       (num.tipe, rhs.tipe) match {
         case (NumType(I32Type), NumType(I32Type)) =>
           StagedConcreteNum(NumType(I32Type), "i32-binary-xor".reflectCtrlWith[Num](num.i, rhs.i))
+        case (NumType(I64Type), NumType(I64Type)) =>
+          StagedConcreteNum(NumType(I64Type), "i64-binary-xor".reflectCtrlWith[Num](num.i, rhs.i))
+      }
+    }
+
+    def rotl(rhs: StagedConcreteNum): StagedConcreteNum = {
+      (num.tipe, rhs.tipe) match {
+        case (NumType(I32Type), NumType(I32Type)) =>
+          StagedConcreteNum(NumType(I32Type), "i32-binary-rotl".reflectCtrlWith[Num](num.i, rhs.i))
+        case (NumType(I64Type), NumType(I64Type)) =>
+          StagedConcreteNum(NumType(I64Type), "i64-binary-rotl".reflectCtrlWith[Num](num.i, rhs.i))
+      }
+    }
+
+    def rotr(rhs: StagedConcreteNum): StagedConcreteNum = {
+      (num.tipe, rhs.tipe) match {
+        case (NumType(I32Type), NumType(I32Type)) =>
+          StagedConcreteNum(NumType(I32Type), "i32-binary-rotr".reflectCtrlWith[Num](num.i, rhs.i))
+        case (NumType(I64Type), NumType(I64Type)) =>
+          StagedConcreteNum(NumType(I64Type), "i64-binary-rotr".reflectCtrlWith[Num](num.i, rhs.i))
+      }
+    }
+
+    def remu(rhs: StagedConcreteNum): StagedConcreteNum = {
+      (num.tipe, rhs.tipe) match {
+        case (NumType(I32Type), NumType(I32Type)) =>
+          StagedConcreteNum(NumType(I32Type), "i32-binary-rem-u".reflectCtrlWith[Num](num.i, rhs.i))
+        case (NumType(I64Type), NumType(I64Type)) =>
+          StagedConcreteNum(NumType(I64Type), "i64-binary-rem-u".reflectCtrlWith[Num](num.i, rhs.i))
       }
     }
 
@@ -1353,6 +1422,8 @@ trait StagedWasmEvaluator extends SAIOps {
       (num.tipe, rhs.tipe) match {
         case (NumType(I32Type), NumType(I32Type)) =>
           StagedConcreteNum(NumType(I32Type), "i32-binary-or".reflectCtrlWith[Num](num.i, rhs.i))
+        case (NumType(I64Type), NumType(I64Type)) =>
+          StagedConcreteNum(NumType(I64Type), "i64-binary-or".reflectCtrlWith[Num](num.i, rhs.i))
         case (NumType(F32Type), NumType(F32Type)) =>
           StagedConcreteNum(NumType(F32Type), "f32-binary-or".reflectCtrlWith[Num](num.i, rhs.i))
       }
@@ -1531,6 +1602,12 @@ trait StagedWasmEvaluator extends SAIOps {
           StagedConcreteNum(NumType(I32Type), "f64-relation-ge".reflectCtrlWith[Num](num.i, rhs.i))
       }
     }
+
+    def extend(): StagedConcreteNum = {
+      num.tipe match {
+        case NumType(I32Type) => StagedConcreteNum(NumType(I64Type), "i32-extend-to-i64".reflectCtrlWith[Num](num.i))
+      }
+    }
   }
 
   implicit class StagedSymbolicNumOps(num: StagedSymbolicNum) {
@@ -1542,6 +1619,7 @@ trait StagedWasmEvaluator extends SAIOps {
 
     def isZero(): StagedSymbolicNum = num.tipe match {
       case NumType(I32Type) => StagedSymbolicNum(NumType(I32Type), "sym-is-zero".reflectCtrlWith[SymVal](num.s))
+      case NumType(I64Type) => StagedSymbolicNum(NumType(I32Type), "sym-is-zero".reflectCtrlWith[SymVal](num.s))
     }
 
     def clz(): StagedSymbolicNum = num.tipe match {
@@ -1642,6 +1720,8 @@ trait StagedWasmEvaluator extends SAIOps {
       (num.tipe, rhs.tipe) match {
         case (NumType(I32Type), NumType(I32Type)) =>
           StagedSymbolicNum(NumType(I32Type), "sym-binary-xor".reflectCtrlWith[SymVal](num.s, rhs.s))
+        case (NumType(I64Type), NumType(I64Type)) =>
+          StagedSymbolicNum(NumType(I64Type), "sym-binary-xor".reflectCtrlWith[SymVal](num.s, rhs.s))
       }
     }
 
@@ -1649,8 +1729,37 @@ trait StagedWasmEvaluator extends SAIOps {
       (num.tipe, rhs.tipe) match {
         case (NumType(I32Type), NumType(I32Type)) =>
           StagedSymbolicNum(NumType(I32Type), "sym-binary-or".reflectCtrlWith[SymVal](num.s, rhs.s))
+        case (NumType(I64Type), NumType(I64Type)) =>
+          StagedSymbolicNum(NumType(I64Type), "sym-binary-or".reflectCtrlWith[SymVal](num.s, rhs.s))
         case (NumType(F32Type), NumType(F32Type)) =>
           StagedSymbolicNum(NumType(F32Type), "sym-binary-or".reflectCtrlWith[SymVal](num.s, rhs.s))
+      }
+    }
+
+    def rotl(rhs: StagedSymbolicNum): StagedSymbolicNum = {
+      (num.tipe, rhs.tipe) match {
+        case (NumType(I32Type), NumType(I32Type)) =>
+          StagedSymbolicNum(NumType(I32Type), "sym-binary-rotl".reflectCtrlWith[SymVal](num.s, rhs.s))
+        case (NumType(I64Type), NumType(I64Type)) =>
+          StagedSymbolicNum(NumType(I64Type), "sym-binary-rotl".reflectCtrlWith[SymVal](num.s, rhs.s))
+      }
+    }
+
+    def rotr(rhs: StagedSymbolicNum): StagedSymbolicNum = {
+      (num.tipe, rhs.tipe) match {
+        case (NumType(I32Type), NumType(I32Type)) =>
+          StagedSymbolicNum(NumType(I32Type), "sym-binary-rotr".reflectCtrlWith[SymVal](num.s, rhs.s))
+        case (NumType(I64Type), NumType(I64Type)) =>
+          StagedSymbolicNum(NumType(I64Type), "sym-binary-rotr".reflectCtrlWith[SymVal](num.s, rhs.s))
+      }
+    }
+
+    def remu(rhs: StagedSymbolicNum): StagedSymbolicNum = {
+      (num.tipe, rhs.tipe) match {
+        case (NumType(I32Type), NumType(I32Type)) =>
+          StagedSymbolicNum(NumType(I32Type), "sym-binary-rem-u".reflectCtrlWith[SymVal](num.s, rhs.s))
+        case (NumType(I64Type), NumType(I64Type)) =>
+          StagedSymbolicNum(NumType(I64Type), "sym-binary-rem-u".reflectCtrlWith[SymVal](num.s, rhs.s))
       }
     }
 
@@ -1826,6 +1935,10 @@ trait StagedWasmEvaluator extends SAIOps {
         case (NumType(F64Type), NumType(F64Type)) =>
           StagedSymbolicNum(NumType(I32Type), "sym-relation-ge".reflectCtrlWith[SymVal](num.s, rhs.s))
       }
+    }
+
+    def extend(): StagedSymbolicNum = num.tipe match {
+      case NumType(I32Type) => StagedSymbolicNum(NumType(I64Type), "sym-i32-extend-to-i64".reflectCtrlWith[SymVal](num.s))
     }
   }
   implicit class SymbolicOps(s: Rep[SymVal]) {
@@ -2011,44 +2124,96 @@ trait StagedWasmCppGen extends CGenBase with CppSAICodeGenBase {
       shallow(s_num); emit(".is_zero().bool2bv()")
     case Node(_, "i32-binary-add", List(lhs, rhs), _) =>
       shallow(lhs); emit(".i32_add("); shallow(rhs); emit(")")
+    case Node(_, "i64-binary-add", List(lhs, rhs), _) =>
+      shallow(lhs); emit(".i64_add("); shallow(rhs); emit(")")
     case Node(_, "i32-binary-sub", List(lhs, rhs), _) =>
       shallow(lhs); emit(".i32_sub("); shallow(rhs); emit(")")
+    case Node(_, "i64-binary-sub", List(lhs, rhs), _) =>
+      shallow(lhs); emit(".i64_sub("); shallow(rhs); emit(")")
     case Node(_, "i32-binary-mul", List(lhs, rhs), _) =>
       shallow(lhs); emit(".i32_mul("); shallow(rhs); emit(")")
+    case Node(_, "i64-binary-mul", List(lhs, rhs), _) =>
+      shallow(lhs); emit(".i64_mul("); shallow(rhs); emit(")")
     case Node(_, "i32-binary-div", List(lhs, rhs), _) =>
       shallow(lhs); emit(".i32_div_s("); shallow(rhs); emit(")")
+    case Node(_, "i64-binary-div", List(lhs, rhs), _) =>
+      shallow(lhs); emit(".i64_div_s("); shallow(rhs); emit(")")
+    case Node(_, "i32-binary-div-u", List(lhs, rhs), _) =>
+      shallow(lhs); emit(".i32_div_u("); shallow(rhs); emit(")")
+    case Node(_, "i64-binary-div-u", List(lhs, rhs), _) =>
+      shallow(lhs); emit(".i64_div_u("); shallow(rhs); emit(")")
+    case Node(_, "i32-binary-rem-u", List(lhs, rhs), _) =>
+      shallow(lhs); emit(".i32_rem_u("); shallow(rhs); emit(")")
+    case Node(_, "i64-binary-rem-u", List(lhs, rhs), _) =>
+      shallow(lhs); emit(".i64_rem_u("); shallow(rhs); emit(")")
     case Node(_, "i32-binary-shl", List(lhs, rhs), _) =>
       shallow(lhs); emit(".i32_shl("); shallow(rhs); emit(")")
+    case Node(_, "i64-binary-shl", List(lhs, rhs), _) =>
+      shallow(lhs); emit(".i64_shl("); shallow(rhs); emit(")")
     case Node(_, "i32-binary-shr-u", List(lhs, rhs), _) =>
       shallow(lhs); emit(".i32_shr_u("); shallow(rhs); emit(")")
+    case Node(_, "i64-binary-shr", List(lhs, rhs), _) =>
+      shallow(lhs); emit(".i64_shr_u("); shallow(rhs); emit(")")
+    case Node(_, "i64-binary-shr-u", List(lhs, rhs), _) =>
+      shallow(lhs); emit(".i64_shr_u("); shallow(rhs); emit(")")
     case Node(_, "i32-binary-shr-s", List(lhs, rhs), _) =>
       shallow(lhs); emit(".i32_shr_s("); shallow(rhs); emit(")")
+    case Node(_, "i64-binary-shr-s", List(lhs, rhs), _) =>
+      shallow(lhs); emit(".i64_shr_s("); shallow(rhs); emit(")")
     case Node(_, "i32-binary-and", List(lhs, rhs), _) =>
       shallow(lhs); emit(".i32_and("); shallow(rhs); emit(")")
+    case Node(_, "i64-binary-and", List(lhs, rhs), _) =>
+      shallow(lhs); emit(".i64_and("); shallow(rhs); emit(")")
     case Node(_, "i32-relation-eq", List(lhs, rhs), _) =>
       shallow(lhs); emit(".i32_eq("); shallow(rhs); emit(")")
+    case Node(_, "i64-relation-eq", List(lhs, rhs), _) =>
+      shallow(lhs); emit(".i64_eq("); shallow(rhs); emit(")")
     case Node(_, "i32-relation-ne", List(lhs, rhs), _) =>
       shallow(lhs); emit(".i32_ne("); shallow(rhs); emit(")")
+    case Node(_, "i64-relation-ne", List(lhs, rhs), _) =>
+      shallow(lhs); emit(".i64_ne("); shallow(rhs); emit(")")
     case Node(_, "i32-relation-lts", List(lhs, rhs), _) =>
       shallow(lhs); emit(".i32_lt_s("); shallow(rhs); emit(")")
+    case Node(_, "i64-relation-lts", List(lhs, rhs), _) =>
+      shallow(lhs); emit(".i64_lt_s("); shallow(rhs); emit(")")
     case Node(_, "i32-relation-ltu", List(lhs, rhs), _) =>
       shallow(lhs); emit(".i32_lt_u("); shallow(rhs); emit(")")
+    case Node(_, "i64-relation-ltu", List(lhs, rhs), _) =>
+      shallow(lhs); emit(".i64_lt_u("); shallow(rhs); emit(")")
     case Node(_, "i32-relation-gt", List(lhs, rhs), _) =>
       shallow(lhs); emit(".i32_gt_s("); shallow(rhs); emit(")")
+    case Node(_, "i64-relation-gt", List(lhs, rhs), _) =>
+      shallow(lhs); emit(".i64_gt_s("); shallow(rhs); emit(")")
     case Node(_, "i32-relation-gtu", List(lhs, rhs), _) =>
       shallow(lhs); emit(".i32_gt_u("); shallow(rhs); emit(")")
+    case Node(_, "i64-relation-gtu", List(lhs, rhs), _) =>
+      shallow(lhs); emit(".i64_gt_u("); shallow(rhs); emit(")")
     case Node(_, "i32-relation-les", List(lhs, rhs), _) =>
       shallow(lhs); emit(".i32_le_s("); shallow(rhs); emit(")")
+    case Node(_, "i64-relation-les", List(lhs, rhs), _) =>
+      shallow(lhs); emit(".i64_le_s("); shallow(rhs); emit(")")
     case Node(_, "i32-relation-leu", List(lhs, rhs), _) =>
       shallow(lhs); emit(".i32_le_u("); shallow(rhs); emit(")")
+    case Node(_, "i64-relation-leu", List(lhs, rhs), _) =>
+      shallow(lhs); emit(".i64_le_u("); shallow(rhs); emit(")")
     case Node(_, "i32-relation-ges", List(lhs, rhs), _) =>
       shallow(lhs); emit(".i32_ge_s("); shallow(rhs); emit(")")
+    case Node(_, "i64-relation-ges", List(lhs, rhs), _) =>
+      shallow(lhs); emit(".i64_ge_s("); shallow(rhs); emit(")")
     case Node(_, "i32-relation-geu", List(lhs, rhs), _) =>
       shallow(lhs); emit(".i32_ge_u("); shallow(rhs); emit(")")
+    case Node(_, "i64-relation-geu", List(lhs, rhs), _) =>
+      shallow(lhs); emit(".i64_ge_u("); shallow(rhs); emit(")")
     case Node(_, "i32-binary-xor", List(lhs, rhs), _) =>
       shallow(lhs); emit(".i32_xor("); shallow(rhs); emit(")")
+    case Node(_, "i64-binary-xor", List(lhs, rhs), _) =>
+      shallow(lhs); emit(".i64_xor("); shallow(rhs); emit(")")
     case Node(_, "i32-binary-or", List(lhs, rhs), _) =>
       shallow(lhs); emit(".i32_or("); shallow(rhs); emit(")")
+    case Node(_, "i64-binary-or", List(lhs, rhs), _) =>
+      shallow(lhs); emit(".i64_or("); shallow(rhs); emit(")")
+    case Node(_, "i32-extend-to-i64", List(num), _) =>
+      emit("("); shallow(num); emit(".i32_extend_to_i64())")
     case Node(_, "f32-binary-or", List(lhs, rhs), _) =>
       shallow(lhs); emit(".f32_or("); shallow(rhs); emit(")")
     case Node(_, "f32-binary-add", List(lhs, rhs), _) =>
@@ -2105,6 +2270,10 @@ trait StagedWasmCppGen extends CGenBase with CppSAICodeGenBase {
       shallow(lhs); emit(".shr_u("); shallow(rhs); emit(")")
     case Node(_, "sym-binary-shr-s", List(lhs, rhs), _) =>
       shallow(lhs); emit(".shr_s("); shallow(rhs); emit(")")
+    case Node(_, "sym-binary-rem-u", List(lhs, rhs), _) =>
+      shallow(lhs); emit(".rem_u("); shallow(rhs); emit(")")
+    case Node(_, "sym-i32-extend-to-i64", List(num), _) =>
+      shallow(num); emit(".extend_to_i64()")
     case Node(_, "num-to-int", List(num), _) =>
       shallow(num); emit(".toInt()")
     case Node(_, "make-symbolic", List(num, width), _) =>
@@ -2252,4 +2421,3 @@ object WasmToCppCompiler {
   }
 
 }
-

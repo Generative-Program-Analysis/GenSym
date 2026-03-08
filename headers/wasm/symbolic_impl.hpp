@@ -2,6 +2,7 @@
 #define WASM_SYMBOLIC_IMPL_HPP
 
 #include "symbolic_decl.hpp"
+#include "wasm/symval_decl.hpp"
 #include "wasm/z3_env.hpp"
 
 inline z3::expr Symbolic::build_z3_expr_aux() {
@@ -58,6 +59,9 @@ inline z3::expr Symbolic::build_z3_expr_aux() {
     }
     case SHR_S: {
       return z3::ashr(left, right);
+    }
+    case REM_U: {
+      return z3::urem(left, right);
     }
     case GEQ_BOOL: {
       return left >= right;

@@ -152,6 +152,36 @@ struct Num {
     return res;
   }
 
+  // i32.rem_s (Signed remainder with traps on division by zero)
+  inline Num i32_rem_s(const Num &other) const {
+    int32_t divisor = other.toInt();
+    int32_t dividend = this->toInt();
+    if (divisor == 0) {
+      throw std::runtime_error("i32.rem_s: Division by zero");
+    }
+    // WebAssembly defines INT_MIN % -1 == 0
+    if (dividend == INT32_MIN && divisor == -1) {
+      Num res(0);
+      debug_print("i32.rem_s", *this, other, res);
+      return res;
+    }
+    Num res(dividend % divisor);
+    debug_print("i32.rem_s", *this, other, res);
+    return res;
+  }
+
+  // i32.rem_u (Unsigned remainder with traps on division by zero)
+  inline Num i32_rem_u(const Num &other) const {
+    uint32_t divisor = other.toUInt();
+    uint32_t dividend = this->toUInt();
+    if (divisor == 0) {
+      throw std::runtime_error("i32.rem_u: Division by zero");
+    }
+    Num res(static_cast<int32_t>(dividend % divisor));
+    debug_print("i32.rem_u", *this, other, res);
+    return res;
+  }
+
   // i32.shl (Shift Left): *this << other (shift count masked by 31)
   inline Num i32_shl(const Num &other) const {
     uint32_t shift_amount = other.toUInt() & 0x1F;
@@ -201,6 +231,14 @@ struct Num {
     uint32_t result_u = this->toUInt() | other.toUInt();
     Num res(static_cast<int32_t>(result_u));
     debug_print("i32.or", *this, other, res);
+    return res;
+  }
+
+  // i64.extend_i32_s: sign-extend low 32 bits to i64
+  inline Num i32_extend_to_i64() const {
+    int64_t result_s = static_cast<int64_t>(this->toInt());
+    Num res(result_s);
+    debug_print("i32.extend_to_i64", *this, *this, res);
     return res;
   }
 
@@ -324,6 +362,36 @@ struct Num {
     }
     Num res(static_cast<int64_t>(dividend / divisor));
     debug_print("i64.div_u", *this, other, res);
+    return res;
+  }
+
+  // i64.rem_s (Signed remainder with traps on division by zero)
+  inline Num i64_rem_s(const Num &other) const {
+    int64_t divisor = other.toInt64();
+    int64_t dividend = this->toInt64();
+    if (divisor == 0) {
+      throw std::runtime_error("i64.rem_s: Division by zero");
+    }
+    // WebAssembly defines INT64_MIN % -1 == 0
+    if (dividend == INT64_MIN && divisor == -1) {
+      Num res(0);
+      debug_print("i64.rem_s", *this, other, res);
+      return res;
+    }
+    Num res(dividend % divisor);
+    debug_print("i64.rem_s", *this, other, res);
+    return res;
+  }
+
+  // i64.rem_u (Unsigned remainder with traps on division by zero)
+  inline Num i64_rem_u(const Num &other) const {
+    uint64_t divisor = other.toUInt64();
+    uint64_t dividend = this->toUInt64();
+    if (divisor == 0) {
+      throw std::runtime_error("i64.rem_u: Division by zero");
+    }
+    Num res(static_cast<int64_t>(dividend % divisor));
+    debug_print("i64.rem_u", *this, other, res);
     return res;
   }
 
