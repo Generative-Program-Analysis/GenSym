@@ -53,9 +53,11 @@ object Counter {
     getId(wir, 0)
   }
 }
+
 @virtualize
-trait StagedWasmEvaluator extends SAIOps {
-  def module: ModuleInstance
+trait StagedWasmValueDomains extends SAIOps {
+
+  case class StagedSymbolicNum(tipe: ValueType, s: Rep[SymVal])
 
   case class StagedConcreteNum(tipe: ValueType, i: Rep[Num]) {
     def toStagedSymbolicNum: StagedSymbolicNum = {
@@ -65,9 +67,6 @@ trait StagedWasmEvaluator extends SAIOps {
       }
     }
   }
-
-
-  case class StagedSymbolicNum(tipe: ValueType, s: Rep[SymVal])
 
   def toStagedNum(num: Num): StagedConcreteNum = {
     num match {
@@ -86,6 +85,11 @@ trait StagedWasmEvaluator extends SAIOps {
       case F64V(_) => StagedSymbolicNum(NumType(F64Type), "Concrete".reflectCtrlWith[SymVal](num, 64))
     }
   }
+}
+
+@virtualize
+trait StagedWasmEvaluator extends SAIOps with StagedWasmValueDomains{
+  def module: ModuleInstance
 
   implicit class ValueTypeOps(ty: ValueType) {
     def size: Int = ty match {
