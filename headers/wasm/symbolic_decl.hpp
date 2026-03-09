@@ -56,17 +56,19 @@ class Symbol : public Symbolic {
 public:
   // TODO: add type information to determine the size of bitvector
   // for now we just assume that only i32 will be used
-  Symbol(int id, int width) : id(id), _width(width) {}
+  Symbol(int id, int width, ValueKind kind)
+      : id(id), _width(width), _kind(kind) {}
   int get_id() const { return id; }
 
   int size() override { return 1; }
 
-  ValueKind value_kind() override { return KindBV; }
+  ValueKind value_kind() override { return _kind; }
   int width() override { return _width; }
 
 private:
   int id;
   int _width;
+  ValueKind _kind;
 };
 
 class Witness : public Symbolic {
@@ -92,23 +94,6 @@ public:
 
 private:
   int _width;
-};
-
-class SmallBV : public Symbolic {
-public:
-  SmallBV(int width, int64_t value) : _width(width), value(value) {}
-  int get_size() const { return _width; }
-  int64_t get_value() const { return value; }
-
-  int size() override { return 1; }
-
-  ValueKind value_kind() override { return KindBV; }
-
-  int width() override { return _width; }
-
-private:
-  int _width; // in bits
-  int64_t value;
 };
 
 inline int count_dag_size(Symbolic &val);
@@ -150,7 +135,32 @@ struct SymBinary : public Symbolic {
 
   SymBinary(BinOperation op, SymVal lhs, SymVal rhs)
       : op(op), lhs(lhs), rhs(rhs) {
+    auto lhs_kind = lhs->value_kind();
+    auto rhs_kind = rhs->value_kind();
+    auto lhs_width = lhs->width();
+    auto rhs_width = rhs->width();
+
     switch (op) {
+    case ADD:
+    case SUB:
+    case MUL:
+    case DIV:
+    case SHR_U:
+    case SHR_S:
+    case REM_U:
+    case B_AND:
+    case B_XOR:
+    case B_OR:
+      assert(lhs_kind == KindBV && rhs_kind == KindBV);
+      assert(lhs_width == rhs_width);
+      _kind = KindBV;
+      _width = lhs_width;
+      break;
+    case CONCAT:
+      assert(lhs_kind == KindBV && rhs_kind == KindBV);
+      _kind = KindBV;
+      _width = lhs_width + rhs_width;
+      break;
     case EQ_BOOL:
     case NEQ_BOOL:
     case LT_BOOL:
@@ -160,11 +170,22 @@ struct SymBinary : public Symbolic {
     case GTU_BOOL:
     case GEQ_BOOL:
     case GEU_BOOL:
+      assert(lhs_kind == rhs_kind);
+      if (lhs_kind == KindBV) {
+        assert(lhs_width == rhs_width);
+      }
+      _kind = KindBool;
+      _width = 1;
+      break;
+    case AND:
+    case OR:
+      assert(lhs_kind == KindBool && rhs_kind == KindBool);
+      assert(lhs_width == 1 && rhs_width == 1);
+      _kind = KindBool;
       _width = 1;
       break;
     default:
-      // for other operations we just assume the width is the same as lhs
-      _width = lhs->width();
+      assert(false && "Unhandled binary operation");
     }
   }
 
@@ -180,38 +201,13 @@ struct SymBinary : public Symbolic {
 
   int width() override { return _width; }
 
-  ValueKind value_kind() override {
-    switch (op) {
-    case EQ_BOOL:
-    case NEQ_BOOL:
-    case LT_BOOL:
-    case LTU_BOOL:
-    case LEQ_BOOL:
-    case GT_BOOL:
-    case GTU_BOOL:
-    case GEQ_BOOL:
-    case GEU_BOOL:
-    case AND:
-    case OR:
-      return KindBool;
-    case ADD:
-    case SUB:
-    case MUL:
-    case DIV:
-    case B_AND:
-    case B_XOR:
-    case B_OR:
-    case CONCAT:
-      return KindBV;
-    default:
-      assert(false && "Unknown binary operation");
-    }
-  }
+  ValueKind value_kind() override { return _kind; }
 
 private:
   friend std::tuple<int, bool>
   count_dag_size_aux(Symbolic &val, std::set<Symbolic *> &visited);
   std::optional<int> _cached_dag_size;
+  ValueKind _kind;
   int _width;
 };
 
@@ -308,8 +304,6 @@ inline std::tuple<int, bool> count_dag_size_aux(Symbolic &val,
   } else if (auto symbol = dynamic_cast<Symbol *>(&val)) {
     return {1, false};
   } else if (auto concrete = dynamic_cast<SymConcrete *>(&val)) {
-    return {1, false};
-  } else if (auto smallbv = dynamic_cast<SmallBV *>(&val)) {
     return {1, false};
   } else if (auto witness = dynamic_cast<Witness *>(&val)) {
     assert(false && "Witness should not appear during instruction execution");

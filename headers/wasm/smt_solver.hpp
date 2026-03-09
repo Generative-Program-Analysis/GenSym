@@ -73,8 +73,6 @@ static std::optional<int> group_of_symval(const SymVal &sym, UnionFind &uf) {
     return symbol->get_id();
   } else if (auto concrete = dynamic_cast<SymConcrete *>(sym.symptr.get())) {
     return std::nullopt;
-  } else if (auto smallbv = dynamic_cast<SmallBV *>(sym.symptr.get())) {
-    return std::nullopt;
   } else if (auto binary = dynamic_cast<SymBinary *>(sym.symptr.get())) {
     auto left_group = group_of_symval(binary->lhs, uf);
     auto right_group = group_of_symval(binary->rhs, uf);

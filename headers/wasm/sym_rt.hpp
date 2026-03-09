@@ -1500,7 +1500,7 @@ static EvalRes eval_sym_expr(const SymVal &sym, const SymEnv_t &sym_env) {
   Profile.step(StepProfileKind::SYM_EVAL);
   assert(sym.symptr != nullptr && "Symbolic expression is null");
   if (auto concrete = dynamic_cast<SymConcrete *>(sym.symptr.get())) {
-    return EvalRes(concrete->value, 32, KindBV);
+    return EvalRes(concrete->value, concrete->width(), concrete->kind);
   } else if (auto extract = dynamic_cast<SymExtract *>(sym.symptr.get())) {
     auto res = eval_sym_expr(extract->value, sym_env);
     int high = extract->high;
@@ -1510,9 +1510,6 @@ static EvalRes eval_sym_expr(const SymVal &sym, const SymEnv_t &sym_env) {
     int64_t mask = (1LL << (size * 8)) - 1;
     int64_t extracted_value = (res.value.toInt() >> ((low - 1) * 8)) & mask;
     return EvalRes(Num(I64V(extracted_value)), size * 8, KindBV);
-  } else if (auto smallbv = dynamic_cast<SmallBV *>(sym.symptr.get())) {
-    return EvalRes(Num(I64V(smallbv->get_value())), smallbv->get_size(),
-                   KindBV);
   } else if (auto operation = dynamic_cast<SymBinary *>(sym.symptr.get())) {
     // If it's a operation, we need to evaluate it
     auto lhs_res = eval_sym_expr(operation->lhs, sym_env);

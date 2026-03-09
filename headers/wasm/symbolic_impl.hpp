@@ -16,8 +16,6 @@ inline z3::expr Symbolic::build_z3_expr_aux() {
       return global_z3_ctx().bool_val(concrete->value.toInt() != 0);
     }
     return global_z3_ctx().bv_val(concrete->value.value, width());
-  } else if (auto smallbv = dynamic_cast<SmallBV *>(this)) {
-    return global_z3_ctx().bv_val(smallbv->get_value(), smallbv->get_size());
   } else if (auto binary = dynamic_cast<SymBinary *>(this)) {
     auto bit_width = width();
 
