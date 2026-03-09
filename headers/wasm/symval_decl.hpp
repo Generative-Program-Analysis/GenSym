@@ -23,6 +23,7 @@ enum BinOperation {
   GEU_BOOL, // Unsigned greater than or equal (return a boolean)
   SHR_U,    // Shift right unsigned
   SHR_S,    // Shift right signed
+  REM_U,    // Unsigned remainder
   B_AND,    // Bitwise AND
   B_XOR,    // Bitwise XOR
   B_OR,     // Bitwise OR
@@ -31,7 +32,8 @@ enum BinOperation {
 
 enum UnaryOperation {
   NOT,     // bool not
-  BOOL2BV, // bool to bitvector
+  BOOL2BV, // bool to bitvector,
+  EXTEND,   // bitvector extension, extend i32 to i64
 };
 
 class Symbolic;
@@ -75,6 +77,8 @@ struct SymVal {
   SymVal extract(int high, int low) const;
   SymVal bv2bool() const;
   SymVal bool2bv() const;
+  SymVal rem_u(const SymVal &other) const;
+  SymVal extend_to_i64() const; // only for i32 symbolic values, extend to i64 by sign extension
   // TODO: add bitwise operations, and use the underlying bitvector theory
 
   bool is_concrete() const;

@@ -53,6 +53,10 @@ inline SymVal SymVal::bool2bv() const {
   return SVFactory::make_unary(BOOL2BV, *this);
 }
 
+inline SymVal SymVal::extend_to_i64() const {
+  return SVFactory::make_unary(EXTEND, *this);
+}
+
 inline SymVal SymVal::lt(const SymVal &other) const {
   return SVFactory::make_binary(LT_BOOL, *this, other);
 }
@@ -87,6 +91,10 @@ inline SymVal SymVal::shr_u(const SymVal &other) const {
 
 inline SymVal SymVal::shr_s(const SymVal &other) const {
   return SVFactory::make_binary(SHR_S, *this, other);
+}
+
+inline SymVal SymVal::rem_u(const SymVal &other) const {
+  return SVFactory::make_binary(REM_U, *this, other);
 }
 
 inline SymVal SymVal::is_zero() const {
