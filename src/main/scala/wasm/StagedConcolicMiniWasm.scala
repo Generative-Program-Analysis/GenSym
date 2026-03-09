@@ -159,6 +159,10 @@ trait Continuations extends SAIOps {
     "enter-current-mkont".reflectCtrlWith[Unit]()
   }
 
+  def makeInitMCont[A:Manifest](f: Rep[Unit => A]): Rep[MCont[A]] = {
+    "make-init-mcont".reflectCtrlWith[MCont[A]](f)
+  }
+
   implicit class MContOps[A:Manifest](mk: Rep[MCont[A]]) {
     def prependCont(k: Rep[Cont[A]]): Rep[MCont[A]] = {
       "mcont-prepend".reflectCtrlWith[MCont[A]](mk, k)
@@ -1099,11 +1103,35 @@ trait StagedSymEnvOps extends SAIOps {
 }
 
 @virtualize
+trait ControlEffects extends SAIOps {
+  def startBlock: Rep[Unit] = {
+    "start-block".reflectCtrlWith[Unit]()
+  }
+
+  def endBlock: Rep[Unit] = {
+    "end-block".reflectCtrlWith[Unit]()
+  }
+
+  def tailCall[A:Manifest,B:Manifest](f: Rep[A => B], arg: Rep[A]): Rep[B] = {
+    "musttail-return".reflectCtrlWith[Unit]()
+    f(arg)
+  }
+
+  def withBlock[T](block: => T): T = {
+    startBlock
+    val res = block
+    endBlock
+    res
+  }
+}
+
+@virtualize
 trait StagedWasmEvaluator extends SAIOps
   with StagedWasmValueDomains with StagedStack with StagedFrames
   with StagedMemory with ConcreteOps with ValueCreation
-  with StagedGlobals with StagedExploreTreeOps with StagedSymEnvOps 
-  with SymbolicOps with Continuations with DebugInfo {
+  with StagedGlobals with StagedExploreTreeOps with StagedSymEnvOps
+  with SymbolicOps with Continuations with DebugInfo
+  with ControlEffects {
 
   def module: ModuleInstance
 
@@ -1115,23 +1143,6 @@ trait StagedWasmEvaluator extends SAIOps
   //   Wrap[A=>B](__topFun(f, 1, xn => Unwrap(f(Wrap[A](xn(0)))), deco))
   // }
 
-  def startBlock: Rep[Unit] = {
-    "start-block".reflectCtrlWith[Unit]()
-  }
-
-  def endBlock: Rep[Unit] = {
-    "end-block".reflectCtrlWith[Unit]()
-  }
-
-  def localBlock(block: => Rep[Unit]): Unit = {
-    val res = withBlock(block)
-    ()
-  }
-
-  def tailCall[A:Manifest,B:Manifest](f: Rep[A => B], arg: Rep[A]): Rep[B] = {
-    "musttail-return".reflectCtrlWith[Unit]()
-    f(arg)
-  }
 
   // a cache storing the compiled code for each function, to reduce re-compilation
   val compileCache = new HashMap[Int, Rep[Unit => Unit]]
@@ -1142,10 +1153,6 @@ trait StagedWasmEvaluator extends SAIOps
       "dummy-op".reflectCtrlWith[Unit](dummy)
       f(x)
     })
-  }
-
-  def makeInitMCont[A:Manifest](f: Rep[Unit => A]): Rep[MCont[A]] = {
-    "make-init-mcont".reflectCtrlWith[MCont[A]](f)
   }
 
   var instrCost: Int = 0
@@ -1170,13 +1177,6 @@ trait StagedWasmEvaluator extends SAIOps
         ctx.pop()._2.push(ty)
       }
       eval(rest, kont, trail)(newCtx)
-  }
-
-  def withBlock[T](block: => T): T = {
-    startBlock
-    val res = block
-    endBlock
-    res
   }
 
   // We rely on the convention that eval function must be at tail position, to
@@ -1991,12 +1991,6 @@ trait StagedWasmEvaluator extends SAIOps
   // call unreachable
   def unreachable(): Rep[Unit] = {
     "unreachable".reflectCtrlWith[Unit]()
-  }
-
-  implicit class SymValOps(s: Rep[SymVal]) {
-    def not(): Rep[SymVal] = {
-      "sym-not".reflectCtrlWith(s)
-    }
   }
 }
 
