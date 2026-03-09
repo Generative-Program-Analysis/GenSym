@@ -139,10 +139,30 @@ trait Continuations extends SAIOps {
 
   trait Control
 
+  def forwardKont: Rep[Cont[Unit]] = topFun((_: Rep[Unit]) => enterCurrentMCont())
+
   // Save the current control information into a structure Control
   // We need to store the control information, so we can resume the execution later
   def makeControl(kont: Rep[Cont[Unit]], mkont: Rep[MCont[Unit]]): Rep[Control] = {
     "control-make".reflectCtrlWith[Control](kont, mkont)
+  }
+
+  def updateCurrentMCont(newMKont: Rep[MCont[Unit]]): Rep[Unit] = {
+    "update-current-mkont".reflectCtrlWith[Unit](newMKont)
+  }
+
+  def currentMCont: Rep[MCont[Unit]] = {
+    "read-current-mkont".reflectCtrlWith[MCont[Unit]]()
+  }
+
+  def enterCurrentMCont(): Rep[Unit] = {
+    "enter-current-mkont".reflectCtrlWith[Unit]()
+  }
+
+  implicit class MContOps[A:Manifest](mk: Rep[MCont[A]]) {
+    def prependCont(k: Rep[Cont[A]]): Rep[MCont[A]] = {
+      "mcont-prepend".reflectCtrlWith[MCont[A]](mk, k)
+    }
   }
 
 }
@@ -821,6 +841,10 @@ trait SymbolicOps extends StagedWasmValueDomains {
       case NumType(I32Type) => StagedSymbolicNum(NumType(I64Type), "sym-i32-extend-to-i64".reflectCtrlWith[SymVal](num.s))
     }
   }
+
+  def allConcrete(syms: StagedSymbolicNum*): Rep[Boolean] = {
+    "allConcrete".reflectCtrlWith[Boolean](syms.map(_.s): _*)
+  }
 }
 @virtualize
 trait StagedStack extends SAIOps with StagedWasmValueDomains{
@@ -953,7 +977,7 @@ trait StagedFrames extends SAIOps with StagedWasmValueDomains {
 }
 
 @virtualize
-trait StagedMemory extends SAIOps with StagedWasmValueDomains {
+trait StagedMemory extends SAIOps with StagedWasmValueDomains with Continuations {
   object Memory {
     // TODO: why this is only one function, rather than `storeInC` and `storeInS`?
     // TODO: what should the type of SymVal be?
@@ -978,7 +1002,14 @@ trait StagedMemory extends SAIOps with StagedWasmValueDomains {
 }
 
 @virtualize
-trait StagedGlobalsOps extends SAIOps with StagedWasmValueDomains {
+trait DebugInfo extends SAIOps {
+  def info(xs: Rep[_]*): Rep[Unit] = {
+    "info".reflectCtrlWith[Unit](xs: _*)
+  }
+}
+
+@virtualize
+trait StagedGlobals extends SAIOps with StagedWasmValueDomains {
   def module: ModuleInstance
 
   object Globals {
@@ -1063,8 +1094,8 @@ trait StagedSymEnvOps extends SAIOps {
 trait StagedWasmEvaluator extends SAIOps
   with StagedWasmValueDomains with StagedStack with StagedFrames
   with StagedMemory with ConcreteOps with ValueCreation
-  with StagedGlobalsOps with StagedExploreTreeOps with StagedSymEnvOps 
-  with SymbolicOps with Continuations {
+  with StagedGlobals with StagedExploreTreeOps with StagedSymEnvOps 
+  with SymbolicOps with Continuations with DebugInfo {
 
   def module: ModuleInstance
 
@@ -1094,18 +1125,6 @@ trait StagedWasmEvaluator extends SAIOps
     f(arg)
   }
 
-  def updateCurrentMCont(newMKont: Rep[MCont[Unit]]): Rep[Unit] = {
-    "update-current-mkont".reflectCtrlWith[Unit](newMKont)
-  }
-
-  def currentMCont: Rep[MCont[Unit]] = {
-    "read-current-mkont".reflectCtrlWith[MCont[Unit]]()
-  }
-
-  def enterCurrentMCont(): Rep[Unit] = {
-    "enter-current-mkont".reflectCtrlWith[Unit]()
-  }
-
   // a cache storing the compiled code for each function, to reduce re-compilation
   val compileCache = new HashMap[Int, Rep[Unit => Unit]]
 
@@ -1120,13 +1139,6 @@ trait StagedWasmEvaluator extends SAIOps
   def makeInitMCont[A:Manifest](f: Rep[Unit => A]): Rep[MCont[A]] = {
     "make-init-mcont".reflectCtrlWith[MCont[A]](f)
   }
-
-  implicit class MContOps[A:Manifest](mk: Rep[MCont[A]]) {
-    def prependCont(k: Rep[Cont[A]]): Rep[MCont[A]] = {
-      "mcont-prepend".reflectCtrlWith[MCont[A]](mk, k)
-    }
-  }
-
 
   var instrCost: Int = 0
 
@@ -1524,8 +1536,6 @@ trait StagedWasmEvaluator extends SAIOps
     }
   }
 
-  def forwardKont: Rep[Cont[Unit]] = topFun((_: Rep[Unit]) => enterCurrentMCont())
-
   def readFuncTable(index: Rep[Int]): Rep[Func] = {
     "read-func-table".reflectCtrlWith[Func](index)
   }
@@ -1917,20 +1927,24 @@ trait StagedWasmEvaluator extends SAIOps
     func(())
   }
 
-  def initGlobals(globals: List[RTGlobal]): Rep[Unit] = {
-    def initGlobalsTopFun = topFun((_: Rep[Unit]) => {
-      info("Initializing globals...")
-      Globals.reserveSpace(globals.map(_.ty.ty))
-      for ((g, i) <- globals.view.zipWithIndex) {
-        val initValue = g.value match {
-          case n: Num => n
-          case _ => throw new RuntimeException("Non-numeric global value is not supported yet")
+  def initMemory(): Rep[Unit] = {
+    def initMemoryTopFun = topFun((_: Rep[Unit]) => {
+      info("Initializing memory...")
+      for (definition <- module.defs) {
+        definition match {
+          case Data(_, offsetInstr, bytes) =>
+            val haltK: Rep[Unit] => Rep[Unit] = (_) => { }
+            val mkont: Rep[MCont[Unit]] = makeInitMCont(topFun(haltK))
+            updateCurrentMCont(mkont)
+            evalSeq(offsetInstr::Nil, (_: Context) => forwardKont, ((_: Context) => forwardKont)::Nil)
+            val offsetC = Stack.popC(NumType(I32Type))
+            Stack.popS(NumType(I32Type))
+            "memory-initialize".reflectCtrlWith[Unit](offsetC.toInt, bytes)
+          case _ => ()
         }
-        Globals.setC(i, toStagedNum(initValue))
-        Globals.setS(i, toStagedSymbolicNum(initValue))
       }
     })
-    initGlobalsTopFun(())
+    initMemoryTopFun(())
   }
 
   def initTable(module: ModuleInstance): Rep[Unit] = {
@@ -1958,28 +1972,20 @@ trait StagedWasmEvaluator extends SAIOps
     initTableTopFun(())
   }
 
-  def initMemory(): Rep[Unit] = {
-    def initMemoryTopFun = topFun((_: Rep[Unit]) => {
-      info("Initializing memory...")
-      for (definition <- module.defs) {
-        definition match {
-          case Data(_, offsetInstr, bytes) =>
-            val haltK: Rep[Unit] => Rep[Unit] = (_) => { }
-            val mkont: Rep[MCont[Unit]] = makeInitMCont(topFun(haltK))
-            updateCurrentMCont(mkont)
-            evalSeq(offsetInstr::Nil, (_: Context) => forwardKont, ((_: Context) => forwardKont)::Nil)
-            val offsetC = Stack.popC(NumType(I32Type))
-            Stack.popS(NumType(I32Type))
-            "memory-initialize".reflectCtrlWith[Unit](offsetC.toInt, bytes)
-          case _ => ()
+  def initGlobals(globals: List[RTGlobal]): Rep[Unit] = {
+    def initGlobalsTopFun = topFun((_: Rep[Unit]) => {
+      info("Initializing globals...")
+      Globals.reserveSpace(globals.map(_.ty.ty))
+      for ((g, i) <- globals.view.zipWithIndex) {
+        val initValue = g.value match {
+          case n: Num => n
+          case _ => throw new RuntimeException("Non-numeric global value is not supported yet")
         }
+        Globals.setC(i, toStagedNum(initValue))
+        Globals.setS(i, toStagedSymbolicNum(initValue))
       }
     })
-    initMemoryTopFun(())
-  }
-
-  def allConcrete(syms: StagedSymbolicNum*): Rep[Boolean] = {
-    "allConcrete".reflectCtrlWith[Boolean](syms.map(_.s): _*)
+    initGlobalsTopFun(())
   }
 
   // call unreachable
@@ -1987,9 +1993,6 @@ trait StagedWasmEvaluator extends SAIOps
     "unreachable".reflectCtrlWith[Unit]()
   }
 
-  def info(xs: Rep[_]*): Rep[Unit] = {
-    "info".reflectCtrlWith[Unit](xs: _*)
-  }
   implicit class SymValOps(s: Rep[SymVal]) {
     def not(): Rep[SymVal] = {
       "sym-not".reflectCtrlWith(s)
