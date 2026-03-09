@@ -49,8 +49,8 @@ public:
 
   Num pop() {
     Profile.step(StepProfileKind::POP);
-#ifdef DEBUG
     assert(count > 0 && "Stack underflow");
+#ifdef DEBUG
     printf("[Debug] popping a value %ld from stack, size of concrete stack is: "
            "%d\n",
            stack_ptr[count - 1].value, count);
@@ -142,6 +142,7 @@ public:
   }
 
   Num get(std::int32_t index) {
+    assert(index >= 0 && index < count && "Index out of bounds");
     Profile.step(StepProfileKind::GET);
     auto ret = stack_ptr[count - 1 - index];
     return ret;

@@ -153,6 +153,7 @@ public:
 
   SymVal get(int index) {
     // Get the symbolic value at the given frame index
+    assert(index >= 0 && index < stack.size());
     auto res = stack[stack.size() - 1 - index];
     return res;
   }
