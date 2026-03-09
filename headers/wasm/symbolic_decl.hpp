@@ -5,7 +5,38 @@
 #include <optional>
 #include <set>
 
-enum ValueKind { KindBV, KindBool };
+enum BinOperation {
+  ADD,     // Addition
+  SUB,     // Subtraction
+  MUL,     // Multiplication
+  DIV,     // Division
+  AND,     // Logical AND
+  OR,      // Logical OR
+  EQ_BOOL, // Equal (return a boolean) TODO: remove bv version of comparison ops
+  NEQ_BOOL, // Not equal (return a boolean)
+  LT_BOOL,  // Less than (return a boolean)
+  LTU_BOOL, // Unsigned less than (return a boolean)
+  LEQ_BOOL, // Less than or equal (return a boolean)
+  GT_BOOL,  // Greater than (return a boolean)
+  GTU_BOOL, // Unsigned greater than (return a boolean)
+  GEQ_BOOL, // Greater than or equal (return a boolean)
+  GEU_BOOL, // Unsigned greater than or equal (return a boolean)
+  SHR_U,    // Shift right unsigned
+  SHR_S,    // Shift right signed
+  REM_U,    // Unsigned remainder
+  B_AND,    // Bitwise AND
+  B_XOR,    // Bitwise XOR
+  B_OR,     // Bitwise OR
+  CONCAT,   // Byte-level concatenation
+};
+
+enum UnaryOperation {
+  NOT,     // bool not
+  BOOL2BV, // bool to bitvector,
+  EXTEND,   // bitvector extension, extend i32 to i64
+};
+
+enum ValueKind { KindBV, KindBool, KindFP };
 
 class Symbolic {
 public:
