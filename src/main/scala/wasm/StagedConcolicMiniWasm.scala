@@ -64,6 +64,8 @@ trait StagedWasmValueDomains extends SAIOps {
       tipe match {
         case NumType(I32Type) => StagedSymbolicNum(NumType(I32Type), "Concrete".reflectCtrlWith[SymVal](i, 32))
         case NumType(I64Type) => StagedSymbolicNum(NumType(I64Type), "Concrete".reflectCtrlWith[SymVal](i, 64))
+        case NumType(F32Type) => StagedSymbolicNum(NumType(F32Type), "FPConcrete".reflectCtrlWith[SymVal](i, 32))
+        case NumType(F64Type) => StagedSymbolicNum(NumType(F64Type), "FPConcrete".reflectCtrlWith[SymVal](i, 64))
       }
     }
   }
@@ -74,15 +76,6 @@ trait StagedWasmValueDomains extends SAIOps {
       case I64V(_) => StagedConcreteNum(NumType(I64Type), num)
       case F32V(_) => StagedConcreteNum(NumType(F32Type), num)
       case F64V(_) => StagedConcreteNum(NumType(F64Type), num)
-    }
-  }
-
-  def toStagedSymbolicNum(num: Num): StagedSymbolicNum = {
-    num match {
-      case I32V(_) => StagedSymbolicNum(NumType(I32Type), "Concrete".reflectCtrlWith[SymVal](num, 32))
-      case I64V(_) => StagedSymbolicNum(NumType(I64Type), "Concrete".reflectCtrlWith[SymVal](num, 64))
-      case F32V(_) => StagedSymbolicNum(NumType(F32Type), "Concrete".reflectCtrlWith[SymVal](num, 32))
-      case F64V(_) => StagedSymbolicNum(NumType(F64Type), "Concrete".reflectCtrlWith[SymVal](num, 64))
     }
   }
 
@@ -195,6 +188,10 @@ trait ConcreteOps extends StagedWasmValueDomains with ValueCreation {
         StagedSymbolicNum(NumType(I32Type), "make-symbolic-concrete".reflectCtrlWith[SymVal](num.toInt, 32))
       case NumType(I64Type) =>
         StagedSymbolicNum(NumType(I64Type), "make-symbolic-concrete".reflectCtrlWith[SymVal](num.toInt, 64))
+      case NumType(F32Type) =>
+        StagedSymbolicNum(NumType(F32Type), "make-symbolic-concrete".reflectCtrlWith[SymVal](num.toInt, 32))
+      case NumType(F64Type) =>
+        StagedSymbolicNum(NumType(F64Type), "make-symbolic-concrete".reflectCtrlWith[SymVal](num.toInt, 64))
     }
 
     def toInt: Rep[Int] = "num-to-int".reflectCtrlWith[Int](num.i)
@@ -203,6 +200,10 @@ trait ConcreteOps extends StagedWasmValueDomains with ValueCreation {
       case NumType(I32Type) =>
         StagedConcreteNum(NumType(I32Type), Values.I32V("is-zero".reflectCtrlWith[Int](num.toInt)))
       case NumType(I64Type) =>
+        StagedConcreteNum(NumType(I32Type), Values.I32V("is-zero".reflectCtrlWith[Int](num.toInt)))
+      case NumType(F32Type) =>
+        StagedConcreteNum(NumType(I32Type), Values.I32V("is-zero".reflectCtrlWith[Int](num.toInt)))
+      case NumType(F64Type) =>
         StagedConcreteNum(NumType(I32Type), Values.I32V("is-zero".reflectCtrlWith[Int](num.toInt)))
     }
 
@@ -325,8 +326,6 @@ trait ConcreteOps extends StagedWasmValueDomains with ValueCreation {
           StagedConcreteNum(NumType(I32Type), "i32-binary-or".reflectCtrlWith[Num](num.i, rhs.i))
         case (NumType(I64Type), NumType(I64Type)) =>
           StagedConcreteNum(NumType(I64Type), "i64-binary-or".reflectCtrlWith[Num](num.i, rhs.i))
-        case (NumType(F32Type), NumType(F32Type)) =>
-          StagedConcreteNum(NumType(F32Type), "f32-binary-or".reflectCtrlWith[Num](num.i, rhs.i))
       }
     }
 
@@ -336,10 +335,6 @@ trait ConcreteOps extends StagedWasmValueDomains with ValueCreation {
           StagedConcreteNum(NumType(I32Type), "i32-binary-shl".reflectCtrlWith[Num](num.i, rhs.i))
         case (NumType(I64Type), NumType(I64Type)) =>
           StagedConcreteNum(NumType(I64Type), "i64-binary-shl".reflectCtrlWith[Num](num.i, rhs.i))
-        case (NumType(F32Type), NumType(F32Type)) =>
-          StagedConcreteNum(NumType(F32Type), "f32-binary-shl".reflectCtrlWith[Num](num.i, rhs.i))
-        case (NumType(F64Type), NumType(F64Type)) =>
-          StagedConcreteNum(NumType(F64Type), "f64-binary-shl".reflectCtrlWith[Num](num.i, rhs.i))
       }
     }
 
@@ -358,10 +353,6 @@ trait ConcreteOps extends StagedWasmValueDomains with ValueCreation {
           StagedConcreteNum(NumType(I32Type), "i32-binary-shr-u".reflectCtrlWith[Num](num.i, rhs.i))
         case (NumType(I64Type), NumType(I64Type)) =>
           StagedConcreteNum(NumType(I64Type), "i64-binary-shr".reflectCtrlWith[Num](num.i, rhs.i))
-        case (NumType(F32Type), NumType(F32Type)) =>
-          StagedConcreteNum(NumType(F32Type), "f32-binary-shr".reflectCtrlWith[Num](num.i, rhs.i))
-        case (NumType(F64Type), NumType(F64Type)) =>
-          StagedConcreteNum(NumType(F64Type), "f64-binary-shr".reflectCtrlWith[Num](num.i, rhs.i))
       }
     }
 
@@ -371,10 +362,6 @@ trait ConcreteOps extends StagedWasmValueDomains with ValueCreation {
           StagedConcreteNum(NumType(I32Type), "i32-binary-and".reflectCtrlWith[Num](num.i, rhs.i))
         case (NumType(I64Type), NumType(I64Type)) =>
           StagedConcreteNum(NumType(I64Type), "i64-binary-and".reflectCtrlWith[Num](num.i, rhs.i))
-        case (NumType(F32Type), NumType(F32Type)) =>
-          StagedConcreteNum(NumType(F32Type), "f32-binary-and".reflectCtrlWith[Num](num.i, rhs.i))
-        case (NumType(F64Type), NumType(F64Type)) =>
-          StagedConcreteNum(NumType(F64Type), "f64-binary-and".reflectCtrlWith[Num](num.i, rhs.i))
       }
     }
 
@@ -384,6 +371,10 @@ trait ConcreteOps extends StagedWasmValueDomains with ValueCreation {
           StagedConcreteNum(NumType(I32Type), "i32-relation-eq".reflectCtrlWith[Num](num.i, rhs.i))
         case (NumType(I64Type), NumType(I64Type)) =>
           StagedConcreteNum(NumType(I32Type), "i64-relation-eq".reflectCtrlWith[Num](num.i, rhs.i))
+        case (NumType(F32Type), NumType(F32Type)) =>
+          StagedConcreteNum(NumType(I32Type), "f32-relation-eq".reflectCtrlWith[Num](num.i, rhs.i))
+        case (NumType(F64Type), NumType(F64Type)) =>
+          StagedConcreteNum(NumType(I32Type), "f64-relation-eq".reflectCtrlWith[Num](num.i, rhs.i))
       }
     }
 
@@ -393,6 +384,10 @@ trait ConcreteOps extends StagedWasmValueDomains with ValueCreation {
           StagedConcreteNum(NumType(I32Type), "i32-relation-ne".reflectCtrlWith[Num](num.i, rhs.i))
         case (NumType(I64Type), NumType(I64Type)) =>
           StagedConcreteNum(NumType(I32Type), "i64-relation-ne".reflectCtrlWith[Num](num.i, rhs.i))
+        case (NumType(F32Type), NumType(F32Type)) =>
+          StagedConcreteNum(NumType(I32Type), "f32-relation-ne".reflectCtrlWith[Num](num.i, rhs.i))
+        case (NumType(F64Type), NumType(F64Type)) =>
+          StagedConcreteNum(NumType(I32Type), "f64-relation-ne".reflectCtrlWith[Num](num.i, rhs.i))
       }
     }
 
@@ -402,6 +397,10 @@ trait ConcreteOps extends StagedWasmValueDomains with ValueCreation {
           StagedConcreteNum(NumType(I32Type), "i32-relation-lts".reflectCtrlWith[Num](num.i, rhs.i))
         case (NumType(I64Type), NumType(I64Type)) =>
           StagedConcreteNum(NumType(I32Type), "i64-relation-lts".reflectCtrlWith[Num](num.i, rhs.i))
+        case (NumType(F32Type), NumType(F32Type)) =>
+          StagedConcreteNum(NumType(I32Type), "f32-relation-lt".reflectCtrlWith[Num](num.i, rhs.i))
+        case (NumType(F64Type), NumType(F64Type)) =>
+          StagedConcreteNum(NumType(I32Type), "f64-relation-lt".reflectCtrlWith[Num](num.i, rhs.i))
       }
     }
 
@@ -420,6 +419,10 @@ trait ConcreteOps extends StagedWasmValueDomains with ValueCreation {
           StagedConcreteNum(NumType(I32Type), "i32-relation-gt".reflectCtrlWith[Num](num.i, rhs.i))
         case (NumType(I64Type), NumType(I64Type)) =>
           StagedConcreteNum(NumType(I32Type), "i64-relation-gt".reflectCtrlWith[Num](num.i, rhs.i))
+        case (NumType(F32Type), NumType(F32Type)) =>
+          StagedConcreteNum(NumType(I32Type), "f32-relation-gt".reflectCtrlWith[Num](num.i, rhs.i))
+        case (NumType(F64Type), NumType(F64Type)) =>
+          StagedConcreteNum(NumType(I32Type), "f64-relation-gt".reflectCtrlWith[Num](num.i, rhs.i))
       }
     }
 
@@ -438,6 +441,10 @@ trait ConcreteOps extends StagedWasmValueDomains with ValueCreation {
           StagedConcreteNum(NumType(I32Type), "i32-relation-les".reflectCtrlWith[Num](num.i, rhs.i))
         case (NumType(I64Type), NumType(I64Type)) =>
           StagedConcreteNum(NumType(I32Type), "i64-relation-les".reflectCtrlWith[Num](num.i, rhs.i))
+        case (NumType(F32Type), NumType(F32Type)) =>
+          StagedConcreteNum(NumType(I32Type), "f32-relation-le".reflectCtrlWith[Num](num.i, rhs.i))
+        case (NumType(F64Type), NumType(F64Type)) =>
+          StagedConcreteNum(NumType(I32Type), "f64-relation-le".reflectCtrlWith[Num](num.i, rhs.i))
       }
     }
 
@@ -456,6 +463,10 @@ trait ConcreteOps extends StagedWasmValueDomains with ValueCreation {
           StagedConcreteNum(NumType(I32Type), "i32-relation-ges".reflectCtrlWith[Num](num.i, rhs.i))
         case (NumType(I64Type), NumType(I64Type)) =>
           StagedConcreteNum(NumType(I32Type), "i64-relation-ges".reflectCtrlWith[Num](num.i, rhs.i))
+        case (NumType(F32Type), NumType(F32Type)) =>
+          StagedConcreteNum(NumType(I32Type), "f32-relation-ge".reflectCtrlWith[Num](num.i, rhs.i))
+        case (NumType(F64Type), NumType(F64Type)) =>
+          StagedConcreteNum(NumType(I32Type), "f64-relation-ge".reflectCtrlWith[Num](num.i, rhs.i))
       }
     }
 
@@ -520,8 +531,10 @@ trait ConcreteOps extends StagedWasmValueDomains with ValueCreation {
 trait SymbolicOps extends StagedWasmValueDomains {
   implicit class StagedSymbolicNumOps(num: StagedSymbolicNum) {
     def makeSymbolic(ty: ValueType): StagedSymbolicNum = num.tipe match {
-      case NumType(I32Type) => StagedSymbolicNum(NumType(I32Type), "make-symbolic".reflectCtrlWith[SymVal](num.s, 32))
-      case NumType(I64Type) => StagedSymbolicNum(NumType(I64Type), "make-symbolic".reflectCtrlWith[SymVal](num.s, 64))
+      case NumType(I32Type) => StagedSymbolicNum(NumType(I32Type), "make-i32-symbol".reflectCtrlWith[SymVal](num.s))
+      case NumType(I64Type) => StagedSymbolicNum(NumType(I64Type), "make-i64-symbol".reflectCtrlWith[SymVal](num.s))
+      case NumType(F32Type) => StagedSymbolicNum(NumType(F32Type), "make-f32-symbol".reflectCtrlWith[SymVal](num.s))
+      case NumType(F64Type) => StagedSymbolicNum(NumType(F64Type), "make-f64-symbol".reflectCtrlWith[SymVal](num.s))
       case _ => throw new RuntimeException("Symbol index must be an i32 or i64")
     }
 
@@ -725,6 +738,10 @@ trait SymbolicOps extends StagedWasmValueDomains {
           StagedSymbolicNum(NumType(I32Type), "sym-relation-eq".reflectCtrlWith[SymVal](num.s, rhs.s))
         case (NumType(I64Type), NumType(I64Type)) =>
           StagedSymbolicNum(NumType(I32Type), "sym-relation-eq".reflectCtrlWith[SymVal](num.s, rhs.s))
+        case (NumType(F32Type), NumType(F32Type)) =>
+          StagedSymbolicNum(NumType(I32Type), "sym-relation-eq".reflectCtrlWith[SymVal](num.s, rhs.s))
+        case (NumType(F64Type), NumType(F64Type)) =>
+          StagedSymbolicNum(NumType(I32Type), "sym-relation-eq".reflectCtrlWith[SymVal](num.s, rhs.s))
       }
     }
 
@@ -734,6 +751,10 @@ trait SymbolicOps extends StagedWasmValueDomains {
           StagedSymbolicNum(NumType(I32Type), "sym-relation-ne".reflectCtrlWith[SymVal](num.s, rhs.s))
         case (NumType(I64Type), NumType(I64Type)) =>
           StagedSymbolicNum(NumType(I32Type), "sym-relation-ne".reflectCtrlWith[SymVal](num.s, rhs.s))
+        case (NumType(F32Type), NumType(F32Type)) =>
+          StagedSymbolicNum(NumType(I32Type), "sym-relation-ne".reflectCtrlWith[SymVal](num.s, rhs.s))
+        case (NumType(F64Type), NumType(F64Type)) =>
+          StagedSymbolicNum(NumType(I32Type), "sym-relation-ne".reflectCtrlWith[SymVal](num.s, rhs.s))
       }
     }
 
@@ -742,6 +763,10 @@ trait SymbolicOps extends StagedWasmValueDomains {
         case (NumType(I32Type), NumType(I32Type)) =>
           StagedSymbolicNum(NumType(I32Type), "sym-relation-lts".reflectCtrlWith[SymVal](num.s, rhs.s))
         case (NumType(I64Type), NumType(I64Type)) =>
+          StagedSymbolicNum(NumType(I32Type), "sym-relation-lts".reflectCtrlWith[SymVal](num.s, rhs.s))
+        case (NumType(F32Type), NumType(F32Type)) =>
+          StagedSymbolicNum(NumType(I32Type), "sym-relation-lts".reflectCtrlWith[SymVal](num.s, rhs.s))
+        case (NumType(F64Type), NumType(F64Type)) =>
           StagedSymbolicNum(NumType(I32Type), "sym-relation-lts".reflectCtrlWith[SymVal](num.s, rhs.s))
       }
     }
@@ -761,6 +786,10 @@ trait SymbolicOps extends StagedWasmValueDomains {
           StagedSymbolicNum(NumType(I32Type), "sym-relation-gt".reflectCtrlWith[SymVal](num.s, rhs.s))
         case (NumType(I64Type), NumType(I64Type)) =>
           StagedSymbolicNum(NumType(I32Type), "sym-relation-gt".reflectCtrlWith[SymVal](num.s, rhs.s))
+        case (NumType(F32Type), NumType(F32Type)) =>
+          StagedSymbolicNum(NumType(I32Type), "sym-relation-gt".reflectCtrlWith[SymVal](num.s, rhs.s))
+        case (NumType(F64Type), NumType(F64Type)) =>
+          StagedSymbolicNum(NumType(I32Type), "sym-relation-gt".reflectCtrlWith[SymVal](num.s, rhs.s))
       }
     }
 
@@ -778,6 +807,10 @@ trait SymbolicOps extends StagedWasmValueDomains {
         case (NumType(I32Type), NumType(I32Type)) =>
           StagedSymbolicNum(NumType(I32Type), "sym-relation-les".reflectCtrlWith[SymVal](num.s, rhs.s))
         case (NumType(I64Type), NumType(I64Type)) =>
+          StagedSymbolicNum(NumType(I32Type), "sym-relation-les".reflectCtrlWith[SymVal](num.s, rhs.s))
+        case (NumType(F32Type), NumType(F32Type)) =>
+          StagedSymbolicNum(NumType(I32Type), "sym-relation-les".reflectCtrlWith[SymVal](num.s, rhs.s))
+        case (NumType(F64Type), NumType(F64Type)) =>
           StagedSymbolicNum(NumType(I32Type), "sym-relation-les".reflectCtrlWith[SymVal](num.s, rhs.s))
       }
     }
@@ -797,6 +830,10 @@ trait SymbolicOps extends StagedWasmValueDomains {
           StagedSymbolicNum(NumType(I32Type), "sym-relation-ges".reflectCtrlWith[SymVal](num.s, rhs.s))
         case (NumType(I64Type), NumType(I64Type)) =>
           StagedSymbolicNum(NumType(I32Type), "sym-relation-ges".reflectCtrlWith[SymVal](num.s, rhs.s))
+        case (NumType(F32Type), NumType(F32Type)) =>
+          StagedSymbolicNum(NumType(I32Type), "sym-relation-ges".reflectCtrlWith[SymVal](num.s, rhs.s))
+        case (NumType(F64Type), NumType(F64Type)) =>
+          StagedSymbolicNum(NumType(I32Type), "sym-relation-ges".reflectCtrlWith[SymVal](num.s, rhs.s))
       }
     }
 
@@ -812,18 +849,18 @@ trait SymbolicOps extends StagedWasmValueDomains {
     def lt(rhs: StagedSymbolicNum): StagedSymbolicNum = {
       (num.tipe, rhs.tipe) match {
         case (NumType(F32Type), NumType(F32Type)) =>
-          StagedSymbolicNum(NumType(I32Type), "sym-relation-lt".reflectCtrlWith[SymVal](num.s, rhs.s))
+          StagedSymbolicNum(NumType(I32Type), "sym-relation-lts".reflectCtrlWith[SymVal](num.s, rhs.s))
         case (NumType(F64Type), NumType(F64Type)) =>
-          StagedSymbolicNum(NumType(I32Type), "sym-relation-lt".reflectCtrlWith[SymVal](num.s, rhs.s))
+          StagedSymbolicNum(NumType(I32Type), "sym-relation-lts".reflectCtrlWith[SymVal](num.s, rhs.s))
       }
     }
 
     def le(rhs: StagedSymbolicNum): StagedSymbolicNum = {
       (num.tipe, rhs.tipe) match {
         case (NumType(F32Type), NumType(F32Type)) =>
-          StagedSymbolicNum(NumType(I32Type), "sym-relation-le".reflectCtrlWith[SymVal](num.s, rhs.s))
+          StagedSymbolicNum(NumType(I32Type), "sym-relation-les".reflectCtrlWith[SymVal](num.s, rhs.s))
         case (NumType(F64Type), NumType(F64Type)) =>
-          StagedSymbolicNum(NumType(I32Type), "sym-relation-le".reflectCtrlWith[SymVal](num.s, rhs.s))
+          StagedSymbolicNum(NumType(I32Type), "sym-relation-les".reflectCtrlWith[SymVal](num.s, rhs.s))
       }
     }
 
@@ -839,9 +876,9 @@ trait SymbolicOps extends StagedWasmValueDomains {
     def ge(rhs: StagedSymbolicNum): StagedSymbolicNum = {
       (num.tipe, rhs.tipe) match {
         case (NumType(F32Type), NumType(F32Type)) =>
-          StagedSymbolicNum(NumType(I32Type), "sym-relation-ge".reflectCtrlWith[SymVal](num.s, rhs.s))
+          StagedSymbolicNum(NumType(I32Type), "sym-relation-ges".reflectCtrlWith[SymVal](num.s, rhs.s))
         case (NumType(F64Type), NumType(F64Type)) =>
-          StagedSymbolicNum(NumType(I32Type), "sym-relation-ge".reflectCtrlWith[SymVal](num.s, rhs.s))
+          StagedSymbolicNum(NumType(I32Type), "sym-relation-ges".reflectCtrlWith[SymVal](num.s, rhs.s))
       }
     }
 
@@ -1201,8 +1238,9 @@ trait StagedWasmEvaluator extends SAIOps
         Stack.popS(ty)
         eval(rest, kont, trail)(newCtx)
       case WasmConst(num) =>
-        Stack.pushC(toStagedNum(num))
-        Stack.pushS(toStagedSymbolicNum(num))
+        val stagedNum = toStagedNum(num)
+        Stack.pushC(stagedNum)
+        Stack.pushS(stagedNum.toStagedSymbolicNum)
         val newCtx = ctx.push(num.tipe(module))
         eval(rest, kont, trail)(newCtx)
       case Symbolic(ty) => evalSymbolic(ty, rest, kont, trail)(ctx)
@@ -1495,10 +1533,11 @@ trait StagedWasmEvaluator extends SAIOps
           } else {
             val id = Counter.getId(inst, idx)
             val label = Stack.peekC(ty)
-            val cond = (label - toStagedNum(I32V(idx))).isZero()
+            val idxStaged = toStagedNum(I32V(idx))
+            val cond = (label - idxStaged).isZero()
             withBlock {
               val labelSym = Stack.peekS(ty)
-              val condSym = (labelSym - toStagedSymbolicNum(I32V(idx))).isZero()
+              val condSym = (labelSym - idxStaged.toStagedSymbolicNum).isZero()
               ExploreTree.fillWithIfElse(condSym.s, id)
             }
             // When moving the cursor to a branch, we mark another branch as
@@ -1653,6 +1692,10 @@ trait StagedWasmEvaluator extends SAIOps
         eval(rest, kont, trail)(newCtx)
       case Import("i32", "symbolic", _) =>
         evalSymbolic(NumType(I32Type), rest, kont, trail)(ctx)
+      case Import("f32", "symbolic", _) =>
+        evalSymbolic(NumType(F32Type), rest, kont, trail)(ctx)
+      case Import("f64", "symbolic", _) =>
+        evalSymbolic(NumType(F64Type), rest, kont, trail)(ctx)
       case Import("i32", "sym_assume", _) =>
         // symbolic assume is just like an if else that only has one branch, while another
         // is marked as not-to-explore
@@ -1981,8 +2024,9 @@ trait StagedWasmEvaluator extends SAIOps
           case n: Num => n
           case _ => throw new RuntimeException("Non-numeric global value is not supported yet")
         }
-        Globals.setC(i, toStagedNum(initValue))
-        Globals.setS(i, toStagedSymbolicNum(initValue))
+        val initValueStaged = toStagedNum(initValue)
+        Globals.setC(i, initValueStaged)
+        Globals.setS(i, initValueStaged.toStagedSymbolicNum)
       }
     })
     initGlobalsTopFun(())
@@ -2260,24 +2304,46 @@ trait StagedWasmCppGen extends CGenBase with CppSAICodeGenBase {
       shallow(lhs); emit(".i64_or("); shallow(rhs); emit(")")
     case Node(_, "i32-extend-to-i64", List(num), _) =>
       emit("("); shallow(num); emit(".i32_extend_to_i64())")
-    case Node(_, "f32-binary-or", List(lhs, rhs), _) =>
-      shallow(lhs); emit(".f32_or("); shallow(rhs); emit(")")
     case Node(_, "f32-binary-add", List(lhs, rhs), _) =>
       shallow(lhs); emit(".f32_add("); shallow(rhs); emit(")")
+    case Node(_, "f64-binary-add", List(lhs, rhs), _) =>
+      shallow(lhs); emit(".f64_add("); shallow(rhs); emit(")")
     case Node(_, "f32-binary-sub", List(lhs, rhs), _) =>
       shallow(lhs); emit(".f32_sub("); shallow(rhs); emit(")")
+    case Node(_, "f64-binary-sub", List(lhs, rhs), _) =>
+      shallow(lhs); emit(".f64_sub("); shallow(rhs); emit(")")
     case Node(_, "f32-binary-mul", List(lhs, rhs), _) =>
       shallow(lhs); emit(".f32_mul("); shallow(rhs); emit(")")
+    case Node(_, "f64-binary-mul", List(lhs, rhs), _) =>
+      shallow(lhs); emit(".f64_mul("); shallow(rhs); emit(")")
     case Node(_, "f32-binary-div", List(lhs, rhs), _) =>
       shallow(lhs); emit(".f32_div("); shallow(rhs); emit(")")
+    case Node(_, "f64-binary-div", List(lhs, rhs), _) =>
+      shallow(lhs); emit(".f64_div("); shallow(rhs); emit(")")
+    case Node(_, "f32-relation-eq", List(lhs, rhs), _) =>
+      shallow(lhs); emit(".f32_eq("); shallow(rhs); emit(")")
+    case Node(_, "f64-relation-eq", List(lhs, rhs), _) =>
+      shallow(lhs); emit(".f64_eq("); shallow(rhs); emit(")")
+    case Node(_, "f32-relation-ne", List(lhs, rhs), _) =>
+      shallow(lhs); emit(".f32_ne("); shallow(rhs); emit(")")
+    case Node(_, "f64-relation-ne", List(lhs, rhs), _) =>
+      shallow(lhs); emit(".f64_ne("); shallow(rhs); emit(")")
     case Node(_, "f32-relation-gt", List(lhs, rhs), _) =>
       shallow(lhs); emit(".f32_gt("); shallow(rhs); emit(")")
+    case Node(_, "f64-relation-gt", List(lhs, rhs), _) =>
+      shallow(lhs); emit(".f64_gt("); shallow(rhs); emit(")")
     case Node(_, "f32-relation-lt", List(lhs, rhs), _) =>
       shallow(lhs); emit(".f32_lt("); shallow(rhs); emit(")")
+    case Node(_, "f64-relation-lt", List(lhs, rhs), _) =>
+      shallow(lhs); emit(".f64_lt("); shallow(rhs); emit(")")
     case Node(_, "f32-relation-le", List(lhs, rhs), _) =>
       shallow(lhs); emit(".f32_le("); shallow(rhs); emit(")")
+    case Node(_, "f64-relation-le", List(lhs, rhs), _) =>
+      shallow(lhs); emit(".f64_le("); shallow(rhs); emit(")")
     case Node(_, "f32-relation-ge", List(lhs, rhs), _) =>
       shallow(lhs); emit(".f32_ge("); shallow(rhs); emit(")")
+    case Node(_, "f64-relation-ge", List(lhs, rhs), _) =>
+      shallow(lhs); emit(".f64_ge("); shallow(rhs); emit(")")
     case Node(_, "sym-binary-add", List(lhs, rhs), _) =>
       shallow(lhs); emit(".add("); shallow(rhs); emit(")")
     case Node(_, "sym-binary-sub", List(lhs, rhs), _) =>
@@ -2288,7 +2354,7 @@ trait StagedWasmCppGen extends CGenBase with CppSAICodeGenBase {
       shallow(lhs); emit(".div("); shallow(rhs); emit(")")
     case Node(_, "sym-binary-and", List(lhs, rhs), _) =>
       shallow(lhs); emit(".bitwise_and("); shallow(rhs); emit(")")
-    case Node(_, "sym-relation-les", List(lhs, rhs), _) =>
+    case Node(_, "sym-relation-le", List(lhs, rhs), _) =>
       shallow(lhs); emit(".le("); shallow(rhs); emit(").bool2bv()")
     case Node(_, "sym-relation-leu", List(lhs, rhs), _) =>
       shallow(lhs); emit(".leu("); shallow(rhs); emit(").bool2bv()")
@@ -2312,6 +2378,8 @@ trait StagedWasmCppGen extends CGenBase with CppSAICodeGenBase {
       shallow(lhs); emit(".gt("); shallow(rhs); emit(").bool2bv()")
     case Node(_, "sym-relation-gtu", List(lhs, rhs), _) =>
       shallow(lhs); emit(".gtu("); shallow(rhs); emit(").bool2bv()")
+    case Node(_, "sym-relation-les", List(lhs, rhs), _) =>
+      shallow(lhs); emit(".le("); shallow(rhs); emit(").bool2bv()")
     case Node(_, "sym-binary-shr-u", List(lhs, rhs), _) =>
       shallow(lhs); emit(".shr_u("); shallow(rhs); emit(")")
     case Node(_, "sym-binary-shr-s", List(lhs, rhs), _) =>
@@ -2322,9 +2390,15 @@ trait StagedWasmCppGen extends CGenBase with CppSAICodeGenBase {
       shallow(num); emit(".extend_to_i64()")
     case Node(_, "num-to-int", List(num), _) =>
       shallow(num); emit(".toInt()")
-    case Node(_, "make-symbolic", List(num, width), _) =>
-      shallow(num); emit(".makeSymbolic("); shallow(width); emit(")")
-    case Node(_, "make-symbolic-concrete", List(num, width), _) => 
+    case Node(_, "make-i32-symbol", List(num), _) =>
+      shallow(num); emit(".makeI32Symbol()")
+    case Node(_, "make-i64-symbol", List(num), _) =>
+      shallow(num); emit(".makeI64Symbol()")
+    case Node(_, "make-f32-symbol", List(num), _) =>
+      shallow(num); emit(".makeF32Symbol()")
+    case Node(_, "make-f64-symbol", List(num), _) =>
+      shallow(num); emit(".makeF64Symbol()")
+    case Node(_, "make-symbolic-concrete", List(num, width), _) =>
       emit("make_symbolic("); shallow(num); emit(", "); shallow(width); emit(")")
     case Node(_, "sym-env-read", List(sym), _) =>
       emit("SymEnv.read("); shallow(sym); emit(")")

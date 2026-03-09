@@ -15,6 +15,11 @@ inline z3::context &global_z3_ctx() { return GLOBAL_Z3_ENV.z3_ctx; }
 // A map from z3 expression id to their ast size
 static std::unordered_map<unsigned, int> Z3ExprSizeMap;
 
+inline int get_z3_fp_sort_size(const z3::sort &s) {
+  assert(s.is_fpa());
+  return s.fpa_ebits() + s.fpa_sbits();
+}
+
 static int get_z3_expr_size(const z3::expr &e) {
   unsigned id = e.id();
   if (Z3ExprSizeMap.find(id) != Z3ExprSizeMap.end()) {

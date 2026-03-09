@@ -4,7 +4,6 @@
 #include "wasm/utils.hpp"
 #include <cstdint>
 
-
 struct Num {
   Num(int64_t value) : value(value) {}
   Num() : value(0) {}
@@ -14,6 +13,8 @@ struct Num {
   uint32_t toUInt() const { return static_cast<uint32_t>(value); }
   int64_t toInt64() const { return static_cast<int64_t>(value); }
   uint64_t toUInt64() const { return static_cast<uint64_t>(value); }
+  float toF32() const { return *reinterpret_cast<const float *>(&value); }
+  double toF64() const { return *reinterpret_cast<const double *>(&value); }
 
   // debug printer: enabled only when -DDEBUG
   static inline void debug_print(const char *op, const Num &a, const Num &b,
@@ -841,9 +842,8 @@ struct Num {
     // whose sign bit is set for min when both zeros (so -0 wins for min).
     if (a == b) {
       if ((a_bits & 0x8000000000000000ull) || (b_bits & 0x8000000000000000ull))
-        return Num(static_cast<int64_t>((a_bits & 0x8000000000000000ull)
-                                            ? a_bits
-                                            : b_bits));
+        return Num(static_cast<int64_t>(
+            (a_bits & 0x8000000000000000ull) ? a_bits : b_bits));
       return Num(static_cast<int64_t>(a_bits));
     }
     double r = (a < b) ? a : b;
@@ -862,9 +862,8 @@ struct Num {
     double a = f64_from_bits(a_bits), b = f64_from_bits(b_bits);
     if (a == b) {
       if ((a_bits & 0x8000000000000000ull) || (b_bits & 0x8000000000000000ull))
-        return Num(static_cast<int64_t>((a_bits & 0x8000000000000000ull)
-                                            ? b_bits
-                                            : a_bits));
+        return Num(static_cast<int64_t>(
+            (a_bits & 0x8000000000000000ull) ? b_bits : a_bits));
       return Num(static_cast<int64_t>(a_bits));
     }
     double r = (a > b) ? a : b;
@@ -916,6 +915,5 @@ static Num F64V(double d) {
   u.d = d;
   return static_cast<int64_t>(u.i);
 }
-
 
 #endif // WASM_CONCRETE_NUM_HPP

@@ -6,9 +6,11 @@
 #include "union_find.hpp"
 #include "utils.hpp"
 #include "wasm/profile.hpp"
+#include "wasm/symbolic_decl.hpp"
 #include "z3++.h"
 #include "z3_env.hpp"
 #include <array>
+#include <cstring>
 #include <memory>
 #include <optional>
 #include <set>
@@ -72,8 +74,6 @@ static std::optional<int> group_of_symval(const SymVal &sym, UnionFind &uf) {
   if (auto symbol = dynamic_cast<Symbol *>(sym.symptr.get())) {
     return symbol->get_id();
   } else if (auto concrete = dynamic_cast<SymConcrete *>(sym.symptr.get())) {
-    return std::nullopt;
-  } else if (auto smallbv = dynamic_cast<SmallBV *>(sym.symptr.get())) {
     return std::nullopt;
   } else if (auto binary = dynamic_cast<SymBinary *>(sym.symptr.get())) {
     auto left_group = group_of_symval(binary->lhs, uf);
@@ -223,7 +223,8 @@ public:
       for (size_t i = 0; i < all_conditions.size(); ++i) {
         const auto &conds = all_conditions[i];
         auto clause = make_conjunction(conds, true);
-        clause = clause.land(witness.eq_bool(SVFactory::make_concrete_bv(Num(i), 32)));
+        clause = clause.land(
+            witness.eq_bool(SVFactory::make_concrete_bv(Num(i), 32)));
 
         disjuncts.push_back(clause);
       }
@@ -295,9 +296,25 @@ private:
         z3::func_decl var = model[i];
         z3::expr value = model.get_const_interp(var);
         std::string name = var.name().str();
-        if (starts_with(name, "s_")) {
-          int id = std::stoi(name.substr(2));
-          result[id] = Num(value.get_numeral_int64());
+        if (starts_with(name, "s_int")) {
+          int id = std::stoi(name.substr(std::string("s_int").length()));
+          z3::expr evaluated = model.eval(value, true);
+          uint64_t bits = evaluated.get_numeral_uint64();
+          int64_t raw = 0;
+          std::memcpy(&raw, &bits, sizeof(raw));
+          result[id] = Num(raw);
+        } else if (starts_with(name, "s_f32")) {
+          int id = std::stoi(name.substr(std::string("s_f32").length()));
+          z3::expr evaluated = model.eval(value.mk_to_ieee_bv(), true);
+          uint64_t bits = evaluated.get_numeral_uint64();
+          result[id] = Num(static_cast<int64_t>(static_cast<uint32_t>(bits)));
+        } else if (starts_with(name, "s_f64")) {
+          int id = std::stoi(name.substr(std::string("s_f64").length()));
+          z3::expr evaluated = model.eval(value.mk_to_ieee_bv(), true);
+          uint64_t bits = evaluated.get_numeral_uint64();
+          int64_t raw = 0;
+          std::memcpy(&raw, &bits, sizeof(raw));
+          result[id] = Num(raw);
         } else {
           GENSYM_INFO("Find a variable that is not created by GenSym: " + name);
         }
@@ -401,10 +418,22 @@ static Solver solver;
 inline EvalRes eval_sym_expr_by_model(const SymVal &sym, z3::model &model) {
   auto expr = sym->z3_expr();
   // let z3 decide the value of symbols that are not in the model
-  z3::expr value = model.eval(expr, true);
   // every value is bitvector
-  int width = expr.get_sort().bv_size();
-  return EvalRes(Num(value.get_numeral_int64()), width, KindBV);
+  switch (sym->value_kind()) {
+  case KindBV: {
+    z3::expr value = model.eval(expr, true);
+    int width = expr.get_sort().bv_size();
+    return EvalRes(Num(value.get_numeral_int64()), width, KindBV);
+  }
+  case KindBool: {
+    assert(false && "unreachable");
+  }
+  case KindFP: {
+    z3::expr value = model.eval(expr.mk_to_ieee_bv(), true);
+    int width = get_z3_fp_sort_size(expr.get_sort());
+    return EvalRes(Num(value.get_numeral_int64()), width, KindFP);
+  }
+  }
 }
 
 inline std::monostate GENSYM_SYM_ASSERT(SymVal &sym_cond) {

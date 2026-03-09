@@ -7,17 +7,48 @@
 
 inline z3::expr Symbolic::build_z3_expr_aux() {
   if (auto sym = dynamic_cast<Symbol *>(this)) {
-    return global_z3_ctx().bv_const(
-        ("s_" + std::to_string(sym->get_id())).c_str(), width());
+    switch (sym->value_kind()) {
+
+    case KindBV: {
+      return global_z3_ctx().bv_const(
+          ("s_int" + std::to_string(sym->get_id())).c_str(), width());
+    }
+    case KindBool: {
+      assert(false && "Symbolic boolean variables are not supported yet");
+    }
+    case KindFP:
+      if (sym->width() == 32) {
+        return global_z3_ctx().fpa_const<32>(
+            ("s_f32" + std::to_string(sym->get_id())).c_str());
+      } else if (sym->width() == 64) {
+        return global_z3_ctx().fpa_const<64>(
+            ("s_f64" + std::to_string(sym->get_id())).c_str());
+      } else {
+        throw std::runtime_error("Unsupported floating-point width: " +
+                                 std::to_string(sym->width()));
+      }
+    }
   } else if (auto witness = dynamic_cast<Witness *>(this)) {
     return global_z3_ctx().bv_const("witness", 32);
   } else if (auto concrete = dynamic_cast<SymConcrete *>(this)) {
-    if (concrete->kind == KindBool) {
+    switch (concrete->kind) {
+    case KindBool: {
       return global_z3_ctx().bool_val(concrete->value.toInt() != 0);
     }
-    return global_z3_ctx().bv_val(concrete->value.value, width());
-  } else if (auto smallbv = dynamic_cast<SmallBV *>(this)) {
-    return global_z3_ctx().bv_val(smallbv->get_value(), smallbv->get_size());
+    case KindBV: {
+      return global_z3_ctx().bv_val(concrete->value.value, width());
+    }
+    case KindFP: {
+      if (width() == 32) {
+        return global_z3_ctx().fpa_val(concrete->value.toF32());
+      } else if (width() == 64) {
+        return global_z3_ctx().fpa_val(concrete->value.toF64());
+      } else {
+        throw std::runtime_error("Unsupported floating-point width: " +
+                                 std::to_string(width()));
+      }
+    }
+    }
   } else if (auto binary = dynamic_cast<SymBinary *>(this)) {
     auto bit_width = width();
 

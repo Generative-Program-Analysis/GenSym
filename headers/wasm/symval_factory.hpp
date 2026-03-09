@@ -9,7 +9,7 @@ namespace SVFactory {
 
 SymVal make_concrete_bv(Num num, int width);
 SymVal make_concrete_bool(bool b);
-SymVal make_symbolic(int index, int width);
+SymVal make_int_symbolic(int index, int width);
 SymVal make_smallbv(int width, int64_t value);
 SymVal make_binary(BinOperation op, const SymVal &lhs, const SymVal &rhs);
 SymVal make_unary(UnaryOperation op, const SymVal &value);
@@ -30,7 +30,8 @@ static SymVal TRUE =
 static SymVal FALSE =
     SymVal(SymBookKeeper.allocate<SymConcrete>(I32V(0), KindBool, 32));
 
-static SymVal ZeroByte = SymVal(SymBookKeeper.allocate<SmallBV>(8, 0));
+static SymVal ZeroByte =
+    SymVal(SymBookKeeper.allocate<SymConcrete>(I64V(0), KindBV, 8));
 
 // Key and hash types.
 struct SmallBVKey {
@@ -136,6 +137,18 @@ inline SymVal make_concrete_bv(Num num, int width) {
   return new_val;
 }
 
+inline SymVal make_concrete_fp(Num num, int width) {
+  auto it = concrete_pool.find(num.toInt());
+  if (it != concrete_pool.end()) {
+    return it->second;
+  }
+
+  auto new_val =
+      SymVal(SymBookKeeper.allocate<SymConcrete>(num, KindFP, width));
+  concrete_pool.insert({num.toInt(), new_val});
+  return new_val;
+}
+
 inline SymVal make_concrete_bool(bool b) {
   if (b) {
     return TRUE;
@@ -144,12 +157,24 @@ inline SymVal make_concrete_bool(bool b) {
   }
 }
 
-inline SymVal make_symbolic(int index, int width) {
+inline SymVal make_int_symbolic(int index, int width) {
   auto it = SymbolStore.find(index);
   if (it != SymbolStore.end()) {
     return it->second;
   }
-  SymVal new_symbol = SymVal(SymBookKeeper.allocate<Symbol>(index, width));
+  SymVal new_symbol =
+      SymVal(SymBookKeeper.allocate<Symbol>(index, width, KindBV));
+  SymbolStore.insert({index, new_symbol});
+  return new_symbol;
+}
+
+inline SymVal make_fp_symbolic(int index, int width) {
+  auto it = SymbolStore.find(index);
+  if (it != SymbolStore.end()) {
+    return it->second;
+  }
+  SymVal new_symbol =
+      SymVal(SymBookKeeper.allocate<Symbol>(index, width, KindFP));
   SymbolStore.insert({index, new_symbol});
   return new_symbol;
 }
@@ -166,7 +191,8 @@ inline SymVal make_smallbv(int width, int64_t value) {
   if (it != SmallBVStore.end()) {
     return it->second;
   }
-  auto new_val = SymVal(SymBookKeeper.allocate<SmallBV>(width, value));
+  auto new_val =
+      SymVal(SymBookKeeper.allocate<SymConcrete>(I64V(value), KindBV, width));
   SmallBVStore.insert({key, new_val});
   return new_val;
 }
@@ -177,19 +203,14 @@ inline SymVal make_extract(const SymVal &value, int high, int low) {
   int new_width = (high - low + 1) * 8;
   int shift_bits = (low - 1) * 8;
 
-  // If the value is a smallbv or concrete, we can compute the extract result
-  // directly
-  if (auto bv = std::dynamic_pointer_cast<SmallBV>(value.symptr)) {
-    int64_t mask = (1LL << new_width) - 1;
-    int64_t new_value = (bv->get_value() >> shift_bits) & mask;
-    return SVFactory::make_smallbv(new_width, new_value);
-  }
-
   if (auto concrete = std::dynamic_pointer_cast<SymConcrete>(value.symptr)) {
-    // extract from concrete value
-    int32_t val = concrete->value.toInt();
-    int32_t mask = (1LL << ((high - low + 1) * 8)) - 1;
-    int32_t new_value = (val >> shift_bits) & mask;
+    if (concrete->kind != KindBV) {
+      throw std::runtime_error("Extract only supports bitvector concrete values");
+    }
+    // extract from concrete bitvector value
+    int64_t val = concrete->value.value;
+    int64_t mask = (1LL << ((high - low + 1) * 8)) - 1;
+    int64_t new_value = (val >> shift_bits) & mask;
     return SVFactory::make_smallbv(new_width, new_value);
   }
 
@@ -587,12 +608,15 @@ inline SymVal make_unary(UnaryOperation op, const SymVal &value) {
 }
 
 inline SymVal make_concat(const SymVal &lhs, const SymVal &rhs) {
-  if (auto bv1 = std::dynamic_pointer_cast<SmallBV>(lhs.symptr)) {
-    if (auto bv2 = std::dynamic_pointer_cast<SmallBV>(rhs.symptr)) {
-      int new_width = bv1->get_size() + bv2->get_size();
-      int64_t new_value =
-          (bv1->get_value() << bv2->get_size()) | bv2->get_value();
-      return SVFactory::make_smallbv(new_width, new_value);
+  if (auto lhs_concrete = std::dynamic_pointer_cast<SymConcrete>(lhs.symptr)) {
+    if (auto rhs_concrete = std::dynamic_pointer_cast<SymConcrete>(rhs.symptr)) {
+      if (lhs_concrete->kind == KindBV && rhs_concrete->kind == KindBV) {
+        int new_width = lhs_concrete->width() + rhs_concrete->width();
+        int64_t new_value =
+            (lhs_concrete->value.value << rhs_concrete->width()) |
+            rhs_concrete->value.value;
+        return SVFactory::make_smallbv(new_width, new_value);
+      }
     }
   }
   if (auto extract1 = std::dynamic_pointer_cast<SymExtract>(lhs.symptr)) {

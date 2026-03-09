@@ -137,11 +137,38 @@ inline SymVal SymVal::get_witness_symbol() {
   return witness;
 }
 
-inline SymVal SymVal::makeSymbolic(int width) const {
+inline SymVal SymVal::makeI32Symbol() const {
+  if (auto concrete = dynamic_cast<SymConcrete *>(symptr.get())) {
+    auto id = concrete->value.toInt();
+    return SVFactory::make_int_symbolic(id, 32);
+  }
+  throw std::runtime_error(
+      "Cannot make symbolic a non-concrete symbolic value");
+}
+
+inline SymVal SymVal::makeI64Symbol() const {
+  if (auto concrete = dynamic_cast<SymConcrete *>(symptr.get())) {
+    auto id = concrete->value.toInt();
+    return SVFactory::make_int_symbolic(id, 64);
+  }
+  throw std::runtime_error(
+      "Cannot make symbolic a non-concrete symbolic value");
+}
+
+inline SymVal SymVal::makeF32Symbol() const {
+  if (auto concrete = dynamic_cast<SymConcrete *>(symptr.get())) {
+    auto id = concrete->value.toInt();
+    return SVFactory::make_fp_symbolic(id, 32);
+  }
+  throw std::runtime_error(
+      "Cannot make symbolic a non-concrete symbolic value");
+}
+
+inline SymVal SymVal::makeF64Symbol() const {
   auto concrete = dynamic_cast<SymConcrete *>(symptr.get());
   if (concrete) {
     auto id = concrete->value.toInt();
-    return SVFactory::make_symbolic(id, width);
+    return SVFactory::make_fp_symbolic(id, 64);
   }
   throw std::runtime_error(
       "Cannot make symbolic a non-concrete symbolic value");
@@ -157,6 +184,11 @@ inline SymVal Concrete(Num num, int width) {
   //           << std::endl;
   assert(width == 32 || width == 64);
   return SVFactory::make_concrete_bv(num, width);
+}
+
+inline SymVal FPConcrete(Num num, int width) {
+  assert(width == 32 || width == 64);
+  return SVFactory::make_concrete_fp(num, width);
 }
 
 
