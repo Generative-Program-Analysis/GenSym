@@ -53,9 +53,11 @@ object Counter {
     getId(wir, 0)
   }
 }
+
 @virtualize
-trait StagedWasmEvaluator extends SAIOps {
-  def module: ModuleInstance
+trait StagedWasmValueDomains extends SAIOps {
+
+  case class StagedSymbolicNum(tipe: ValueType, s: Rep[SymVal])
 
   case class StagedConcreteNum(tipe: ValueType, i: Rep[Num]) {
     def toStagedSymbolicNum: StagedSymbolicNum = {
@@ -65,9 +67,6 @@ trait StagedWasmEvaluator extends SAIOps {
       }
     }
   }
-
-
-  case class StagedSymbolicNum(tipe: ValueType, s: Rep[SymVal])
 
   def toStagedNum(num: Num): StagedConcreteNum = {
     num match {
@@ -84,15 +83,6 @@ trait StagedWasmEvaluator extends SAIOps {
       case I64V(_) => StagedSymbolicNum(NumType(I64Type), "Concrete".reflectCtrlWith[SymVal](num, 64))
       case F32V(_) => StagedSymbolicNum(NumType(F32Type), "Concrete".reflectCtrlWith[SymVal](num, 32))
       case F64V(_) => StagedSymbolicNum(NumType(F64Type), "Concrete".reflectCtrlWith[SymVal](num, 64))
-    }
-  }
-
-  implicit class ValueTypeOps(ty: ValueType) {
-    def size: Int = ty match {
-      case NumType(I32Type) => 4
-      case NumType(I64Type) => 8
-      case NumType(F32Type) => 4
-      case NumType(F64Type) => 8
     }
   }
 
@@ -132,34 +122,29 @@ trait StagedWasmEvaluator extends SAIOps {
     }
   }
 
+  implicit class ValueTypeOps(ty: ValueType) {
+    def size: Int = ty match {
+      case NumType(I32Type) => 4
+      case NumType(I64Type) => 8
+      case NumType(F32Type) => 4
+      case NumType(F64Type) => 8
+    }
+  }
+}
+
+@virtualize
+trait Continuations extends SAIOps {
   class MCont[A] // should this be a trait?
   type Cont[A] = Unit => A
-  type Trail[A] = List[Context => Rep[Cont[A]]]
-  trait Func
 
-  // def topFun[A:Manifest,B:Manifest](f: Rep[A] => Rep[B], decorator: String = "", tail: Boolean = false): Rep[A => B] = {
-  //   val deco = if (tail) "tail" else decorator
-  //   Wrap[A=>B](__topFun(f, 1, xn => Unwrap(f(Wrap[A](xn(0)))), deco))
-  // }
+  trait Control
 
-  def startBlock: Rep[Unit] = {
-    "start-block".reflectCtrlWith[Unit]()
-  }
+  def forwardKont: Rep[Cont[Unit]] = topFun((_: Rep[Unit]) => enterCurrentMCont())
 
-  def endBlock: Rep[Unit] = {
-    "end-block".reflectCtrlWith[Unit]()
-  }
-
-  def localBlock(block: => Rep[Unit]): Unit = {
-    startBlock
-    val res = block
-    endBlock
-    ()
-  }
-
-  def tailCall[A:Manifest,B:Manifest](f: Rep[A => B], arg: Rep[A]): Rep[B] = {
-    "musttail-return".reflectCtrlWith[Unit]()
-    f(arg)
+  // Save the current control information into a structure Control
+  // We need to store the control information, so we can resume the execution later
+  def makeControl(kont: Rep[Cont[Unit]], mkont: Rep[MCont[Unit]]): Rep[Control] = {
+    "control-make".reflectCtrlWith[Control](kont, mkont)
   }
 
   def updateCurrentMCont(newMKont: Rep[MCont[Unit]]): Rep[Unit] = {
@@ -174,17 +159,6 @@ trait StagedWasmEvaluator extends SAIOps {
     "enter-current-mkont".reflectCtrlWith[Unit]()
   }
 
-  // a cache storing the compiled code for each function, to reduce re-compilation
-  val compileCache = new HashMap[Int, Rep[Unit => Unit]]
-
-  def funHere[A:Manifest,B:Manifest](f: Rep[A] => Rep[B], dummy: Rep[Unit]): Rep[A => B] = {
-    // to avoid LMS lifting a function, we create a dummy node and read it inside function
-    fun((x: Rep[A]) => {
-      "dummy-op".reflectCtrlWith[Unit](dummy)
-      f(x)
-    })
-  }
-
   def makeInitMCont[A:Manifest](f: Rep[Unit => A]): Rep[MCont[A]] = {
     "make-init-mcont".reflectCtrlWith[MCont[A]](f)
   }
@@ -195,1013 +169,10 @@ trait StagedWasmEvaluator extends SAIOps {
     }
   }
 
-  trait Control
+}
 
-  // Save the current control information into a structure Control
-  // We need to store the control information, so we can resume the execution later
-  def makeControl(kont: Rep[Cont[Unit]], mkont: Rep[MCont[Unit]]): Rep[Control] = {
-    "control-make".reflectCtrlWith[Control](kont, mkont)
-  }
-
-  var instrCost: Int = 0
-
-  def addInstrCost(): Rep[Unit] = {
-    "add-instr-cost".reflectCtrlWith[Unit](instrCost)
-    instrCost = 0
-    ()
-  }
-
-  def evalSymbolic(ty: ValueType,
-                   rest: List[Instr],
-                   kont: Context => Rep[Cont[Unit]],
-                   trail: Trail[Unit])(implicit ctx: Context) = {
-      startBlock
-      Stack.popC(ty)
-      val id = Stack.popS(ty)
-      val symVal = id.makeSymbolic(ty)
-      val num = SymEnv.read(symVal.s)
-      Stack.pushC(StagedConcreteNum(ty, num))
-      Stack.pushS(symVal)
-      val newCtx = ctx.pop()._2.push(ty)
-      endBlock
-      eval(rest, kont, trail)(newCtx)
-  }
-
-  def withBlock[T](block: => Rep[T]): Rep[T] = {
-    startBlock
-    val res = block
-    endBlock
-    res
-  }
-
-  // We rely on the convention that eval function must be at tail position, to
-  // safely enforce tail call by the control effect "musttail-return"
-  def eval(insts: List[Instr],
-           kont: Context => Rep[Cont[Unit]],
-           trail: Trail[Unit])
-          (implicit ctx: Context): Rep[Unit] = {
-    if (insts.isEmpty) {
-      tailCall(kont(ctx), ()) // We must make sure all elements pushed to trail are top functions
-      return ()
-    }
-    instrCost += 1
-    // Predef.println(s"[DEBUG] Evaluating instructions: ${insts.mkString(", ")}")
-    // Predef.println(s"[DEBUG] Current context: $ctx")
-
-    val (inst, rest) = (insts.head, insts.tail)
-    inst match {
-      case Drop =>
-        val (ty, newCtx) = ctx.pop()
-        Stack.popC(ty)
-        Stack.popS(ty)
-        eval(rest, kont, trail)(newCtx)
-      case WasmConst(num) =>
-        Stack.pushC(toStagedNum(num))
-        Stack.pushS(toStagedSymbolicNum(num))
-        val newCtx = ctx.push(num.tipe(module))
-        eval(rest, kont, trail)(newCtx)
-      case Symbolic(ty) => evalSymbolic(ty, rest, kont, trail)(ctx)
-      case LocalGet(i) =>
-        Stack.pushC(Frames.getC(i))
-        Stack.pushS(Frames.getS(i))
-        val newCtx = ctx.push(ctx.frameTypes(i))
-        eval(rest, kont, trail)(newCtx)
-      case Select(ty) =>
-        startBlock
-        val (ty1, newCtx1) = ctx.pop()
-        val cond = Stack.popC(ty1)
-        val condSym = Stack.popS(ty1)
-        val (ty2, newCtx2) = newCtx1.pop()
-        val falseVal = Stack.popC(ty2)
-        val falseSym = Stack.popS(ty2)
-        val (ty3, newCtx3) = newCtx2.pop()
-        val trueVal = Stack.popC(ty3)
-        val trueSym = Stack.popS(ty3)
-        if (cond.toInt != 0) {
-          Stack.pushC(trueVal)
-          Stack.pushS(trueSym)
-        } else {
-          Stack.pushC(falseVal)
-          Stack.pushS(falseSym)
-        }
-        endBlock
-        val newCtx4 = newCtx3.push(ty2)
-        eval(rest, kont, trail)(newCtx4)
-      case LocalSet(i) =>
-        startBlock
-        val (ty, newCtx) = ctx.pop()
-        val num = Stack.popC(ty)
-        val sym = Stack.popS(ty)
-        Frames.setC(i, num)
-        Frames.setS(i, sym)
-        endBlock
-        eval(rest, kont, trail)(newCtx)
-      case LocalTee(i) =>
-        val ty = ctx.pop()._1
-        startBlock
-        val num = Stack.peekC(ty)
-        val sym = Stack.peekS(ty)
-        Frames.setC(i, num)
-        Frames.setS(i, sym)
-        endBlock
-        eval(rest, kont, trail)(ctx)
-      case GlobalGet(i) =>
-        Stack.pushC(Globals.getC(i))
-        Stack.pushS(Globals.getS(i))
-        val newCtx = ctx.push(module.globals(i).ty.ty)
-        eval(rest, kont, trail)(newCtx)
-      case GlobalSet(i) =>
-        val (ty, newCtx) = ctx.pop()
-        startBlock
-        val num = Stack.popC(ty)
-        val sym = Stack.popS(ty)
-        module.globals(i).ty match {
-          case GlobalType(tipe, true) => {
-            Globals.setC(i, num)
-            Globals.setS(i, sym)
-          }
-          case _ => throw new Exception("Cannot set immutable global")
-        }
-        endBlock
-        eval(rest, kont, trail)(newCtx)
-      case Store(StoreOp(align, offset, NumType(I32Type), None)) =>
-        startBlock
-        val (ty1, newCtx1) = ctx.pop()
-        val value = Stack.popC(ty1)
-        val symValue = Stack.popS(ty1)
-        val (ty2, newCtx2) = newCtx1.pop()
-        val addr = Stack.popC(ty2)
-        val symAddr = Stack.popS(ty2)
-        Memory.storeInt(addr.toInt, offset, (value.toInt, symValue))
-        endBlock
-        eval(rest, kont, trail)(newCtx2)
-      case Nop => eval(rest, kont, trail)
-      case Load(LoadOp(align, offset, ty, None, None)) =>
-        startBlock
-        val (ty1, newCtx1) = ctx.pop()
-        val addr = Stack.popC(ty1)
-        Stack.popS(ty1)
-        val num = Memory.loadIntC(addr.toInt, offset)
-        val sym = Memory.loadIntS(addr.toInt, offset)
-        Stack.pushC(num)
-        Stack.pushS(sym)
-        endBlock
-        val newCtx2 = newCtx1.push(ty)
-        eval(rest, kont, trail)(newCtx2)
-      case MemorySize => ???
-      case MemoryGrow =>
-        startBlock
-        val (ty, newCtx) = ctx.pop()
-        val delta = Stack.popC(ty)
-        Stack.popS(ty)
-        val ret = Memory.grow(delta.toInt)
-        val retNum = Values.I32V(ret)
-        // For now, we assume that the result of memory.grow only depends on the execution path, 
-        // we can relax this by turning it return to a symbol value and mimic the memory.grow's result as input. 
-        val retSym = "Concrete".reflectCtrlWith[SymVal](retNum, 32)
-        Stack.pushC(StagedConcreteNum(NumType(I32Type), retNum))
-        Stack.pushS(StagedSymbolicNum(NumType(I32Type), retSym))
-        endBlock
-        val newCtx2 = newCtx.push(NumType(I32Type))
-        eval(rest, kont, trail)(newCtx2)
-      case MemoryFill => ???
-      case Unreachable => unreachable()
-      case Test(op) =>
-        val (ty, newCtx1) = ctx.pop()
-        startBlock
-        val v = Stack.popC(ty)
-        val s = Stack.popS(ty)
-        Stack.pushC(evalTestOpC(op, v))
-        Stack.pushS(evalTestOpS(op, s))
-        endBlock
-        val newCtx2 = newCtx1.push(NumType(I32Type))
-        eval(rest, kont, trail)(newCtx2)
-      case Unary(op) =>
-        val (ty, newCtx1) = ctx.pop()
-        val v = Stack.popC(ty)
-        val s = Stack.popS(ty)
-        val res = evalUnaryOpC(op, v)
-        Stack.pushC(res)
-        Stack.pushS(evalUnaryOpS(op, s, res))
-        val newCtx2 = newCtx1.push(res.tipe)
-        eval(rest, kont, trail)(newCtx2)
-      case Binary(op) =>
-        startBlock
-        val (ty2, newCtx1) = ctx.pop()
-        val v2 = Stack.popC(ty2)
-        val s2 = Stack.popS(ty2)
-        val (ty1, newCtx2) = newCtx1.pop()
-        val v1 = Stack.popC(ty1)
-        val s1 = Stack.popS(ty1)
-        val res = evalBinOpC(op, v1, v2)
-        Stack.pushC(res)
-        Stack.pushS(evalBinOpS(op, s1, s2, res))
-        endBlock
-        val newCtx3 = newCtx2.push(res.tipe)
-        eval(rest, kont, trail)(newCtx3)
-      case Compare(op) =>
-        startBlock
-        val (ty2, newCtx1) = ctx.pop()
-        val v2 = Stack.popC(ty2)
-        val s2 = Stack.popS(ty2)
-        val (ty1, newCtx2) = newCtx1.pop()
-        val v1 = Stack.popC(ty1)
-        val s1 = Stack.popS(ty1)
-        val res = evalRelOpC(op, v1, v2)
-        Stack.pushC(res)
-        Stack.pushS(evalRelOpS(op, s1, s2, res))
-        endBlock
-        val newCtx3 = newCtx2.push(res.tipe)
-        eval(rest, kont, trail)(newCtx3)
-      case Convert(cvt) =>
-        startBlock
-        val (ty, newCtx) = ctx.pop()
-        val num = Stack.popC(ty)
-        val sym = Stack.popS(ty)
-        val newNum = evalCvtOpC(cvt, num)
-        val newSym = evalCvtOpS(cvt, sym, newNum)
-        Stack.pushC(newNum)
-        Stack.pushS(newSym)
-        endBlock
-      case WasmBlock(ty, inner) =>
-        // no need to modify the stack when entering a block
-        // the type system guarantees that we will never take more than the input size from the stack
-        val funcTy = ty.funcType
-        val exitSize = ctx.stackTypes.size - funcTy.inps.size + funcTy.out.size
-        def restK(restCtx: Context): Rep[Cont[Unit]] = topFun((_: Rep[Unit]) => {
-          info(s"Exiting the block, stackSize =", Stack.size)
-          val offset = restCtx.stackTypes.size - exitSize
-          Stack.shiftC(offset, funcTy.out.size)
-          Stack.shiftS(offset, funcTy.out.size)
-          val newRestCtx = restCtx.shift(offset, funcTy.out.size)
-          eval(rest, kont, trail)(newRestCtx)
-        })
-        eval(inner, restK _, restK _ :: trail)
-      case Loop(ty, inner) =>
-        val funcTy = ty.funcType
-        val exitSize = ctx.stackTypes.size - funcTy.inps.size + funcTy.out.size
-        def restK(restCtx: Context): Rep[Cont[Unit]] = topFun((_: Rep[Unit]) => {
-          info(s"Exiting the loop, stackSize =", Stack.size)
-          val offset = restCtx.stackTypes.size - exitSize
-          Stack.shiftC(offset, funcTy.out.size)
-          Stack.shiftS(offset, funcTy.out.size)
-          val newRestCtx = restCtx.shift(offset, funcTy.out.size)
-          eval(rest, kont, trail)(newRestCtx)
-        })
-        val enterSize = ctx.stackTypes.size
-        def loop(restCtx: Context): Rep[Cont[Unit]] = topFun((_: Rep[Unit]) => {
-          info(s"Entered the loop, stackSize =", Stack.size)
-          val offset = restCtx.stackTypes.size - enterSize
-          Stack.shiftC(offset, funcTy.inps.size)
-          Stack.shiftS(offset, funcTy.inps.size)
-          val newRestCtx = restCtx.shift(offset, funcTy.inps.size)
-          eval(inner, restK _, loop _ :: trail)(newRestCtx)
-        })
-        tailCall(loop(ctx), ())
-        ()
-      case If(ty, thn, els) =>
-        val funcTy = ty.funcType
-        val (condTy, newCtx) = ctx.pop()
-        val cond = Stack.popC(condTy)
-        startBlock
-        val symCond = Stack.popS(condTy)
-        val exitSize = newCtx.stackTypes.size - funcTy.inps.size + funcTy.out.size
-        val id = Counter.getId(inst)
-        ExploreTree.fillWithIfElse(symCond.s, id)
-        endBlock
-        def restK(restCtx: Context): Rep[Cont[Unit]] = topFun((_: Rep[Unit]) => {
-          info(s"Exiting the if, stackSize =", Stack.size)
-          val offset = restCtx.stackTypes.size - exitSize
-          Stack.shiftC(offset, funcTy.out.size)
-          Stack.shiftS(offset, funcTy.out.size)
-          val newRestCtx = restCtx.shift(offset, funcTy.out.size)
-          eval(rest, kont, trail)(newRestCtx)
-        })
-        def thnK: Rep[Cont[Unit]] = topFun((_: Rep[Unit]) => {
-          info(s"Entering the true branch $id of the if")
-          eval(thn, restK _, restK _ :: trail)(newCtx)
-        })
-        def elsK: Rep[Cont[Unit]] = topFun((_: Rep[Unit]) => {
-          info(s"Entering the false branch $id of the if")
-          eval(els, restK _, restK _ :: trail)(newCtx)
-        })
-        if (cond.toInt != 0) {
-          val control = makeControl(elsK, currentMCont)
-          ExploreTree.moveCursor(true, control)
-          tailCall(thnK, ())
-        } else {
-          val control = makeControl(thnK, currentMCont)
-          ExploreTree.moveCursor(false, control)
-          tailCall(elsK, ())
-        }
-        ()
-      case Br(label) =>
-        info(s"Jump to $label")
-        tailCall(trail(label)(ctx), ())
-        ()
-      case BrIf(label) =>
-        val (ty, newCtx) = ctx.pop()
-        val cond = Stack.popC(ty)
-        info(s"The br_if(${label})'s condition is ", cond.toInt)
-        startBlock
-        val symCond = Stack.popS(ty)
-        val id = Counter.getId(inst)
-        ExploreTree.fillWithIfElse(symCond.s, id)
-        endBlock
-        def thnK: Rep[Cont[Unit]] = topFun((_: Rep[Unit]) => {
-          tailCall(trail(label)(newCtx), ())
-          ()
-        })
-        def elsK: Rep[Cont[Unit]] = topFun((_: Rep[Unit]) => {
-          eval(rest, kont, trail)(newCtx)
-        })
-        if (cond.toInt != 0) {
-          info(s"Jump to $label")
-          startBlock
-          val control = makeControl(elsK, currentMCont)
-          ExploreTree.moveCursor(true, control)
-          endBlock
-          tailCall(thnK, ())
-        } else {
-          info(s"Continue")
-          startBlock
-          val control = makeControl(thnK, currentMCont)
-          ExploreTree.moveCursor(false, control)
-          endBlock
-          tailCall(elsK, ())
-        }
-        ()
-      case BrTable(labels, default) =>
-        val (ty, newCtx) = ctx.pop()
-        def aux(choices: List[Int], idx: Int): Rep[Unit] = {
-          if (choices.isEmpty) {
-            Stack.popC(ty)
-            Stack.popS(ty)
-            trail(default)(newCtx)(())
-          } else {
-            val id = Counter.getId(inst, idx)
-            val label = Stack.peekC(ty)
-            val cond = (label - toStagedNum(I32V(idx))).isZero()
-            startBlock
-            val labelSym = Stack.peekS(ty)
-            val condSym = (labelSym - toStagedSymbolicNum(I32V(idx))).isZero()
-            ExploreTree.fillWithIfElse(condSym.s, id)
-            endBlock
-            // When moving the cursor to a branch, we mark another branch as
-            // snapshotNode (this is done by moveCursor's runtime implementation)
-            // TODO: store snapshot into this snapshot node
-            def thnK: Rep[Cont[Unit]] = topFun((_: Rep[Unit]) => {
-              info(s"Entering the true branch $id of the br_table")
-              Stack.popC(ty)
-              Stack.popS(ty)
-              trail(choices.head)(newCtx)(())
-            })
-            def elsK: Rep[Cont[Unit]] = topFun((_: Rep[Unit]) => {
-              info(s"Entering the false branch $id of the br_table")
-              aux(choices.tail, idx + 1)
-            })
-            if (cond.toInt != 0) {
-              val control = makeControl(elsK, currentMCont)
-              ExploreTree.moveCursor(true, control)
-              tailCall(thnK, ())
-            }
-            else {
-              val control = makeControl(thnK, currentMCont)
-              ExploreTree.moveCursor(false, control)
-              tailCall(elsK, ())
-            }
-            ()
-          }
-        }
-        aux(labels, 0)
-      case Return        => trail.last(ctx)(())
-      case Call(f)       => evalCall(rest, kont, trail, f)
-      case ReturnCall(f) => evalCall(rest, kont, trail, f)
-      case CallIndirect(ty, table) =>
-        Predef.assert(table == 0, "Currently we can only have one table!")
-        val functy = module.types(ty)
-        Predef.println(s"Table = ")
-        evalCallIndirect(rest, kont, trail, functy.asInstanceOf[FuncType])
-      case _ =>
-        val todo = "todo-op".reflectCtrlWith[Unit]()
-        Predef.println(s"[WARNING] Encountered unimplemented instruction $inst, treat it as NOP")
-        Predef.assert(false, s"Unimplemented instruction $inst")
-        eval(rest, kont, trail)
-    }
-  }
-
-  def forwardKont: Rep[Cont[Unit]] = topFun((_: Rep[Unit]) => enterCurrentMCont())
-
-  def readFuncTable(index: Rep[Int]): Rep[Func] = {
-    "read-func-table".reflectCtrlWith[Func](index)
-  }
-
-  def invokeFunc(func: Rep[Func]): Rep[Unit] = {
-    "invoke-func".reflectCtrlWith[Unit](func)
-  }
-
-  def evalCallIndirect(rest: List[Instr],
-                       kont: Context => Rep[Cont[Unit]],
-                       trail: Trail[Unit],
-                       functy: FuncType)
-                      (implicit ctx: Context): Rep[Unit] = {
-    val (ty, newCtx) = ctx.pop()
-    val index = Stack.popC(ty)
-    val symIndex = Stack.popS(ty)
-    Predef.assert(ty == NumType(I32Type))
-    val id = Counter.getId()
-    ExploreTree.fillWithCallIndirect(symIndex.s, id)
-    ExploreTree.moveCursor(index.toInt)
-    val func = readFuncTable(index.toInt)
-    val restK: Rep[Cont[Unit]] = topFun((_: Rep[Unit]) => {
-      info(s"Returned from call_indirect, stackSize =", Stack.size)
-      eval(rest, kont, trail)(newCtx.copy(stackTypes = functy.out.reverse ++ newCtx.stackTypes.drop(functy.inps.size)))
-    })
-    val newMKont: Rep[MCont[Unit]] = currentMCont.prependCont(restK)
-    updateCurrentMCont(newMKont)
-
-    val argsC = Stack.takeC(functy.inps)
-    val argsS = Stack.takeS(functy.inps)
-    Frames.pushFrameC(functy.inps)
-    Frames.pushFrameS(functy.inps)
-    Frames.putAllC(argsC)
-    Frames.putAllS(argsS)
-    invokeFunc(func)
-  }
-
-  def evalFunc(ty: FuncType, body: List[Instr], funcIndex: Int, inps: List[ValueType], locals: List[ValueType]): Rep[Unit => Unit] = {
-    if (compileCache.contains(funcIndex)) {
-      compileCache(funcIndex)
-    } else {
-      def retK(ctx: Context): Rep[Cont[Unit]] = topFun((_: Rep[Unit]) => {
-        info(s"Return from the function at $funcIndex, stackSize =", Stack.size)
-        val offset = ctx.stackTypes.size - ty.out.size
-        Stack.shiftC(offset, ty.out.size)
-        Stack.shiftS(offset, ty.out.size)
-        enterCurrentMCont()
-      })
-
-      val func = topFun((_: Rep[Unit]) => {
-        info(s"Entered the function at $funcIndex, stackSize =", Stack.size)
-        // the return instruction is also stack polymorphic
-        eval(body, retK _, retK _::Nil)(Context(Nil, inps ++ locals))
-      })
-      compileCache(funcIndex) = func
-      func
-    }
-  }
-
-  def evalCall(rest: List[Instr],
-               kont: Context => Rep[Cont[Unit]],
-               trail: Trail[Unit],
-               funcIndex: Int)
-              (implicit ctx: Context): Rep[Unit] = {
-    module.funcs(funcIndex) match {
-      case FuncDef(_, FuncBodyDef(ty, _, bodyLocals, body)) =>
-        instrCost += (ty.inps ++ bodyLocals).size * 2 - 1
-        val callee = evalFunc(ty, body, funcIndex, ty.inps, bodyLocals)
-        // Predef.println(s"[DEBUG] locals size: ${locals.size}")
-        startBlock
-        info("Taking arguments from stack to call function at ", funcIndex)
-        val newCtx = ctx.take(ty.inps.size)
-        val argsC = Stack.takeC(ty.inps)
-        val argsS = Stack.takeS(ty.inps)
-        // We make a new trail by `restK`, since function creates a new block to escape
-        // (more or less like `return`)
-        val restK: Rep[Cont[Unit]] = topFun((_: Rep[Unit]) => {
-          info(s"Exiting the function at $funcIndex, stackSize =", Stack.size)
-          Frames.popFrameC(ty.inps.size + bodyLocals.size)
-          Frames.popFrameS(ty.inps.size + bodyLocals.size)
-          eval(rest, kont, trail)(newCtx.copy(stackTypes = ty.out.reverse ++ ctx.stackTypes.drop(ty.inps.size)))
-        })
-
-        Frames.pushFrameC(ty.inps ++ bodyLocals)
-        Frames.pushFrameS(ty.inps ++ bodyLocals)
-        Frames.putAllC(argsC)
-        Frames.putAllS(argsS)
-        val newMKont: Rep[MCont[Unit]] = currentMCont.prependCont(restK)
-        updateCurrentMCont(newMKont)
-        endBlock
-        tailCall(callee, ())
-        ()
-      case Import("console", "log", _)
-         | Import("spectest", "print_i32", _) =>
-        //println(s"[DEBUG] current stack: $stack")
-        val (ty, newCtx) = ctx.pop()
-        val v = Stack.popC(ty)
-        Stack.popS(ty)
-        println(v.toInt)
-        eval(rest, kont, trail)(newCtx)
-      case Import("console", "assert", _) =>
-        val (ty, newCtx) = ctx.pop()
-        val v = Stack.popC(ty)
-        // TODO: We should also add s into exploration tree
-        val s = Stack.popS(ty)
-        runtimeAssert(v.toInt != 0)
-        eval(rest, kont, trail)(newCtx)
-      case Import("i32", "symbolic", _) =>
-        evalSymbolic(NumType(I32Type), rest, kont, trail)(ctx)
-      case Import("i32", "sym_assume", _) =>
-        // symbolic assume is just like an if else that only has one branch, while another
-        // is marked as not-to-explore
-        val (condTy, newCtx) = ctx.pop()
-        Predef.assert(condTy == NumType(I32Type), s"sym_assume only supports i32 condition, get $condTy")
-        val cond = Stack.popC(condTy)
-        startBlock
-        val symCond = Stack.popS(condTy)
-        val id = Counter.getId()
-        ExploreTree.fillWithIfElse(symCond.s, id)
-        endBlock
-        def thnK: Rep[Cont[Unit]] = topFun((_: Rep[Unit]) => {
-          info(s"Successfully assumed condition at $id")
-          eval(rest, kont, trail)(newCtx)
-        })
-        if (cond.toInt != 0) {
-          ExploreTree.moveCursor(true)
-          eval(rest, kont, trail)(newCtx)
-        } else {
-          val control = makeControl(thnK, currentMCont)
-          ExploreTree.moveCursor(false, control)
-          // just stop the execution at here
-          ExploreTree.fillWithNotToExplore()
-        }
-        ()
-      case Import("i32", "sym_assert", _) =>
-        val (condTy, newCtx) = ctx.pop()
-        startBlock
-        val v = Stack.popC(condTy)
-        val s = Stack.popS(condTy)
-        runtimeSymAssert(s)
-        runtimeAssert(v.toInt != 0)
-        endBlock
-        eval(rest, kont, trail)(newCtx)
-      case Import("mem", "alloc", _) =>
-        // this semantics here is not standardized in wasp, here is wasp's impl
-        // https://github.com/formalsec/wasp/blob/release/0.2.3/wasp/symbolic/concolic.ml#L449
-        val (_, newCtx1) = ctx.pop()
-        val a = Stack.popC(NumType(I32Type))
-        Stack.popS(NumType(I32Type))
-        val (_, newCtx2) = newCtx1.pop()
-        val b = Stack.popC(NumType(I32Type))
-        Stack.popS(NumType(I32Type))
-        Stack.pushC(b)
-        val s = "Concrete".reflectCtrlWith[SymVal](Values.I32V(b.toInt), 32)
-        Stack.pushS(StagedSymbolicNum(NumType(I32Type), s))
-        eval(rest, kont, trail)(newCtx1)
-      case Import("mem", "free", _) =>
-        val (_, newCtx) = ctx.pop()
-        Stack.popC(NumType(I32Type))
-        Stack.popS(NumType(I32Type))
-        eval(rest, kont, trail)(newCtx)
-      case Import("env", "proc_exit", _) =>
-        val (_, newCtx) = ctx.pop()
-        val code = Stack.popC(NumType(I32Type))
-        Stack.popS(NumType(I32Type))
-        info(s"Program exiting")
-        eval(rest, kont, trail)(newCtx)
-      case Import(m, f, _) => throw new Exception(s"Unknown import $m.$f at $funcIndex")
-      case _               => throw new Exception(s"Definition at $funcIndex is not callable")
-    }
-  }
-
-  def evalTestOpC(op: TestOp, value: StagedConcreteNum): StagedConcreteNum = op match {
-    case Eqz(_) => value.isZero
-  }
-
-  def evalTestOpS(op: TestOp, value: StagedSymbolicNum): StagedSymbolicNum = op match {
-    case Eqz(_) => value.isZero
-  }
-
-  def evalUnaryOpC(op: UnaryOp, value: StagedConcreteNum): StagedConcreteNum = op match {
-    case Clz(_) => value.clz()
-    case Ctz(_) => value.ctz()
-    case Popcnt(_) => value.popcnt()
-    case _ => ???
-  }
-
-  def evalUnaryOpS(op: UnaryOp, value: StagedSymbolicNum, c: StagedConcreteNum): StagedSymbolicNum = {
-    val res = if (allConcrete(value)) {
-      c.toStagedSymbolicNum.s
-    } else {
-      (op match {
-        case Clz(_)   => value.clz()
-        case Ctz(_)   => value.ctz()
-        case Popcnt(_) => value.popcnt()
-        case _        => throw new Exception(s"Unknown unary operation $op")
-      }).s
-    }
-    StagedSymbolicNum(c.tipe, res)
-  }
-
-  def evalBinOpC(op: BinOp, v1: StagedConcreteNum, v2: StagedConcreteNum): StagedConcreteNum = op match {
-    case Add(_) => v1 + v2
-    case Mul(_) => v1 * v2
-    case Sub(_) => v1 - v2
-    case Shl(_) => v1 << v2
-    case ShrS(_) => v1 shrS v2 // TODO: signed shift right
-    case ShrU(_) => v1 shrU v2
-    case And(_) => v1 & v2
-    case DivS(_) => v1 divs v2
-    case DivU(_) => v1 divu v2
-    case Div(_) => v1 div v2
-    case Or(_) => v1 or v2
-    case Xor(_) => v1 xor v2
-    case Rotl(_) => v1 rotl v2
-    case Rotr(_) => v1 rotr v2
-    case RemU(_) => v1 remu v2
-    // case Or(_) => v1 or v2
-    case _ =>
-      throw new Exception(s"Unknown binary operation $op")
-  }
-
-  def evalBinOpS(op: BinOp, v1: StagedSymbolicNum, v2: StagedSymbolicNum, c: StagedConcreteNum): StagedSymbolicNum = {
-    val res = if (allConcrete(v1, v2)) {
-      c.toStagedSymbolicNum.s
-    } else {
-      (op match {
-        case Add(_) => v1 + v2
-        case Mul(_) => v1 * v2
-        case Sub(_) => v1 - v2
-        case Shl(_) => v1 << v2
-        case ShrS(_) => v1 shrS v2 // TODO: signed shift right
-        case ShrU(_) => v1 shrU v2
-        case And(_) => v1 & v2
-        case DivS(_) => v1 divs v2
-        case DivU(_) => v1 divu v2
-        case Div(_) => v1 div v2
-        case Or(_) => v1 or v2
-        case Xor(_) => v1 xor v2
-        case Rotl(_) => v1 rotl v2
-        case Rotr(_) => v1 rotr v2
-        case RemU(_) => v1 remu v2
-        case _ =>
-          throw new Exception(s"Unknown binary operation $op")
-      }).s
-    }
-    StagedSymbolicNum(c.tipe, res)
-  }
-
-  def evalRelOpC(op: RelOp, v1: StagedConcreteNum, v2: StagedConcreteNum): StagedConcreteNum = op match {
-    case Eq(_) => v1 numEq v2
-    case Ne(_) => v1 numNe v2
-    case LtS(_) => v1 < v2
-    case LtU(_) => v1 ltu v2
-    case GtS(_) => v1 > v2
-    case GtU(_) => v1 gtu v2
-    case LeS(_) => v1 <= v2
-    case LeU(_) => v1 leu v2
-    case GeS(_) => v1 >= v2
-    case GeU(_) => v1 geu v2
-    case Lt(_) => v1 lt v2
-    case Le(_) => v1 le v2
-    case Gt(_) => v1 gt v2
-    case Ge(_) => v1 ge v2
-    case _ => ???
-  }
-
-  def evalRelOpS(op: RelOp, v1: StagedSymbolicNum, v2: StagedSymbolicNum, c: StagedConcreteNum): StagedSymbolicNum = {
-    val res = if (allConcrete(v1, v2)) {
-      c.toStagedSymbolicNum.s
-    } else {
-      (op match {
-        case Eq(_)  => v1 numEq v2
-        case Ne(_)  => v1 numNe v2
-        case LtS(_) => v1 < v2
-        case LtU(_) => v1 ltu v2
-        case GtS(_) => v1 > v2
-        case GtU(_) => v1 gtu v2
-        case LeS(_) => v1 <= v2
-        case LeU(_) => v1 leu v2
-        case GeS(_) => v1 >= v2
-        case GeU(_) => v1 geu v2
-        case Lt(_)  => v1 lt v2
-        case Le(_)  => v1 le v2
-        case Gt(_)  => v1 gt v2
-        case Ge(_)  => v1 ge v2
-        case _      => throw new Exception(s"Unknown relational operation $op")
-      }).s
-    }
-    StagedSymbolicNum(c.tipe, res)
-  }
-
-  def evalCvtOpC(op: CvtOp, value: StagedConcreteNum): StagedConcreteNum = op match {
-    case Extend(NumType(I32Type), NumType(I64Type), ZX) => value.extend
-  }
-
-  def evalCvtOpS(op: CvtOp, value: StagedSymbolicNum, c: StagedConcreteNum): StagedSymbolicNum = {
-    val res = if (allConcrete(value)) {
-      c.toStagedSymbolicNum.s
-    } else {
-      op match {
-        case Extend(NumType(I32Type), NumType(I64Type), ZX) => value.extend().s
-      }
-    }
-    StagedSymbolicNum(c.tipe, res)
-  }
-
-  def evalTop(haltK: Rep[Unit => Unit], main: Option[String]): Rep[Unit] = {
-    Counter.reset()
-    val funBody: FuncBodyDef = main match {
-      case Some(func_name) =>
-        module.defs.flatMap({
-          case Export(`func_name`, ExportFunc(fid)) =>
-            Predef.println(s"Now compiling start with function $main")
-            module.funcs(fid) match {
-              case FuncDef(_, body@FuncBodyDef(_,_,_,_)) => Some(body)
-              case _ => throw new Exception("Entry function has no concrete body")
-            }
-          case _ => None
-        }).head
-      case None =>
-        val startIds = module.defs.flatMap {
-            case Start(id) => Some(id)
-            case _ => None
-        }
-        val startId = startIds.headOption.getOrElse { throw new Exception("No start function") }
-        module.funcs(startId) match {
-          case FuncDef(_, body@FuncBodyDef(_,_,_,_)) => body
-          case _ =>
-            throw new Exception("Entry function has no concrete body")
-        }
-    }
-    val (instrs, locals) = (funBody.body, funBody.locals)
-    // resetStacks() // Don't manually reset the global states (like stack), manage them in the driver
-    initGlobals(module.globals)
-    initTable(module)
-    initMemory()
-    Frames.pushFrameC(locals)
-    Frames.pushFrameS(locals)
-
-    val restK: Rep[Cont[Unit]] = topFun((_: Rep[Unit]) => {
-      info(s"Exiting the entry function")
-      Frames.popFrameC(locals.size)
-      Frames.popFrameS(locals.size)
-      enterCurrentMCont()
-    })
-
-    startBlock
-    val mkont: Rep[MCont[Unit]] = makeInitMCont(haltK)
-    val newMKont: Rep[MCont[Unit]] = mkont.prependCont(restK)
-    updateCurrentMCont(newMKont)
-    endBlock
-
-    eval(instrs, (_: Context) => forwardKont, ((_: Context) => forwardKont)::Nil)(Context(Nil, locals))
-    ()
-  }
-
-  def evalTop(main: Option[String], printRes: Boolean): Rep[Unit] = {
-    val haltK: Rep[Unit] => Rep[Unit] = (_) => {
-      info("Exiting the program...")
-      if (printRes) {
-        Stack.print()
-      }
-      ExploreTree.fillWithFinished()
-      "no-op".reflectCtrlWith[Unit]()
-    }
-    evalTop(topFun(haltK), main)
-  }
-
-  def runtimeAssert(b: Rep[Boolean]): Rep[Unit] = {
-    "assert-true".reflectCtrlWith[Unit](b)
-  }
-
-  def runtimeSymAssert(s: StagedSymbolicNum): Rep[Unit] = {
-    "sym-assert-true".reflectCtrlWith[Unit](s.s)
-  }
-
-  // stack operations
-  object Stack {
-    def shiftC(offset: Int, size: Int) = {
-      if (offset > 0) {
-        "stack-shift".reflectCtrlWith[Unit](offset, size)
-      }
-    }
-
-    def shiftS(offset: Int, size: Int) = {
-      if (offset > 0) {
-        "sym-stack-shift".reflectCtrlWith[Unit](offset, size)
-      }
-    }
-
-    def initialize(): Rep[Unit] = {
-      "stack-init".reflectCtrlWith[Unit]()
-    }
-
-    def popC(ty: ValueType): StagedConcreteNum = {
-      StagedConcreteNum(ty, "stack-pop".reflectCtrlWith[Num]())
-    }
-
-    def popS(ty: ValueType): StagedSymbolicNum = {
-      StagedSymbolicNum(ty, "sym-stack-pop".reflectCtrlWith[SymVal]())
-    }
-
-    def peekC(ty: ValueType): StagedConcreteNum = {
-      StagedConcreteNum(ty, "stack-peek".reflectCtrlWith[Num]())
-    }
-
-    def peekS(ty: ValueType): StagedSymbolicNum = {
-      StagedSymbolicNum(ty, "sym-stack-peek".reflectCtrlWith[SymVal]())
-    }
-
-    def pushC(num: StagedConcreteNum) = "stack-push".reflectCtrlWith[Unit](num.i)
-
-    def pushS(num: StagedSymbolicNum) = "sym-stack-push".reflectCtrlWith[Unit](num.s)
-
-    def takeC(types: List[ValueType]): List[StagedConcreteNum] = types match {
-      case Nil => Nil
-      case t :: ts =>
-        val v = popC(t)
-        val rest = takeC(ts)
-        v :: rest
-    }
-
-    def takeS(types: List[ValueType]): List[StagedSymbolicNum] = types match {
-      case Nil => Nil
-      case t :: ts =>
-        val v = popS(t)
-        val rest = takeS(ts)
-        v :: rest
-    }
-
-    def print(): Rep[Unit] = {
-      "stack-print".reflectCtrlWith[Unit]()
-    }
-
-    def size: Rep[Int] = {
-      "stack-size".reflectCtrlWith[Int]()
-    }
-  }
-
-  object Frames {
-    def getC(i: Int)(implicit ctx: Context): StagedConcreteNum = {
-      // val offset = ctx.frameTypes.take(i).map(_.size).sum
-      StagedConcreteNum(ctx.frameTypes(i), "frame-get".reflectCtrlWith[Num](i))
-    }
-
-    def getS(i: Int)(implicit ctx: Context): StagedSymbolicNum = {
-      StagedSymbolicNum(ctx.frameTypes(i), "sym-frame-get".reflectCtrlWith[SymVal](i))
-    }
-
-    def setC(i: Int, v: StagedConcreteNum): Rep[Unit] = {
-      "frame-set".reflectCtrlWith[Unit](i, v.i)
-    }
-
-    def setS(i: Int, s: StagedSymbolicNum): Rep[Unit] = {
-      "sym-frame-set".reflectCtrlWith[Unit](i, s.s)
-    }
-
-    def pushFrameC(locals: List[ValueType]): Rep[Unit] = {
-      // Predef.println(s"[DEBUG] push frame: $locals")
-      val size = locals.size
-      "frame-push".reflectCtrlWith[Unit](size)
-    }
-
-    def extendFrameC(size: Int): Rep[Unit] = {
-      if (size > 0) "frame-extend".reflectCtrlWith[Unit](size)
-    }
-
-    def pushFrameS(locals: List[ValueType]): Rep[Unit] = {
-      // Predef.println(s"[DEBUG] push frame: $locals")
-      val size = locals.size
-      for (ty <- locals) {
-        "sym-frame-push-slot".reflectCtrlWith[Unit](ty.size * 8)
-      }
-    }
-
-    def extendFrameS(size: Int): Rep[Unit] = {
-      if (size > 0) "sym-frame-extend".reflectCtrlWith[Unit](size)
-    }
-
-    def popFrameC(size: Int): Rep[Unit] = {
-      "frame-pop".reflectCtrlWith[Unit](size)
-    }
-
-    def popFrameS(size: Int): Rep[Unit] = {
-      "sym-frame-pop".reflectCtrlWith[Unit](size)
-    }
-
-    def putAllC(args: List[StagedConcreteNum]): Rep[Unit] = {
-      for ((arg, i) <- args.view.reverse.zipWithIndex) {
-        Frames.setC(i, arg)
-      }
-    }
-
-    def putAllS(args: List[StagedSymbolicNum]): Rep[Unit] = {
-      for ((arg, i) <- args.view.reverse.zipWithIndex) {
-        Frames.setS(i, arg)
-      }
-    }
-  }
-
-  object Memory {
-    // TODO: why this is only one function, rather than `storeInC` and `storeInS`?
-    // TODO: what should the type of SymVal be?
-    def storeInt(base: Rep[Int], offset: Int, value: (Rep[Int], StagedSymbolicNum)): Rep[Unit] = {
-      "memory-store-int".reflectCtrlWith[Unit](base, offset, value._1)
-      "sym-store-int".reflectCtrlWith[Unit](base, offset, value._2.s)
-    }
-
-    def loadIntC(base: Rep[Int], offset: Int): StagedConcreteNum = {
-      StagedConcreteNum(NumType(I32Type), "I32V".reflectCtrlWith[Num]("memory-load-int".reflectCtrlWith[Int](base, offset)))
-    }
-
-    def loadIntS(base: Rep[Int], offset: Int): StagedSymbolicNum = {
-      StagedSymbolicNum(NumType(I32Type), "sym-load-int".reflectCtrlWith[SymVal](base, offset))
-    }
-
-    // Returns the previous memory size on success, or -1 if the memory cannot be grown.
-    def grow(delta: Rep[Int]): Rep[Int] = {
-      "memory-grow".reflectCtrlWith[Int](delta)
-    }
-  }
-
-  def resetStacks(): Rep[Unit] = {
-    "reset-stacks".reflectCtrlWith[Unit]()
-  }
-
-  def evalSeq(instrs: List[Instr],
-              kont: Context => Rep[Cont[Unit]],
-              trail: Trail[Unit]): Rep[Unit] = {
-    def func = topFun((_: Rep[Unit]) => {
-      eval(instrs, kont, trail)(Context(Nil, Nil))
-    })
-    func(())
-  }
-
-  def initGlobals(globals: List[RTGlobal]): Rep[Unit] = {
-    def initGlobalsTopFun = topFun((_: Rep[Unit]) => {
-      info("Initializing globals...")
-      Globals.reserveSpace(globals.map(_.ty.ty))
-      for ((g, i) <- globals.view.zipWithIndex) {
-        val initValue = g.value match {
-          case n: Num => n
-          case _ => throw new RuntimeException("Non-numeric global value is not supported yet")
-        }
-        Globals.setC(i, toStagedNum(initValue))
-        Globals.setS(i, toStagedSymbolicNum(initValue))
-      }
-    })
-    initGlobalsTopFun(())
-  }
-
-  def initTable(module: ModuleInstance): Rep[Unit] = {
-    def initTableTopFun = topFun((_: Rep[Unit]) => {
-      info("Initializing function table...")
-      val haltK: Rep[Unit] => Rep[Unit] = (_) => { }
-      val mkont: Rep[MCont[Unit]] = makeInitMCont(topFun(haltK))
-      updateCurrentMCont(mkont)
-      for (definition <- module.defs) {
-        definition match {
-          case Elem(_, offset, funcIndices) =>
-            evalSeq(offset, (_: Context) => forwardKont, ((_: Context) => forwardKont)::Nil)
-            val offsetC = Stack.popC(NumType(I32Type))
-            Stack.popS(NumType(I32Type))
-            Predef.println(s"funcIndices: $funcIndices")
-            for ((fidx, i) <- funcIndices.asInstanceOf[ElemListFunc].funcs.view.zipWithIndex) {
-              val FuncDef(_, FuncBodyDef(ty, _, bodyLocals, body)) = module.funcs(fidx)
-              val func = evalFunc(ty, body, fidx, ty.inps, bodyLocals)
-              "init-func-table".reflectCtrlWith[Unit](offsetC.i, i, func)
-            }
-          case _ => ()
-        }
-      }
-    })
-    initTableTopFun(())
-  }
-
-  def initMemory(): Rep[Unit] = {
-    def initMemoryTopFun = topFun((_: Rep[Unit]) => {
-      info("Initializing memory...")
-      for (definition <- module.defs) {
-        definition match {
-          case Data(_, offsetInstr, bytes) =>
-            val haltK: Rep[Unit] => Rep[Unit] = (_) => { }
-            val mkont: Rep[MCont[Unit]] = makeInitMCont(topFun(haltK))
-            updateCurrentMCont(mkont)
-            evalSeq(offsetInstr::Nil, (_: Context) => forwardKont, ((_: Context) => forwardKont)::Nil)
-            val offsetC = Stack.popC(NumType(I32Type))
-            Stack.popS(NumType(I32Type))
-            "memory-initialize".reflectCtrlWith[Unit](offsetC.toInt, bytes)
-          case _ => ()
-        }
-      }
-    })
-    initMemoryTopFun(())
-  }
-
-  def allConcrete(syms: StagedSymbolicNum*): Rep[Boolean] = {
-    "allConcrete".reflectCtrlWith[Boolean](syms.map(_.s): _*)
-  }
-
-  // call unreachable
-  def unreachable(): Rep[Unit] = {
-    "unreachable".reflectCtrlWith[Unit]()
-  }
-
-  def info(xs: Rep[_]*): Rep[Unit] = {
-    "info".reflectCtrlWith[Unit](xs: _*)
-  }
-
+@virtualize
+trait ValueCreation extends SAIOps with StagedWasmValueDomains {
   // runtime values
   object Values {
     def I32V(i: Rep[Int]): Rep[Num] = {
@@ -1212,81 +183,11 @@ trait StagedWasmEvaluator extends SAIOps {
       "I64V".reflectCtrlWith[Num](i)
     }
   }
+}
 
-  // global read/write
-  object Globals {
-    def reserveSpace(tps: List[ValueType]): Rep[Unit] = {
-      "global-reserve".reflectCtrlWith[Unit](tps.length)
-      for (tp <- tps) {
-        "sym-global-reserve-slot".reflectCtrlWith[Unit](tp.size * 8)
-      }
-    }
-
-    def getC(i: Int): StagedConcreteNum = {
-      StagedConcreteNum(module.globals(i).ty.ty, "global-get".reflectCtrlWith[Num](i))
-    }
-
-    def getS(i: Int): StagedSymbolicNum = {
-      StagedSymbolicNum(module.globals(i).ty.ty, "sym-global-get".reflectCtrlWith[SymVal](i))
-    }
-
-    def setC(i: Int, v: StagedConcreteNum): Rep[Unit] = {
-      "global-set".reflectCtrlWith[Unit](i, v.i)
-    }
-
-    def setS(i: Int, s: StagedSymbolicNum): Rep[Unit] = {
-      "sym-global-set".reflectCtrlWith[Unit](i, s.s)
-    }
-  }
-
-  // Exploration tree,
-  object ExploreTree {
-    def fillWithIfElse(s: Rep[SymVal], id: Int): Rep[Unit] = {
-      "tree-fill-if-else".reflectCtrlWith[Unit](s, id)
-    }
-
-    def fillWithCallIndirect(s: Rep[SymVal], id: Int): Rep[Unit] = {
-      "tree-fill-call-indirect".reflectCtrlWith[Unit](s, id)
-    }
-
-    def fillWithNotToExplore(): Rep[Unit] = {
-      "tree-fill-not-to-explore".reflectCtrlWith[Unit]()
-    }
-
-    def fillWithFinished(): Rep[Unit] = {
-      "tree-fill-finished".reflectCtrlWith[Unit]()
-    }
-
-    def moveCursor(branch: Boolean, control: Rep[Control]): Rep[Unit] = {
-      // when moving cursor from to an unexplored node, we need to change the reuse state
-      "tree-move-cursor".reflectCtrlWith[Unit](branch, control)
-    }
-
-    def moveCursor(branch: Boolean): Rep[Unit] = {
-      // when moving cursor from to an unexplored node, we need to change the reuse state
-      "tree-move-cursor-no-control".reflectCtrlWith[Unit](branch)
-    }
-
-    def moveCursor(index: Rep[Int]): Rep[Unit] = {
-      "tree-move-cursor-call-indirect-index".reflectCtrlWith[Unit](index)
-    }
-
-    def print(): Rep[Unit] = {
-      "tree-print".reflectCtrlWith[Unit]()
-    }
-
-    def dumpGraphiviz(filePath: String): Rep[Unit] = {
-      "tree-dump-graphviz".reflectCtrlWith[Unit](filePath)
-    }
-  }
-
-  object SymEnv {
-    def read(sym: Rep[SymVal]): Rep[Num] = {
-      "sym-env-read".reflectCtrlWith[Num](sym)
-    }
-  }
-
-  // runtime Num type
+@virtualize
+trait ConcreteOps extends StagedWasmValueDomains with ValueCreation {
+// runtime Num type
   implicit class StagedConcreteNumOps(num: StagedConcreteNum) {
 
     def makeSymbolic(ty: ValueType): StagedSymbolicNum = num.tipe match {
@@ -1608,8 +509,15 @@ trait StagedWasmEvaluator extends SAIOps {
         case NumType(I32Type) => StagedConcreteNum(NumType(I64Type), "i32-extend-to-i64".reflectCtrlWith[Num](num.i))
       }
     }
-  }
 
+    def assert(): Rep[Unit] = {
+      "assert-true".reflectCtrlWith[Unit](num.toInt != 0)
+    }
+  }
+}
+
+@virtualize
+trait SymbolicOps extends StagedWasmValueDomains {
   implicit class StagedSymbolicNumOps(num: StagedSymbolicNum) {
     def makeSymbolic(ty: ValueType): StagedSymbolicNum = num.tipe match {
       case NumType(I32Type) => StagedSymbolicNum(NumType(I32Type), "make-symbolic".reflectCtrlWith[SymVal](num.s, 32))
@@ -1940,11 +848,1149 @@ trait StagedWasmEvaluator extends SAIOps {
     def extend(): StagedSymbolicNum = num.tipe match {
       case NumType(I32Type) => StagedSymbolicNum(NumType(I64Type), "sym-i32-extend-to-i64".reflectCtrlWith[SymVal](num.s))
     }
-  }
-  implicit class SymbolicOps(s: Rep[SymVal]) {
-    def not(): Rep[SymVal] = {
-      "sym-not".reflectCtrlWith(s)
+
+    def symAssert(): Rep[Unit] = {
+      "sym-assert-true".reflectCtrlWith[Unit](num.s)
     }
+  }
+
+  def allConcrete(syms: StagedSymbolicNum*): Rep[Boolean] = {
+    "allConcrete".reflectCtrlWith[Boolean](syms.map(_.s): _*)
+  }
+}
+@virtualize
+trait StagedStack extends SAIOps with StagedWasmValueDomains{
+  // stack operations
+  object Stack {
+    def shiftC(offset: Int, size: Int) = {
+      if (offset > 0) {
+        "stack-shift".reflectCtrlWith[Unit](offset, size)
+      }
+    }
+
+    def shiftS(offset: Int, size: Int) = {
+      if (offset > 0) {
+        "sym-stack-shift".reflectCtrlWith[Unit](offset, size)
+      }
+    }
+
+    def initialize(): Rep[Unit] = {
+      "stack-init".reflectCtrlWith[Unit]()
+    }
+
+    def popC(ty: ValueType): StagedConcreteNum = {
+      StagedConcreteNum(ty, "stack-pop".reflectCtrlWith[Num]())
+    }
+
+    def popS(ty: ValueType): StagedSymbolicNum = {
+      StagedSymbolicNum(ty, "sym-stack-pop".reflectCtrlWith[SymVal]())
+    }
+
+    def peekC(ty: ValueType): StagedConcreteNum = {
+      StagedConcreteNum(ty, "stack-peek".reflectCtrlWith[Num]())
+    }
+
+    def peekS(ty: ValueType): StagedSymbolicNum = {
+      StagedSymbolicNum(ty, "sym-stack-peek".reflectCtrlWith[SymVal]())
+    }
+
+    def pushC(num: StagedConcreteNum) = "stack-push".reflectCtrlWith[Unit](num.i)
+
+    def pushS(num: StagedSymbolicNum) = "sym-stack-push".reflectCtrlWith[Unit](num.s)
+
+    def takeC(types: List[ValueType]): List[StagedConcreteNum] = types match {
+      case Nil => Nil
+      case t :: ts =>
+        val v = popC(t)
+        val rest = takeC(ts)
+        v :: rest
+    }
+
+    def takeS(types: List[ValueType]): List[StagedSymbolicNum] = types match {
+      case Nil => Nil
+      case t :: ts =>
+        val v = popS(t)
+        val rest = takeS(ts)
+        v :: rest
+    }
+
+    def print(): Rep[Unit] = {
+      "stack-print".reflectCtrlWith[Unit]()
+    }
+
+    def size: Rep[Int] = {
+      "stack-size".reflectCtrlWith[Int]()
+    }
+  }
+}
+
+@virtualize
+trait StagedFrames extends SAIOps with StagedWasmValueDomains {
+  object Frames {
+    def getC(i: Int)(implicit ctx: Context): StagedConcreteNum = {
+      // val offset = ctx.frameTypes.take(i).map(_.size).sum
+      StagedConcreteNum(ctx.frameTypes(i), "frame-get".reflectCtrlWith[Num](i))
+    }
+
+    def getS(i: Int)(implicit ctx: Context): StagedSymbolicNum = {
+      StagedSymbolicNum(ctx.frameTypes(i), "sym-frame-get".reflectCtrlWith[SymVal](i))
+    }
+
+    def setC(i: Int, v: StagedConcreteNum): Rep[Unit] = {
+      "frame-set".reflectCtrlWith[Unit](i, v.i)
+    }
+
+    def setS(i: Int, s: StagedSymbolicNum): Rep[Unit] = {
+      "sym-frame-set".reflectCtrlWith[Unit](i, s.s)
+    }
+
+    def pushFrameC(locals: List[ValueType]): Rep[Unit] = {
+      // Predef.println(s"[DEBUG] push frame: $locals")
+      val size = locals.size
+      "frame-push".reflectCtrlWith[Unit](size)
+    }
+
+    def extendFrameC(size: Int): Rep[Unit] = {
+      if (size > 0) "frame-extend".reflectCtrlWith[Unit](size)
+    }
+
+    def pushFrameS(locals: List[ValueType]): Rep[Unit] = {
+      // Predef.println(s"[DEBUG] push frame: $locals")
+      val size = locals.size
+      for (ty <- locals) {
+        "sym-frame-push-slot".reflectCtrlWith[Unit](ty.size * 8)
+      }
+    }
+
+    def extendFrameS(size: Int): Rep[Unit] = {
+      if (size > 0) "sym-frame-extend".reflectCtrlWith[Unit](size)
+    }
+
+    def popFrameC(size: Int): Rep[Unit] = {
+      "frame-pop".reflectCtrlWith[Unit](size)
+    }
+
+    def popFrameS(size: Int): Rep[Unit] = {
+      "sym-frame-pop".reflectCtrlWith[Unit](size)
+    }
+
+    def putAllC(args: List[StagedConcreteNum]): Rep[Unit] = {
+      for ((arg, i) <- args.view.reverse.zipWithIndex) {
+        Frames.setC(i, arg)
+      }
+    }
+
+    def putAllS(args: List[StagedSymbolicNum]): Rep[Unit] = {
+      for ((arg, i) <- args.view.reverse.zipWithIndex) {
+        Frames.setS(i, arg)
+      }
+    }
+  }
+}
+
+@virtualize
+trait StagedMemory extends SAIOps with StagedWasmValueDomains with Continuations {
+  object Memory {
+    // TODO: why this is only one function, rather than `storeInC` and `storeInS`?
+    // TODO: what should the type of SymVal be?
+    def storeInt(base: Rep[Int], offset: Int, value: (Rep[Int], StagedSymbolicNum)): Rep[Unit] = {
+      "memory-store-int".reflectCtrlWith[Unit](base, offset, value._1)
+      "sym-store-int".reflectCtrlWith[Unit](base, offset, value._2.s)
+    }
+
+    def loadIntC(base: Rep[Int], offset: Int): StagedConcreteNum = {
+      StagedConcreteNum(NumType(I32Type), "I32V".reflectCtrlWith[Num]("memory-load-int".reflectCtrlWith[Int](base, offset)))
+    }
+
+    def loadIntS(base: Rep[Int], offset: Int): StagedSymbolicNum = {
+      StagedSymbolicNum(NumType(I32Type), "sym-load-int".reflectCtrlWith[SymVal](base, offset))
+    }
+
+    // Returns the previous memory size on success, or -1 if the memory cannot be grown.
+    def grow(delta: Rep[Int]): Rep[Int] = {
+      "memory-grow".reflectCtrlWith[Int](delta)
+    }
+  }
+}
+
+@virtualize
+trait DebugInfo extends SAIOps {
+  def info(xs: Rep[_]*): Rep[Unit] = {
+    "info".reflectCtrlWith[Unit](xs: _*)
+  }
+}
+
+@virtualize
+trait StagedGlobals extends SAIOps with StagedWasmValueDomains {
+  def module: ModuleInstance
+
+  object Globals {
+    def reserveSpace(tps: List[ValueType]): Rep[Unit] = {
+      "global-reserve".reflectCtrlWith[Unit](tps.length)
+      for (tp <- tps) {
+        "sym-global-reserve-slot".reflectCtrlWith[Unit](tp.size * 8)
+      }
+    }
+
+    def getC(i: Int): StagedConcreteNum = {
+      StagedConcreteNum(module.globals(i).ty.ty, "global-get".reflectCtrlWith[Num](i))
+    }
+
+    def getS(i: Int): StagedSymbolicNum = {
+      StagedSymbolicNum(module.globals(i).ty.ty, "sym-global-get".reflectCtrlWith[SymVal](i))
+    }
+
+    def setC(i: Int, v: StagedConcreteNum): Rep[Unit] = {
+      "global-set".reflectCtrlWith[Unit](i, v.i)
+    }
+
+    def setS(i: Int, s: StagedSymbolicNum): Rep[Unit] = {
+      "sym-global-set".reflectCtrlWith[Unit](i, s.s)
+    }
+  }
+}
+
+@virtualize
+trait StagedExploreTreeOps extends SAIOps with Continuations {
+  object ExploreTree {
+    def fillWithIfElse(s: Rep[SymVal], id: Int): Rep[Unit] = {
+      "tree-fill-if-else".reflectCtrlWith[Unit](s, id)
+    }
+
+    def fillWithCallIndirect(s: Rep[SymVal], id: Int): Rep[Unit] = {
+      "tree-fill-call-indirect".reflectCtrlWith[Unit](s, id)
+    }
+
+    def fillWithNotToExplore(): Rep[Unit] = {
+      "tree-fill-not-to-explore".reflectCtrlWith[Unit]()
+    }
+
+    def fillWithFinished(): Rep[Unit] = {
+      "tree-fill-finished".reflectCtrlWith[Unit]()
+    }
+
+    def moveCursor(branch: Boolean, control: Rep[Control]): Rep[Unit] = {
+      // when moving cursor from to an unexplored node, we need to change the reuse state
+      "tree-move-cursor".reflectCtrlWith[Unit](branch, control)
+    }
+
+    def moveCursor(branch: Boolean): Rep[Unit] = {
+      // when moving cursor from to an unexplored node, we need to change the reuse state
+      "tree-move-cursor-no-control".reflectCtrlWith[Unit](branch)
+    }
+
+    def moveCursor(index: Rep[Int]): Rep[Unit] = {
+      "tree-move-cursor-call-indirect-index".reflectCtrlWith[Unit](index)
+    }
+
+    def print(): Rep[Unit] = {
+      "tree-print".reflectCtrlWith[Unit]()
+    }
+
+    def dumpGraphiviz(filePath: String): Rep[Unit] = {
+      "tree-dump-graphviz".reflectCtrlWith[Unit](filePath)
+    }
+  }
+}
+
+@virtualize
+trait StagedSymEnvOps extends SAIOps {
+  object SymEnv {
+    def read(sym: Rep[SymVal]): Rep[Num] = {
+      "sym-env-read".reflectCtrlWith[Num](sym)
+    }
+  }
+}
+
+@virtualize
+trait ControlEffects extends SAIOps {
+  def startBlock: Rep[Unit] = {
+    "start-block".reflectCtrlWith[Unit]()
+  }
+
+  def endBlock: Rep[Unit] = {
+    "end-block".reflectCtrlWith[Unit]()
+  }
+
+  def tailCall[A:Manifest,B:Manifest](f: Rep[A => B], arg: Rep[A]): Rep[B] = {
+    "musttail-return".reflectCtrlWith[Unit]()
+    f(arg)
+  }
+
+  def withBlock[T](block: => T): T = {
+    startBlock
+    val res = block
+    endBlock
+    res
+  }
+}
+
+@virtualize
+trait StagedWasmEvaluator extends SAIOps
+  with StagedWasmValueDomains with StagedStack with StagedFrames
+  with StagedMemory with ConcreteOps with ValueCreation
+  with StagedGlobals with StagedExploreTreeOps with StagedSymEnvOps
+  with SymbolicOps with Continuations with DebugInfo
+  with ControlEffects {
+
+  def module: ModuleInstance
+
+  type Trail[A] = List[Context => Rep[Cont[A]]]
+  trait Func
+
+  // def topFun[A:Manifest,B:Manifest](f: Rep[A] => Rep[B], decorator: String = "", tail: Boolean = false): Rep[A => B] = {
+  //   val deco = if (tail) "tail" else decorator
+  //   Wrap[A=>B](__topFun(f, 1, xn => Unwrap(f(Wrap[A](xn(0)))), deco))
+  // }
+
+
+  // a cache storing the compiled code for each function, to reduce re-compilation
+  val compileCache = new HashMap[Int, Rep[Unit => Unit]]
+
+  def funHere[A:Manifest,B:Manifest](f: Rep[A] => Rep[B], dummy: Rep[Unit]): Rep[A => B] = {
+    // to avoid LMS lifting a function, we create a dummy node and read it inside function
+    fun((x: Rep[A]) => {
+      "dummy-op".reflectCtrlWith[Unit](dummy)
+      f(x)
+    })
+  }
+
+  var instrCost: Int = 0
+
+  def addInstrCost(): Rep[Unit] = {
+    "add-instr-cost".reflectCtrlWith[Unit](instrCost)
+    instrCost = 0
+    ()
+  }
+
+  def evalSymbolic(ty: ValueType,
+                   rest: List[Instr],
+                   kont: Context => Rep[Cont[Unit]],
+                   trail: Trail[Unit])(implicit ctx: Context) = {
+      val newCtx = withBlock {
+        Stack.popC(ty)
+        val id = Stack.popS(ty)
+        val symVal = id.makeSymbolic(ty)
+        val num = SymEnv.read(symVal.s)
+        Stack.pushC(StagedConcreteNum(ty, num))
+        Stack.pushS(symVal)
+        ctx.pop()._2.push(ty)
+      }
+      eval(rest, kont, trail)(newCtx)
+  }
+
+  // We rely on the convention that eval function must be at tail position, to
+  // safely enforce tail call by the control effect "musttail-return"
+  def eval(insts: List[Instr],
+           kont: Context => Rep[Cont[Unit]],
+           trail: Trail[Unit])
+          (implicit ctx: Context): Rep[Unit] = {
+    if (insts.isEmpty) {
+      tailCall(kont(ctx), ()) // We must make sure all elements pushed to trail are top functions
+      return ()
+    }
+    instrCost += 1
+    // Predef.println(s"[DEBUG] Evaluating instructions: ${insts.mkString(", ")}")
+    // Predef.println(s"[DEBUG] Current context: $ctx")
+
+    val (inst, rest) = (insts.head, insts.tail)
+    inst match {
+      case Drop =>
+        val (ty, newCtx) = ctx.pop()
+        Stack.popC(ty)
+        Stack.popS(ty)
+        eval(rest, kont, trail)(newCtx)
+      case WasmConst(num) =>
+        Stack.pushC(toStagedNum(num))
+        Stack.pushS(toStagedSymbolicNum(num))
+        val newCtx = ctx.push(num.tipe(module))
+        eval(rest, kont, trail)(newCtx)
+      case Symbolic(ty) => evalSymbolic(ty, rest, kont, trail)(ctx)
+      case LocalGet(i) =>
+        Stack.pushC(Frames.getC(i))
+        Stack.pushS(Frames.getS(i))
+        val newCtx = ctx.push(ctx.frameTypes(i))
+        eval(rest, kont, trail)(newCtx)
+      case Select(ty) =>
+        val (newCtx3, outTy) = withBlock {
+          val (ty1, newCtx1) = ctx.pop()
+          val cond = Stack.popC(ty1)
+          val condSym = Stack.popS(ty1)
+          val (ty2, newCtx2) = newCtx1.pop()
+          val falseVal = Stack.popC(ty2)
+          val falseSym = Stack.popS(ty2)
+          val (ty3, newCtx3) = newCtx2.pop()
+          val trueVal = Stack.popC(ty3)
+          val trueSym = Stack.popS(ty3)
+          if (cond.toInt != 0) {
+            Stack.pushC(trueVal)
+            Stack.pushS(trueSym)
+          } else {
+            Stack.pushC(falseVal)
+            Stack.pushS(falseSym)
+          }
+          (newCtx3, ty2)
+        }
+        val newCtx4 = newCtx3.push(outTy)
+        eval(rest, kont, trail)(newCtx4)
+      case LocalSet(i) =>
+        val newCtx = withBlock {
+          val (ty, newCtx) = ctx.pop()
+          val num = Stack.popC(ty)
+          val sym = Stack.popS(ty)
+          Frames.setC(i, num)
+          Frames.setS(i, sym)
+          newCtx
+        }
+        eval(rest, kont, trail)(newCtx)
+      case LocalTee(i) =>
+        val ty = ctx.pop()._1
+        withBlock {
+          val num = Stack.peekC(ty)
+          val sym = Stack.peekS(ty)
+          Frames.setC(i, num)
+          Frames.setS(i, sym)
+        }
+        eval(rest, kont, trail)(ctx)
+      case GlobalGet(i) =>
+        Stack.pushC(Globals.getC(i))
+        Stack.pushS(Globals.getS(i))
+        val newCtx = ctx.push(module.globals(i).ty.ty)
+        eval(rest, kont, trail)(newCtx)
+      case GlobalSet(i) =>
+        val (ty, newCtx) = ctx.pop()
+        withBlock {
+          val num = Stack.popC(ty)
+          val sym = Stack.popS(ty)
+          module.globals(i).ty match {
+            case GlobalType(tipe, true) => {
+              Globals.setC(i, num)
+              Globals.setS(i, sym)
+            }
+            case _ => throw new Exception("Cannot set immutable global")
+          }
+        }
+        eval(rest, kont, trail)(newCtx)
+      case Store(StoreOp(align, offset, NumType(I32Type), None)) =>
+        val newCtx2 = withBlock {
+          val (ty1, newCtx1) = ctx.pop()
+          val value = Stack.popC(ty1)
+          val symValue = Stack.popS(ty1)
+          val (ty2, newCtx2) = newCtx1.pop()
+          val addr = Stack.popC(ty2)
+          val symAddr = Stack.popS(ty2)
+          Memory.storeInt(addr.toInt, offset, (value.toInt, symValue))
+          newCtx2
+        }
+        eval(rest, kont, trail)(newCtx2)
+      case Nop => eval(rest, kont, trail)
+      case Load(LoadOp(align, offset, ty, None, None)) =>
+        val newCtx1 = withBlock {
+          val (ty1, newCtx1) = ctx.pop()
+          val addr = Stack.popC(ty1)
+          Stack.popS(ty1)
+          val num = Memory.loadIntC(addr.toInt, offset)
+          val sym = Memory.loadIntS(addr.toInt, offset)
+          Stack.pushC(num)
+          Stack.pushS(sym)
+          newCtx1
+        }
+        val newCtx2 = newCtx1.push(ty)
+        eval(rest, kont, trail)(newCtx2)
+      case MemorySize => ???
+      case MemoryGrow =>
+        val newCtx = withBlock {
+          val (ty, newCtx) = ctx.pop()
+          val delta = Stack.popC(ty)
+          Stack.popS(ty)
+          val ret = Memory.grow(delta.toInt)
+          val retNum = Values.I32V(ret)
+          // For now, we assume that the result of memory.grow only depends on the execution path, 
+          // we can relax this by turning it return to a symbol value and mimic the memory.grow's result as input. 
+          val retSym = "Concrete".reflectCtrlWith[SymVal](retNum, 32)
+          Stack.pushC(StagedConcreteNum(NumType(I32Type), retNum))
+          Stack.pushS(StagedSymbolicNum(NumType(I32Type), retSym))
+          newCtx
+        }
+        val newCtx2 = newCtx.push(NumType(I32Type))
+        eval(rest, kont, trail)(newCtx2)
+      case MemoryFill => ???
+      case Unreachable => unreachable()
+      case Test(op) =>
+        val (ty, newCtx1) = ctx.pop()
+        withBlock {
+          val v = Stack.popC(ty)
+          val s = Stack.popS(ty)
+          Stack.pushC(evalTestOpC(op, v))
+          Stack.pushS(evalTestOpS(op, s))
+        }
+        val newCtx2 = newCtx1.push(NumType(I32Type))
+        eval(rest, kont, trail)(newCtx2)
+      case Unary(op) =>
+        val (ty, newCtx1) = ctx.pop()
+        val v = Stack.popC(ty)
+        val s = Stack.popS(ty)
+        val res = evalUnaryOpC(op, v)
+        Stack.pushC(res)
+        Stack.pushS(evalUnaryOpS(op, s, res))
+        val newCtx2 = newCtx1.push(res.tipe)
+        eval(rest, kont, trail)(newCtx2)
+      case Binary(op) =>
+        val (newCtx2, resTy) = withBlock {
+          val (ty2, newCtx1) = ctx.pop()
+          val v2 = Stack.popC(ty2)
+          val s2 = Stack.popS(ty2)
+          val (ty1, newCtx2) = newCtx1.pop()
+          val v1 = Stack.popC(ty1)
+          val s1 = Stack.popS(ty1)
+          val res = evalBinOpC(op, v1, v2)
+          Stack.pushC(res)
+          Stack.pushS(evalBinOpS(op, s1, s2, res))
+          (newCtx2, res.tipe)
+        }
+        val newCtx3 = newCtx2.push(resTy)
+        eval(rest, kont, trail)(newCtx3)
+      case Compare(op) =>
+        val (newCtx2, resTy) = withBlock {
+          val (ty2, newCtx1) = ctx.pop()
+          val v2 = Stack.popC(ty2)
+          val s2 = Stack.popS(ty2)
+          val (ty1, newCtx2) = newCtx1.pop()
+          val v1 = Stack.popC(ty1)
+          val s1 = Stack.popS(ty1)
+          val res = evalRelOpC(op, v1, v2)
+          Stack.pushC(res)
+          Stack.pushS(evalRelOpS(op, s1, s2, res))
+          (newCtx2, res.tipe)
+        }
+        val newCtx3 = newCtx2.push(resTy)
+        eval(rest, kont, trail)(newCtx3)
+      case Convert(cvt) =>
+        withBlock {
+          val (ty, newCtx) = ctx.pop()
+          val num = Stack.popC(ty)
+          val sym = Stack.popS(ty)
+          val newNum = evalCvtOpC(cvt, num)
+          val newSym = evalCvtOpS(cvt, sym, newNum)
+          Stack.pushC(newNum)
+          Stack.pushS(newSym)
+        }
+      case WasmBlock(ty, inner) =>
+        // no need to modify the stack when entering a block
+        // the type system guarantees that we will never take more than the input size from the stack
+        val funcTy = ty.funcType
+        val exitSize = ctx.stackTypes.size - funcTy.inps.size + funcTy.out.size
+        def restK(restCtx: Context): Rep[Cont[Unit]] = topFun((_: Rep[Unit]) => {
+          info(s"Exiting the block, stackSize =", Stack.size)
+          val offset = restCtx.stackTypes.size - exitSize
+          Stack.shiftC(offset, funcTy.out.size)
+          Stack.shiftS(offset, funcTy.out.size)
+          val newRestCtx = restCtx.shift(offset, funcTy.out.size)
+          eval(rest, kont, trail)(newRestCtx)
+        })
+        eval(inner, restK _, restK _ :: trail)
+      case Loop(ty, inner) =>
+        val funcTy = ty.funcType
+        val exitSize = ctx.stackTypes.size - funcTy.inps.size + funcTy.out.size
+        def restK(restCtx: Context): Rep[Cont[Unit]] = topFun((_: Rep[Unit]) => {
+          info(s"Exiting the loop, stackSize =", Stack.size)
+          val offset = restCtx.stackTypes.size - exitSize
+          Stack.shiftC(offset, funcTy.out.size)
+          Stack.shiftS(offset, funcTy.out.size)
+          val newRestCtx = restCtx.shift(offset, funcTy.out.size)
+          eval(rest, kont, trail)(newRestCtx)
+        })
+        val enterSize = ctx.stackTypes.size
+        def loop(restCtx: Context): Rep[Cont[Unit]] = topFun((_: Rep[Unit]) => {
+          info(s"Entered the loop, stackSize =", Stack.size)
+          val offset = restCtx.stackTypes.size - enterSize
+          Stack.shiftC(offset, funcTy.inps.size)
+          Stack.shiftS(offset, funcTy.inps.size)
+          val newRestCtx = restCtx.shift(offset, funcTy.inps.size)
+          eval(inner, restK _, loop _ :: trail)(newRestCtx)
+        })
+        tailCall(loop(ctx), ())
+        ()
+      case If(ty, thn, els) =>
+        val funcTy = ty.funcType
+        val (condTy, newCtx) = ctx.pop()
+        val cond = Stack.popC(condTy)
+        val (symCond, exitSize, id) = withBlock {
+          val symCond = Stack.popS(condTy)
+          val exitSize = newCtx.stackTypes.size - funcTy.inps.size + funcTy.out.size
+          val id = Counter.getId(inst)
+          ExploreTree.fillWithIfElse(symCond.s, id)
+          (symCond, exitSize, id)
+        }
+        def restK(restCtx: Context): Rep[Cont[Unit]] = topFun((_: Rep[Unit]) => {
+          info(s"Exiting the if, stackSize =", Stack.size)
+          val offset = restCtx.stackTypes.size - exitSize
+          Stack.shiftC(offset, funcTy.out.size)
+          Stack.shiftS(offset, funcTy.out.size)
+          val newRestCtx = restCtx.shift(offset, funcTy.out.size)
+          eval(rest, kont, trail)(newRestCtx)
+        })
+        def thnK: Rep[Cont[Unit]] = topFun((_: Rep[Unit]) => {
+          info(s"Entering the true branch $id of the if")
+          eval(thn, restK _, restK _ :: trail)(newCtx)
+        })
+        def elsK: Rep[Cont[Unit]] = topFun((_: Rep[Unit]) => {
+          info(s"Entering the false branch $id of the if")
+          eval(els, restK _, restK _ :: trail)(newCtx)
+        })
+        if (cond.toInt != 0) {
+          val control = makeControl(elsK, currentMCont)
+          ExploreTree.moveCursor(true, control)
+          tailCall(thnK, ())
+        } else {
+          val control = makeControl(thnK, currentMCont)
+          ExploreTree.moveCursor(false, control)
+          tailCall(elsK, ())
+        }
+        ()
+      case Br(label) =>
+        info(s"Jump to $label")
+        tailCall(trail(label)(ctx), ())
+        ()
+      case BrIf(label) =>
+        val (ty, newCtx) = ctx.pop()
+        val cond = Stack.popC(ty)
+        info(s"The br_if(${label})'s condition is ", cond.toInt)
+        val id = withBlock {
+          val symCond = Stack.popS(ty)
+          val id = Counter.getId(inst)
+          ExploreTree.fillWithIfElse(symCond.s, id)
+          id
+        }
+        def thnK: Rep[Cont[Unit]] = topFun((_: Rep[Unit]) => {
+          tailCall(trail(label)(newCtx), ())
+          ()
+        })
+        def elsK: Rep[Cont[Unit]] = topFun((_: Rep[Unit]) => {
+          eval(rest, kont, trail)(newCtx)
+        })
+        if (cond.toInt != 0) {
+          info(s"Jump to $label")
+          withBlock {
+            val control = makeControl(elsK, currentMCont)
+            ExploreTree.moveCursor(true, control)
+          }
+          tailCall(thnK, ())
+        } else {
+          info(s"Continue")
+          withBlock {
+            val control = makeControl(thnK, currentMCont)
+            ExploreTree.moveCursor(false, control)
+          }
+          tailCall(elsK, ())
+        }
+        ()
+      case BrTable(labels, default) =>
+        val (ty, newCtx) = ctx.pop()
+        def aux(choices: List[Int], idx: Int): Rep[Unit] = {
+          if (choices.isEmpty) {
+            Stack.popC(ty)
+            Stack.popS(ty)
+            trail(default)(newCtx)(())
+          } else {
+            val id = Counter.getId(inst, idx)
+            val label = Stack.peekC(ty)
+            val cond = (label - toStagedNum(I32V(idx))).isZero()
+            withBlock {
+              val labelSym = Stack.peekS(ty)
+              val condSym = (labelSym - toStagedSymbolicNum(I32V(idx))).isZero()
+              ExploreTree.fillWithIfElse(condSym.s, id)
+            }
+            // When moving the cursor to a branch, we mark another branch as
+            // snapshotNode (this is done by moveCursor's runtime implementation)
+            // TODO: store snapshot into this snapshot node
+            def thnK: Rep[Cont[Unit]] = topFun((_: Rep[Unit]) => {
+              info(s"Entering the true branch $id of the br_table")
+              Stack.popC(ty)
+              Stack.popS(ty)
+              trail(choices.head)(newCtx)(())
+            })
+            def elsK: Rep[Cont[Unit]] = topFun((_: Rep[Unit]) => {
+              info(s"Entering the false branch $id of the br_table")
+              aux(choices.tail, idx + 1)
+            })
+            if (cond.toInt != 0) {
+              val control = makeControl(elsK, currentMCont)
+              ExploreTree.moveCursor(true, control)
+              tailCall(thnK, ())
+            }
+            else {
+              val control = makeControl(thnK, currentMCont)
+              ExploreTree.moveCursor(false, control)
+              tailCall(elsK, ())
+            }
+            ()
+          }
+        }
+        aux(labels, 0)
+      case Return        => trail.last(ctx)(())
+      case Call(f)       => evalCall(rest, kont, trail, f)
+      case ReturnCall(f) => evalCall(rest, kont, trail, f)
+      case CallIndirect(ty, table) =>
+        Predef.assert(table == 0, "Currently we can only have one table!")
+        val functy = module.types(ty)
+        Predef.println(s"Table = ")
+        evalCallIndirect(rest, kont, trail, functy.asInstanceOf[FuncType])
+      case _ =>
+        val todo = "todo-op".reflectCtrlWith[Unit]()
+        Predef.println(s"[WARNING] Encountered unimplemented instruction $inst, treat it as NOP")
+        Predef.assert(false, s"Unimplemented instruction $inst")
+        eval(rest, kont, trail)
+    }
+  }
+
+  def readFuncTable(index: Rep[Int]): Rep[Func] = {
+    "read-func-table".reflectCtrlWith[Func](index)
+  }
+
+  def invokeFunc(func: Rep[Func]): Rep[Unit] = {
+    "invoke-func".reflectCtrlWith[Unit](func)
+  }
+
+  def evalCallIndirect(rest: List[Instr],
+                       kont: Context => Rep[Cont[Unit]],
+                       trail: Trail[Unit],
+                       functy: FuncType)
+                      (implicit ctx: Context): Rep[Unit] = {
+    val (ty, newCtx) = ctx.pop()
+    val index = Stack.popC(ty)
+    val symIndex = Stack.popS(ty)
+    Predef.assert(ty == NumType(I32Type))
+    val id = Counter.getId()
+    ExploreTree.fillWithCallIndirect(symIndex.s, id)
+    ExploreTree.moveCursor(index.toInt)
+    val func = readFuncTable(index.toInt)
+    val restK: Rep[Cont[Unit]] = topFun((_: Rep[Unit]) => {
+      info(s"Returned from call_indirect, stackSize =", Stack.size)
+      eval(rest, kont, trail)(newCtx.copy(stackTypes = functy.out.reverse ++ newCtx.stackTypes.drop(functy.inps.size)))
+    })
+    val newMKont: Rep[MCont[Unit]] = currentMCont.prependCont(restK)
+    updateCurrentMCont(newMKont)
+
+    val argsC = Stack.takeC(functy.inps)
+    val argsS = Stack.takeS(functy.inps)
+    Frames.pushFrameC(functy.inps)
+    Frames.pushFrameS(functy.inps)
+    Frames.putAllC(argsC)
+    Frames.putAllS(argsS)
+    invokeFunc(func)
+  }
+
+  def evalFunc(ty: FuncType, body: List[Instr], funcIndex: Int, inps: List[ValueType], locals: List[ValueType]): Rep[Unit => Unit] = {
+    if (compileCache.contains(funcIndex)) {
+      compileCache(funcIndex)
+    } else {
+      def retK(ctx: Context): Rep[Cont[Unit]] = topFun((_: Rep[Unit]) => {
+        info(s"Return from the function at $funcIndex, stackSize =", Stack.size)
+        val offset = ctx.stackTypes.size - ty.out.size
+        Stack.shiftC(offset, ty.out.size)
+        Stack.shiftS(offset, ty.out.size)
+        enterCurrentMCont()
+      })
+
+      val func = topFun((_: Rep[Unit]) => {
+        info(s"Entered the function at $funcIndex, stackSize =", Stack.size)
+        // the return instruction is also stack polymorphic
+        eval(body, retK _, retK _::Nil)(Context(Nil, inps ++ locals))
+      })
+      compileCache(funcIndex) = func
+      func
+    }
+  }
+
+  def evalCall(rest: List[Instr],
+               kont: Context => Rep[Cont[Unit]],
+               trail: Trail[Unit],
+               funcIndex: Int)
+              (implicit ctx: Context): Rep[Unit] = {
+    module.funcs(funcIndex) match {
+      case FuncDef(_, FuncBodyDef(ty, _, bodyLocals, body)) =>
+        instrCost += (ty.inps ++ bodyLocals).size * 2 - 1
+        val callee = evalFunc(ty, body, funcIndex, ty.inps, bodyLocals)
+        // Predef.println(s"[DEBUG] locals size: ${locals.size}")
+        withBlock {
+          info("Taking arguments from stack to call function at ", funcIndex)
+          val newCtx = ctx.take(ty.inps.size)
+          val argsC = Stack.takeC(ty.inps)
+          val argsS = Stack.takeS(ty.inps)
+          // We make a new trail by `restK`, since function creates a new block to escape
+          // (more or less like `return`)
+          val restK: Rep[Cont[Unit]] = topFun((_: Rep[Unit]) => {
+            info(s"Exiting the function at $funcIndex, stackSize =", Stack.size)
+            Frames.popFrameC(ty.inps.size + bodyLocals.size)
+            Frames.popFrameS(ty.inps.size + bodyLocals.size)
+            eval(rest, kont, trail)(newCtx.copy(stackTypes = ty.out.reverse ++ ctx.stackTypes.drop(ty.inps.size)))
+          })
+
+          Frames.pushFrameC(ty.inps ++ bodyLocals)
+          Frames.pushFrameS(ty.inps ++ bodyLocals)
+          Frames.putAllC(argsC)
+          Frames.putAllS(argsS)
+          val newMKont: Rep[MCont[Unit]] = currentMCont.prependCont(restK)
+          updateCurrentMCont(newMKont)
+        }
+        tailCall(callee, ())
+        ()
+      case Import("console", "log", _)
+         | Import("spectest", "print_i32", _) =>
+        //println(s"[DEBUG] current stack: $stack")
+        val (ty, newCtx) = ctx.pop()
+        val v = Stack.popC(ty)
+        Stack.popS(ty)
+        println(v.toInt)
+        eval(rest, kont, trail)(newCtx)
+      case Import("console", "assert", _) =>
+        val (ty, newCtx) = ctx.pop()
+        val v = Stack.popC(ty)
+        // TODO: We should also add s into exploration tree
+        val s = Stack.popS(ty)
+        v.assert()
+        eval(rest, kont, trail)(newCtx)
+      case Import("i32", "symbolic", _) =>
+        evalSymbolic(NumType(I32Type), rest, kont, trail)(ctx)
+      case Import("i32", "sym_assume", _) =>
+        // symbolic assume is just like an if else that only has one branch, while another
+        // is marked as not-to-explore
+        val (condTy, newCtx) = ctx.pop()
+        Predef.assert(condTy == NumType(I32Type), s"sym_assume only supports i32 condition, get $condTy")
+        val cond = Stack.popC(condTy)
+        val id = withBlock {
+          val symCond = Stack.popS(condTy)
+          val id = Counter.getId()
+          ExploreTree.fillWithIfElse(symCond.s, id)
+          id
+        }
+        def thnK: Rep[Cont[Unit]] = topFun((_: Rep[Unit]) => {
+          info(s"Successfully assumed condition at $id")
+          eval(rest, kont, trail)(newCtx)
+        })
+        if (cond.toInt != 0) {
+          ExploreTree.moveCursor(true)
+          eval(rest, kont, trail)(newCtx)
+        } else {
+          val control = makeControl(thnK, currentMCont)
+          ExploreTree.moveCursor(false, control)
+          // just stop the execution at here
+          ExploreTree.fillWithNotToExplore()
+        }
+        ()
+      case Import("i32", "sym_assert", _) =>
+        val (condTy, newCtx) = ctx.pop()
+        withBlock {
+          val v = Stack.popC(condTy)
+          val s = Stack.popS(condTy)
+          s.symAssert()
+          v.assert()
+        }
+        eval(rest, kont, trail)(newCtx)
+      case Import("mem", "alloc", _) =>
+        // this semantics here is not standardized in wasp, here is wasp's impl
+        // https://github.com/formalsec/wasp/blob/release/0.2.3/wasp/symbolic/concolic.ml#L449
+        val (_, newCtx1) = ctx.pop()
+        val a = Stack.popC(NumType(I32Type))
+        Stack.popS(NumType(I32Type))
+        val (_, newCtx2) = newCtx1.pop()
+        val b = Stack.popC(NumType(I32Type))
+        Stack.popS(NumType(I32Type))
+        Stack.pushC(b)
+        val s = "Concrete".reflectCtrlWith[SymVal](Values.I32V(b.toInt), 32)
+        Stack.pushS(StagedSymbolicNum(NumType(I32Type), s))
+        eval(rest, kont, trail)(newCtx1)
+      case Import("mem", "free", _) =>
+        val (_, newCtx) = ctx.pop()
+        Stack.popC(NumType(I32Type))
+        Stack.popS(NumType(I32Type))
+        eval(rest, kont, trail)(newCtx)
+      case Import("env", "proc_exit", _) =>
+        val (_, newCtx) = ctx.pop()
+        val code = Stack.popC(NumType(I32Type))
+        Stack.popS(NumType(I32Type))
+        info(s"Program exiting")
+        eval(rest, kont, trail)(newCtx)
+      case Import(m, f, _) => throw new Exception(s"Unknown import $m.$f at $funcIndex")
+      case _               => throw new Exception(s"Definition at $funcIndex is not callable")
+    }
+  }
+
+  def evalTestOpC(op: TestOp, value: StagedConcreteNum): StagedConcreteNum = op match {
+    case Eqz(_) => value.isZero
+  }
+
+  def evalTestOpS(op: TestOp, value: StagedSymbolicNum): StagedSymbolicNum = op match {
+    case Eqz(_) => value.isZero
+  }
+
+  def evalUnaryOpC(op: UnaryOp, value: StagedConcreteNum): StagedConcreteNum = op match {
+    case Clz(_) => value.clz()
+    case Ctz(_) => value.ctz()
+    case Popcnt(_) => value.popcnt()
+    case _ => ???
+  }
+
+  def evalUnaryOpS(op: UnaryOp, value: StagedSymbolicNum, c: StagedConcreteNum): StagedSymbolicNum = {
+    val res = if (allConcrete(value)) {
+      c.toStagedSymbolicNum.s
+    } else {
+      (op match {
+        case Clz(_)   => value.clz()
+        case Ctz(_)   => value.ctz()
+        case Popcnt(_) => value.popcnt()
+        case _        => throw new Exception(s"Unknown unary operation $op")
+      }).s
+    }
+    StagedSymbolicNum(c.tipe, res)
+  }
+
+  def evalBinOpC(op: BinOp, v1: StagedConcreteNum, v2: StagedConcreteNum): StagedConcreteNum = op match {
+    case Add(_) => v1 + v2
+    case Mul(_) => v1 * v2
+    case Sub(_) => v1 - v2
+    case Shl(_) => v1 << v2
+    case ShrS(_) => v1 shrS v2 // TODO: signed shift right
+    case ShrU(_) => v1 shrU v2
+    case And(_) => v1 & v2
+    case DivS(_) => v1 divs v2
+    case DivU(_) => v1 divu v2
+    case Div(_) => v1 div v2
+    case Or(_) => v1 or v2
+    case Xor(_) => v1 xor v2
+    case Rotl(_) => v1 rotl v2
+    case Rotr(_) => v1 rotr v2
+    case RemU(_) => v1 remu v2
+    // case Or(_) => v1 or v2
+    case _ =>
+      throw new Exception(s"Unknown binary operation $op")
+  }
+
+  def evalBinOpS(op: BinOp, v1: StagedSymbolicNum, v2: StagedSymbolicNum, c: StagedConcreteNum): StagedSymbolicNum = {
+    val res = if (allConcrete(v1, v2)) {
+      c.toStagedSymbolicNum.s
+    } else {
+      (op match {
+        case Add(_) => v1 + v2
+        case Mul(_) => v1 * v2
+        case Sub(_) => v1 - v2
+        case Shl(_) => v1 << v2
+        case ShrS(_) => v1 shrS v2 // TODO: signed shift right
+        case ShrU(_) => v1 shrU v2
+        case And(_) => v1 & v2
+        case DivS(_) => v1 divs v2
+        case DivU(_) => v1 divu v2
+        case Div(_) => v1 div v2
+        case Or(_) => v1 or v2
+        case Xor(_) => v1 xor v2
+        case Rotl(_) => v1 rotl v2
+        case Rotr(_) => v1 rotr v2
+        case RemU(_) => v1 remu v2
+        case _ =>
+          throw new Exception(s"Unknown binary operation $op")
+      }).s
+    }
+    StagedSymbolicNum(c.tipe, res)
+  }
+
+  def evalRelOpC(op: RelOp, v1: StagedConcreteNum, v2: StagedConcreteNum): StagedConcreteNum = op match {
+    case Eq(_) => v1 numEq v2
+    case Ne(_) => v1 numNe v2
+    case LtS(_) => v1 < v2
+    case LtU(_) => v1 ltu v2
+    case GtS(_) => v1 > v2
+    case GtU(_) => v1 gtu v2
+    case LeS(_) => v1 <= v2
+    case LeU(_) => v1 leu v2
+    case GeS(_) => v1 >= v2
+    case GeU(_) => v1 geu v2
+    case Lt(_) => v1 lt v2
+    case Le(_) => v1 le v2
+    case Gt(_) => v1 gt v2
+    case Ge(_) => v1 ge v2
+    case _ => ???
+  }
+
+  def evalRelOpS(op: RelOp, v1: StagedSymbolicNum, v2: StagedSymbolicNum, c: StagedConcreteNum): StagedSymbolicNum = {
+    val res = if (allConcrete(v1, v2)) {
+      c.toStagedSymbolicNum.s
+    } else {
+      (op match {
+        case Eq(_)  => v1 numEq v2
+        case Ne(_)  => v1 numNe v2
+        case LtS(_) => v1 < v2
+        case LtU(_) => v1 ltu v2
+        case GtS(_) => v1 > v2
+        case GtU(_) => v1 gtu v2
+        case LeS(_) => v1 <= v2
+        case LeU(_) => v1 leu v2
+        case GeS(_) => v1 >= v2
+        case GeU(_) => v1 geu v2
+        case Lt(_)  => v1 lt v2
+        case Le(_)  => v1 le v2
+        case Gt(_)  => v1 gt v2
+        case Ge(_)  => v1 ge v2
+        case _      => throw new Exception(s"Unknown relational operation $op")
+      }).s
+    }
+    StagedSymbolicNum(c.tipe, res)
+  }
+
+  def evalCvtOpC(op: CvtOp, value: StagedConcreteNum): StagedConcreteNum = op match {
+    case Extend(NumType(I32Type), NumType(I64Type), ZX) => value.extend
+  }
+
+  def evalCvtOpS(op: CvtOp, value: StagedSymbolicNum, c: StagedConcreteNum): StagedSymbolicNum = {
+    val res = if (allConcrete(value)) {
+      c.toStagedSymbolicNum.s
+    } else {
+      op match {
+        case Extend(NumType(I32Type), NumType(I64Type), ZX) => value.extend().s
+      }
+    }
+    StagedSymbolicNum(c.tipe, res)
+  }
+
+  def evalTop(haltK: Rep[Unit => Unit], main: Option[String]): Rep[Unit] = {
+    Counter.reset()
+    val funBody: FuncBodyDef = main match {
+      case Some(func_name) =>
+        module.defs.flatMap({
+          case Export(`func_name`, ExportFunc(fid)) =>
+            Predef.println(s"Now compiling start with function $main")
+            module.funcs(fid) match {
+              case FuncDef(_, body@FuncBodyDef(_,_,_,_)) => Some(body)
+              case _ => throw new Exception("Entry function has no concrete body")
+            }
+          case _ => None
+        }).head
+      case None =>
+        val startIds = module.defs.flatMap {
+            case Start(id) => Some(id)
+            case _ => None
+        }
+        val startId = startIds.headOption.getOrElse { throw new Exception("No start function") }
+        module.funcs(startId) match {
+          case FuncDef(_, body@FuncBodyDef(_,_,_,_)) => body
+          case _ =>
+            throw new Exception("Entry function has no concrete body")
+        }
+    }
+    val (instrs, locals) = (funBody.body, funBody.locals)
+    // resetStacks() // Don't manually reset the global states (like stack), manage them in the driver
+    initGlobals(module.globals)
+    initTable(module)
+    initMemory()
+    Frames.pushFrameC(locals)
+    Frames.pushFrameS(locals)
+
+    val restK: Rep[Cont[Unit]] = topFun((_: Rep[Unit]) => {
+      info(s"Exiting the entry function")
+      Frames.popFrameC(locals.size)
+      Frames.popFrameS(locals.size)
+      enterCurrentMCont()
+    })
+
+    withBlock {
+      val mkont: Rep[MCont[Unit]] = makeInitMCont(haltK)
+      val newMKont: Rep[MCont[Unit]] = mkont.prependCont(restK)
+      updateCurrentMCont(newMKont)
+    }
+
+    eval(instrs, (_: Context) => forwardKont, ((_: Context) => forwardKont)::Nil)(Context(Nil, locals))
+    ()
+  }
+
+  def evalTop(main: Option[String], printRes: Boolean): Rep[Unit] = {
+    val haltK: Rep[Unit] => Rep[Unit] = (_) => {
+      info("Exiting the program...")
+      if (printRes) {
+        Stack.print()
+      }
+      ExploreTree.fillWithFinished()
+      "no-op".reflectCtrlWith[Unit]()
+    }
+    evalTop(topFun(haltK), main)
+  }
+
+  def resetStacks(): Rep[Unit] = {
+    "reset-stacks".reflectCtrlWith[Unit]()
+  }
+
+  def evalSeq(instrs: List[Instr],
+              kont: Context => Rep[Cont[Unit]],
+              trail: Trail[Unit]): Rep[Unit] = {
+    def func = topFun((_: Rep[Unit]) => {
+      eval(instrs, kont, trail)(Context(Nil, Nil))
+    })
+    func(())
+  }
+
+  def initMemory(): Rep[Unit] = {
+    def initMemoryTopFun = topFun((_: Rep[Unit]) => {
+      info("Initializing memory...")
+      for (definition <- module.defs) {
+        definition match {
+          case Data(_, offsetInstr, bytes) =>
+            val haltK: Rep[Unit] => Rep[Unit] = (_) => { }
+            val mkont: Rep[MCont[Unit]] = makeInitMCont(topFun(haltK))
+            updateCurrentMCont(mkont)
+            evalSeq(offsetInstr::Nil, (_: Context) => forwardKont, ((_: Context) => forwardKont)::Nil)
+            val offsetC = Stack.popC(NumType(I32Type))
+            Stack.popS(NumType(I32Type))
+            "memory-initialize".reflectCtrlWith[Unit](offsetC.toInt, bytes)
+          case _ => ()
+        }
+      }
+    })
+    initMemoryTopFun(())
+  }
+
+  def initTable(module: ModuleInstance): Rep[Unit] = {
+    def initTableTopFun = topFun((_: Rep[Unit]) => {
+      info("Initializing function table...")
+      val haltK: Rep[Unit] => Rep[Unit] = (_) => { }
+      val mkont: Rep[MCont[Unit]] = makeInitMCont(topFun(haltK))
+      updateCurrentMCont(mkont)
+      for (definition <- module.defs) {
+        definition match {
+          case Elem(_, offset, funcIndices) =>
+            evalSeq(offset, (_: Context) => forwardKont, ((_: Context) => forwardKont)::Nil)
+            val offsetC = Stack.popC(NumType(I32Type))
+            Stack.popS(NumType(I32Type))
+            Predef.println(s"funcIndices: $funcIndices")
+            for ((fidx, i) <- funcIndices.asInstanceOf[ElemListFunc].funcs.view.zipWithIndex) {
+              val FuncDef(_, FuncBodyDef(ty, _, bodyLocals, body)) = module.funcs(fidx)
+              val func = evalFunc(ty, body, fidx, ty.inps, bodyLocals)
+              "init-func-table".reflectCtrlWith[Unit](offsetC.i, i, func)
+            }
+          case _ => ()
+        }
+      }
+    })
+    initTableTopFun(())
+  }
+
+  def initGlobals(globals: List[RTGlobal]): Rep[Unit] = {
+    def initGlobalsTopFun = topFun((_: Rep[Unit]) => {
+      info("Initializing globals...")
+      Globals.reserveSpace(globals.map(_.ty.ty))
+      for ((g, i) <- globals.view.zipWithIndex) {
+        val initValue = g.value match {
+          case n: Num => n
+          case _ => throw new RuntimeException("Non-numeric global value is not supported yet")
+        }
+        Globals.setC(i, toStagedNum(initValue))
+        Globals.setS(i, toStagedSymbolicNum(initValue))
+      }
+    })
+    initGlobalsTopFun(())
+  }
+
+  // call unreachable
+  def unreachable(): Rep[Unit] = {
+    "unreachable".reflectCtrlWith[Unit]()
   }
 }
 
