@@ -505,6 +505,10 @@ trait ConcreteOps extends StagedWasmValueDomains with ValueCreation {
         case NumType(I32Type) => StagedConcreteNum(NumType(I64Type), "i32-extend-to-i64".reflectCtrlWith[Num](num.i))
       }
     }
+
+    def assert(): Rep[Unit] = {
+      "assert-true".reflectCtrlWith[Unit](num.toInt != 0)
+    }
   }
 }
 
@@ -839,6 +843,10 @@ trait SymbolicOps extends StagedWasmValueDomains {
 
     def extend(): StagedSymbolicNum = num.tipe match {
       case NumType(I32Type) => StagedSymbolicNum(NumType(I64Type), "sym-i32-extend-to-i64".reflectCtrlWith[SymVal](num.s))
+    }
+
+    def symAssert(): Rep[Unit] = {
+      "sym-assert-true".reflectCtrlWith[Unit](num.s)
     }
   }
 
@@ -1641,7 +1649,7 @@ trait StagedWasmEvaluator extends SAIOps
         val v = Stack.popC(ty)
         // TODO: We should also add s into exploration tree
         val s = Stack.popS(ty)
-        runtimeAssert(v.toInt != 0)
+        v.assert()
         eval(rest, kont, trail)(newCtx)
       case Import("i32", "symbolic", _) =>
         evalSymbolic(NumType(I32Type), rest, kont, trail)(ctx)
@@ -1676,8 +1684,8 @@ trait StagedWasmEvaluator extends SAIOps
         withBlock {
           val v = Stack.popC(condTy)
           val s = Stack.popS(condTy)
-          runtimeSymAssert(s)
-          runtimeAssert(v.toInt != 0)
+          s.symAssert()
+          v.assert()
         }
         eval(rest, kont, trail)(newCtx)
       case Import("mem", "alloc", _) =>
@@ -1904,14 +1912,6 @@ trait StagedWasmEvaluator extends SAIOps
       "no-op".reflectCtrlWith[Unit]()
     }
     evalTop(topFun(haltK), main)
-  }
-
-  def runtimeAssert(b: Rep[Boolean]): Rep[Unit] = {
-    "assert-true".reflectCtrlWith[Unit](b)
-  }
-
-  def runtimeSymAssert(s: StagedSymbolicNum): Rep[Unit] = {
-    "sym-assert-true".reflectCtrlWith[Unit](s.s)
   }
 
   def resetStacks(): Rep[Unit] = {
