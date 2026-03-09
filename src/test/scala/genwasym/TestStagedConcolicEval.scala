@@ -197,6 +197,9 @@ class TestStagedConcolicEval extends CppCompilationTestBase {
   test("i64-ops-concrete") {
     testFileConcreteCpp("./benchmarks/wasm/i64_ops.wat", Some("test_i64"))
   }
+  test("fp-ops-concrete") {
+    testFileConcreteCpp("./benchmarks/wasm/fp_ops.wat", Some("test_fp"))
+  }
 
   test("call-indirect-concrete") {
     testFileConcreteCpp("./benchmarks/wasm/call_indirect_test.wat", expect=Some(List(42)))
