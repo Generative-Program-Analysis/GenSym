@@ -121,6 +121,10 @@ class TestStagedConcolicEval extends CppCompilationTestBase {
   test("mem-sym-extract-concolic") {
     testFileConcolicCpp("./benchmarks/wasm/mem-sym-extract.wat", None, exitByCoverage=true)
   }
+  test("fp-ops-concolic") {
+    testFileConcolicCpp("./benchmarks/wasm/fp_ops.wat", Some("real_main"), exitByCoverage=true)
+  }
+
   test("btree-bug-finding-concolic") { testFileConcolicCpp("./benchmarks/wasm/btree/2o1u-unlabeled.wat", exitByCoverage = true) }
 
   // Don't run this test by default since it takes too long and is only for performance comparison

@@ -64,8 +64,8 @@ trait StagedWasmValueDomains extends SAIOps {
       tipe match {
         case NumType(I32Type) => StagedSymbolicNum(NumType(I32Type), "Concrete".reflectCtrlWith[SymVal](i, 32))
         case NumType(I64Type) => StagedSymbolicNum(NumType(I64Type), "Concrete".reflectCtrlWith[SymVal](i, 64))
-        case NumType(F32Type) => StagedSymbolicNum(NumType(F32Type), "Concrete".reflectCtrlWith[SymVal](i, 32))
-        case NumType(F64Type) => StagedSymbolicNum(NumType(F64Type), "Concrete".reflectCtrlWith[SymVal](i, 64))
+        case NumType(F32Type) => StagedSymbolicNum(NumType(F32Type), "FPConcrete".reflectCtrlWith[SymVal](i, 32))
+        case NumType(F64Type) => StagedSymbolicNum(NumType(F64Type), "FPConcrete".reflectCtrlWith[SymVal](i, 64))
       }
     }
   }
@@ -531,8 +531,10 @@ trait ConcreteOps extends StagedWasmValueDomains with ValueCreation {
 trait SymbolicOps extends StagedWasmValueDomains {
   implicit class StagedSymbolicNumOps(num: StagedSymbolicNum) {
     def makeSymbolic(ty: ValueType): StagedSymbolicNum = num.tipe match {
-      case NumType(I32Type) => StagedSymbolicNum(NumType(I32Type), "make-symbolic".reflectCtrlWith[SymVal](num.s, 32))
-      case NumType(I64Type) => StagedSymbolicNum(NumType(I64Type), "make-symbolic".reflectCtrlWith[SymVal](num.s, 64))
+      case NumType(I32Type) => StagedSymbolicNum(NumType(I32Type), "make-i32-symbol".reflectCtrlWith[SymVal](num.s))
+      case NumType(I64Type) => StagedSymbolicNum(NumType(I64Type), "make-i64-symbol".reflectCtrlWith[SymVal](num.s))
+      case NumType(F32Type) => StagedSymbolicNum(NumType(F32Type), "make-f32-symbol".reflectCtrlWith[SymVal](num.s))
+      case NumType(F64Type) => StagedSymbolicNum(NumType(F64Type), "make-f64-symbol".reflectCtrlWith[SymVal](num.s))
       case _ => throw new RuntimeException("Symbol index must be an i32 or i64")
     }
 
@@ -1690,6 +1692,10 @@ trait StagedWasmEvaluator extends SAIOps
         eval(rest, kont, trail)(newCtx)
       case Import("i32", "symbolic", _) =>
         evalSymbolic(NumType(I32Type), rest, kont, trail)(ctx)
+      case Import("f32", "symbolic", _) =>
+        evalSymbolic(NumType(F32Type), rest, kont, trail)(ctx)
+      case Import("f64", "symbolic", _) =>
+        evalSymbolic(NumType(F64Type), rest, kont, trail)(ctx)
       case Import("i32", "sym_assume", _) =>
         // symbolic assume is just like an if else that only has one branch, while another
         // is marked as not-to-explore
@@ -2384,9 +2390,15 @@ trait StagedWasmCppGen extends CGenBase with CppSAICodeGenBase {
       shallow(num); emit(".extend_to_i64()")
     case Node(_, "num-to-int", List(num), _) =>
       shallow(num); emit(".toInt()")
-    case Node(_, "make-symbolic", List(num, width), _) =>
-      shallow(num); emit(".makeSymbolic("); shallow(width); emit(")")
-    case Node(_, "make-symbolic-concrete", List(num, width), _) => 
+    case Node(_, "make-i32-symbol", List(num), _) =>
+      shallow(num); emit(".makeI32Symbol()")
+    case Node(_, "make-i64-symbol", List(num), _) =>
+      shallow(num); emit(".makeI64Symbol()")
+    case Node(_, "make-f32-symbol", List(num), _) =>
+      shallow(num); emit(".makeF32Symbol()")
+    case Node(_, "make-f64-symbol", List(num), _) =>
+      shallow(num); emit(".makeF64Symbol()")
+    case Node(_, "make-symbolic-concrete", List(num, width), _) =>
       emit("make_symbolic("); shallow(num); emit(", "); shallow(width); emit(")")
     case Node(_, "sym-env-read", List(sym), _) =>
       emit("SymEnv.read("); shallow(sym); emit(")")

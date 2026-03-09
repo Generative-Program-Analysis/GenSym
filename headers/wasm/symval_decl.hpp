@@ -13,8 +13,14 @@ struct SymVal {
   SymVal() = delete;
   SymVal(std::shared_ptr<Symbolic> symptr) : symptr(symptr) {}
 
-  // data structure operations
-  SymVal makeSymbolic(int width) const;
+  // Create a new i32 symbol value
+  SymVal makeI32Symbol() const;
+  // Create a new i64 symbol value
+  SymVal makeI64Symbol() const;
+  // Create a new f32 symbol value
+  SymVal makeF32Symbol() const;
+  // Create a new f64 symbol value
+  SymVal makeF64Symbol() const;
 
   // bitvector arithmetic operations
   SymVal is_zero() const;

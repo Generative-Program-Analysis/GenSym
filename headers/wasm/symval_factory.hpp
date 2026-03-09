@@ -9,7 +9,7 @@ namespace SVFactory {
 
 SymVal make_concrete_bv(Num num, int width);
 SymVal make_concrete_bool(bool b);
-SymVal make_symbolic(int index, int width);
+SymVal make_int_symbolic(int index, int width);
 SymVal make_smallbv(int width, int64_t value);
 SymVal make_binary(BinOperation op, const SymVal &lhs, const SymVal &rhs);
 SymVal make_unary(UnaryOperation op, const SymVal &value);
@@ -137,6 +137,18 @@ inline SymVal make_concrete_bv(Num num, int width) {
   return new_val;
 }
 
+inline SymVal make_concrete_fp(Num num, int width) {
+  auto it = concrete_pool.find(num.toInt());
+  if (it != concrete_pool.end()) {
+    return it->second;
+  }
+
+  auto new_val =
+      SymVal(SymBookKeeper.allocate<SymConcrete>(num, KindFP, width));
+  concrete_pool.insert({num.toInt(), new_val});
+  return new_val;
+}
+
 inline SymVal make_concrete_bool(bool b) {
   if (b) {
     return TRUE;
@@ -145,13 +157,24 @@ inline SymVal make_concrete_bool(bool b) {
   }
 }
 
-inline SymVal make_symbolic(int index, int width) {
+inline SymVal make_int_symbolic(int index, int width) {
   auto it = SymbolStore.find(index);
   if (it != SymbolStore.end()) {
     return it->second;
   }
   SymVal new_symbol =
       SymVal(SymBookKeeper.allocate<Symbol>(index, width, KindBV));
+  SymbolStore.insert({index, new_symbol});
+  return new_symbol;
+}
+
+inline SymVal make_fp_symbolic(int index, int width) {
+  auto it = SymbolStore.find(index);
+  if (it != SymbolStore.end()) {
+    return it->second;
+  }
+  SymVal new_symbol =
+      SymVal(SymBookKeeper.allocate<Symbol>(index, width, KindFP));
   SymbolStore.insert({index, new_symbol});
   return new_symbol;
 }
