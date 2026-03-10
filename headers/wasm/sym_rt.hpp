@@ -10,11 +10,11 @@
 #include "immer/vector.hpp"
 #include "immer/vector_transient.hpp"
 #include "profile.hpp"
+#include "symbolic_decl.hpp"
+#include "symbolic_impl.hpp"
 #include "symval_decl.hpp"
 #include "symval_factory.hpp"
 #include "symval_impl.hpp"
-#include "symbolic_decl.hpp"
-#include "symbolic_impl.hpp"
 #include "utils.hpp"
 #include "wasm/concrete_num.hpp"
 #include "wasm/z3_env.hpp"
@@ -34,7 +34,6 @@
 #include <unordered_map>
 #include <variant>
 #include <vector>
-
 
 class Snapshot_t;
 
@@ -125,6 +124,8 @@ static SymStack_t SymStack;
 class SymFrames_t {
 
 public:
+  void restore_frame_ptr(Frames_t &frame) const;
+
   void pushFramePtr() {
 #ifdef USE_IMM
     frame_ptrs.push_back(stack.size());
@@ -189,7 +190,8 @@ public:
     // Get the symbolic value at the given frame index
     assert(!frame_ptrs.empty());
     auto frame_base = current_frame_base();
-    assert(index >= 0 && static_cast<size_t>(frame_base + index) < stack.size());
+    assert(index >= 0 &&
+           static_cast<size_t>(frame_base + index) < stack.size());
     auto res = stack[frame_base + index];
     return res;
   }
@@ -199,7 +201,8 @@ public:
     assert(val.symptr != nullptr);
     assert(!frame_ptrs.empty());
     auto frame_base = current_frame_base();
-    assert(index >= 0 && static_cast<size_t>(frame_base + index) < stack.size());
+    assert(index >= 0 &&
+           static_cast<size_t>(frame_base + index) < stack.size());
     symbolic_size += val->size() - stack[frame_base + index]->size();
 #ifdef USE_IMM
     stack.set(frame_base + index, val);
@@ -375,6 +378,10 @@ public:
     return total_size;
   }
 };
+
+inline void SymFrames_t::restore_frame_ptr(Frames_t &frame) const {
+  frame.frame_ptrs = frame_ptrs;
+}
 
 static SymMemory_t SymMemory;
 
@@ -1615,6 +1622,7 @@ static void resume_conc_frames(const SymFrames_t &sym_frame, Frames_t &frames,
     auto conc = res.value;
     frames.set_from_front(i, conc);
   }
+  sym_frame.restore_frame_ptr(frames);
 }
 
 static void resume_conc_frames_by_model(const SymFrames_t &sym_frame,
@@ -1628,6 +1636,7 @@ static void resume_conc_frames_by_model(const SymFrames_t &sym_frame,
     auto conc = res.value;
     frames.set_from_front(i, conc);
   }
+  sym_frame.restore_frame_ptr(frames);
 }
 
 static void resume_conc_memory(const SymMemory_t &sym_memory, Memory_t &memory,
