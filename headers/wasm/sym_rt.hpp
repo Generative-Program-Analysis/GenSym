@@ -10,11 +10,11 @@
 #include "immer/vector.hpp"
 #include "immer/vector_transient.hpp"
 #include "profile.hpp"
+#include "symbolic_decl.hpp"
+#include "symbolic_impl.hpp"
 #include "symval_decl.hpp"
 #include "symval_factory.hpp"
 #include "symval_impl.hpp"
-#include "symbolic_decl.hpp"
-#include "symbolic_impl.hpp"
 #include "utils.hpp"
 #include "wasm/concrete_num.hpp"
 #include "wasm/z3_env.hpp"
@@ -34,7 +34,6 @@
 #include <unordered_map>
 #include <variant>
 #include <vector>
-
 
 class Snapshot_t;
 
@@ -125,6 +124,16 @@ static SymStack_t SymStack;
 class SymFrames_t {
 
 public:
+  void restore_frame_ptr(Frames_t &frame) const;
+
+  void pushFramePtr() {
+#ifdef USE_IMM
+    frame_ptrs.push_back(stack.size());
+#else
+    frame_ptrs.push_back(stack.size());
+#endif
+  }
+
   void pushFrameSlot(int width) {
 #ifdef USE_IMM
     stack.push_back(SVFactory::make_concrete_bv(I64V(0), width));
@@ -133,7 +142,33 @@ public:
 #endif
   }
 
-  std::monostate popFrame(int size) {
+  std::monostate popFrameCaller(int size) {
+    assert(size >= 0);
+    assert(static_cast<size_t>(size) <= stack.size());
+    assert(!frame_ptrs.empty());
+    auto frame_base = current_frame_base();
+    assert(frame_base + size == stack.size());
+
+    for (int i = 0; i < size; ++i) {
+      symbolic_size -= stack[stack.size() - 1 - i]->size();
+    }
+
+#ifdef USE_IMM
+    stack.take(stack.size() - size);
+#else
+    stack.erase(stack.end() - size, stack.end());
+#endif
+
+#ifdef USE_IMM
+    frame_ptrs.take(frame_ptrs.size() - 1);
+#else
+    frame_ptrs.pop_back();
+#endif
+
+    return std::monostate{};
+  }
+
+  std::monostate popFrameCallee(int size) {
     // Pop the frame of the given size
     assert(size >= 0);
     assert(static_cast<size_t>(size) <= stack.size());
@@ -153,18 +188,26 @@ public:
 
   SymVal get(int index) {
     // Get the symbolic value at the given frame index
-    auto res = stack[stack.size() - 1 - index];
+    assert(!frame_ptrs.empty());
+    auto frame_base = current_frame_base();
+    assert(index >= 0 &&
+           static_cast<size_t>(frame_base + index) < stack.size());
+    auto res = stack[frame_base + index];
     return res;
   }
 
   void set(int index, SymVal val) {
     // Set the symbolic value at the given index
     assert(val.symptr != nullptr);
-    symbolic_size += val->size() - stack[stack.size() - 1 - index]->size();
+    assert(!frame_ptrs.empty());
+    auto frame_base = current_frame_base();
+    assert(index >= 0 &&
+           static_cast<size_t>(frame_base + index) < stack.size());
+    symbolic_size += val->size() - stack[frame_base + index]->size();
 #ifdef USE_IMM
-    stack.set(stack.size() - 1 - index, val);
+    stack.set(frame_base + index, val);
 #else
-    stack[stack.size() - 1 - index] = val;
+    stack[frame_base + index] = val;
 #endif
   }
 
@@ -173,8 +216,10 @@ public:
 
 #ifdef USE_IMM
     stack = immer::vector_transient<SymVal>();
+    frame_ptrs = immer::vector_transient<size_t>();
 #else
     stack.clear();
+    frame_ptrs.clear();
 #endif
     symbolic_size = 0;
   }
@@ -193,10 +238,20 @@ public:
   }
 
 private:
+  size_t current_frame_base() const {
+#ifdef USE_IMM
+    return *(frame_ptrs.end() - 1);
+#else
+    return frame_ptrs.back();
+#endif
+  }
+
   int symbolic_size = 0;
 #ifdef USE_IMM
+  immer::vector_transient<size_t> frame_ptrs;
   immer::vector_transient<SymVal> stack;
 #else
+  std::vector<size_t> frame_ptrs;
   std::vector<SymVal> stack;
 #endif
 };
@@ -323,6 +378,10 @@ public:
     return total_size;
   }
 };
+
+inline void SymFrames_t::restore_frame_ptr(Frames_t &frame) const {
+  frame.frame_ptrs = frame_ptrs;
+}
 
 static SymMemory_t SymMemory;
 
@@ -1563,6 +1622,7 @@ static void resume_conc_frames(const SymFrames_t &sym_frame, Frames_t &frames,
     auto conc = res.value;
     frames.set_from_front(i, conc);
   }
+  sym_frame.restore_frame_ptr(frames);
 }
 
 static void resume_conc_frames_by_model(const SymFrames_t &sym_frame,
@@ -1576,6 +1636,7 @@ static void resume_conc_frames_by_model(const SymFrames_t &sym_frame,
     auto conc = res.value;
     frames.set_from_front(i, conc);
   }
+  sym_frame.restore_frame_ptr(frames);
 }
 
 static void resume_conc_memory(const SymMemory_t &sym_memory, Memory_t &memory,

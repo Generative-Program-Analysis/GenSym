@@ -3,6 +3,9 @@
   (type (;1;) (func (param i32 i32) (result i32)))
   (type (;2;) (func (result i32)))
   (func (;0;) (type 0) (param i32) (result i32)
+    (local i32 i32 i32 i32 i32)
+    local.get 3
+    drop
     local.get 0
     i32.const 1
     i32.add)

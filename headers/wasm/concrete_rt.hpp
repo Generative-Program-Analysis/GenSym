@@ -3,6 +3,7 @@
 
 #include "concrete_num.hpp"
 #include "controls.hpp"
+#include "immer/vector_transient.hpp"
 #include "wasm/profile.hpp"
 #include "wasm/utils.hpp"
 #include <cassert>
@@ -49,8 +50,8 @@ public:
 
   Num pop() {
     Profile.step(StepProfileKind::POP);
-#ifdef DEBUG
     assert(count > 0 && "Stack underflow");
+#ifdef DEBUG
     printf("[Debug] popping a value %ld from stack, size of concrete stack is: "
            "%d\n",
            stack_ptr[count - 1].value, count);
@@ -123,11 +124,12 @@ private:
   Num *stack_ptr;
 };
 static Stack_t Stack;
+class SymFrames_t;
 
 const int FRAME_SIZE = 1024 * 8;
 class Frames_t {
 public:
-  Frames_t() : count(0), stack_ptr(new Num[FRAME_SIZE]) {
+  Frames_t() : count(0), stack_ptr(new Num[FRAME_SIZE]), frame_ptrs() {
     size_t page_size = (size_t)sysconf(_SC_PAGESIZE);
     // pre touch the memory to avoid page faults during execution
     for (int i = 0; i < FRAME_SIZE; i += page_size) {
@@ -135,33 +137,73 @@ public:
     }
   }
 
-  std::monostate popFrame(std::int32_t size) {
+  std::monostate popFrameCaller(std::int32_t size) {
     assert(size >= 0);
+    assert(size <= count);
+    assert(!frame_ptrs.empty());
+    auto frame_base = current_frame_base();
+    assert(frame_base + size == count);
+    count -= size;
+#ifdef USE_IMM
+    frame_ptrs.take(frame_ptrs.size() - 1);
+#else
+    frame_ptrs.pop_back();
+#endif
+    return std::monostate{};
+  }
+
+  std::monostate popFrameCallee(std::int32_t size) {
+    assert(size >= 0);
+    assert(size <= count);
     count -= size;
     return std::monostate{};
   }
 
   Num get(std::int32_t index) {
+    assert(!frame_ptrs.empty() && "No active frame");
+    auto frame_base = current_frame_base();
+    assert(index >= 0 && frame_base + index < count && "Index out of bounds");
     Profile.step(StepProfileKind::GET);
-    auto ret = stack_ptr[count - 1 - index];
+    auto ret = stack_ptr[frame_base + index];
     return ret;
   }
 
   void set(std::int32_t index, Num num) {
+    assert(!frame_ptrs.empty() && "No active frame");
+    auto frame_base = current_frame_base();
+    assert(index >= 0 && frame_base + index < count && "Index out of bounds");
     Profile.step(StepProfileKind::SET);
-    stack_ptr[count - 1 - index] = num;
+    stack_ptr[frame_base + index] = num;
   }
 
-  void pushFrame(std::int32_t size) {
+  void pushFrameCaller(std::int32_t size) {
     assert(size >= 0);
+    frame_ptrs.push_back(count);
     count += size;
     // Zero-initialize the new stack frames.
     for (std::int32_t i = 0; i < size; ++i) {
-      stack_ptr[count - 1 - i] = Num(0);
+      stack_ptr[count - size + i] = Num(0);
     }
   }
 
-  void reset() { count = 0; }
+  void pushFrameCallee(std::int32_t size) {
+    assert(size >= 0);
+    assert(!frame_ptrs.empty() && "No active frame");
+    auto old_count = count;
+    count += size;
+    for (std::int32_t i = 0; i < size; ++i) {
+      stack_ptr[old_count + i] = Num(0);
+    }
+  }
+
+  void reset() {
+    count = 0;
+#ifdef USE_IMM
+    frame_ptrs = immer::vector_transient<size_t>();
+#else
+    frame_ptrs.clear();
+#endif
+  }
 
   size_t size() const { return count; }
 
@@ -176,8 +218,23 @@ public:
   }
 
 private:
+  friend class SymFrames_t;
+
+  size_t current_frame_base() const {
+#ifdef USE_IMM
+    return *(frame_ptrs.end() - 1);
+#else
+    return frame_ptrs.back();
+#endif
+  }
+
   int32_t count;
   Num *stack_ptr;
+#ifdef USE_IMM
+  immer::vector_transient<size_t> frame_ptrs;
+#else
+  std::vector<size_t> frame_ptrs;
+#endif
 };
 
 static Frames_t Frames;
