@@ -1073,6 +1073,7 @@ trait StagedGlobals extends SAIOps with StagedWasmValueDomains {
   object Globals {
     def reserveSpace(tps: List[ValueType]): Rep[Unit] = {
       "global-reserve".reflectCtrlWith[Unit](tps.length)
+      "sym-global-frame-push-ptr".reflectCtrlWith[Unit]()
       for (tp <- tps) {
         "sym-global-reserve-slot".reflectCtrlWith[Unit](tp.size * 8)
       }
@@ -2222,8 +2223,8 @@ trait StagedWasmCppGen extends CGenBase with CppSAICodeGenBase {
       emit("SymGlobals.set("); shallow(i); emit(", "); shallow(s_value); emit(")")
     case Node(_, "global-reserve", List(i), _) =>
       emit("Globals.pushFrameCaller("); shallow(i); emit(")")
-    case Node(_, "sym-global-reserve", List(i), _) =>
-      emit("SymGlobals.pushFrameCaller("); shallow(i); emit(")")
+    case Node(_, "sym-global-frame-push-ptr", List(), _) =>
+      emit("SymGlobals.pushFramePtr()")
     case Node(_, "sym-global-reserve-slot", List(width), _) =>
       emit("SymGlobals.pushFrameSlot("); shallow(width); emit(")")
     case Node(_, "is-zero", List(num), _) =>
