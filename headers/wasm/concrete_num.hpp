@@ -236,10 +236,18 @@ struct Num {
   }
 
   // i64.extend_i32_s: sign-extend low 32 bits to i64
-  inline Num i32_extend_to_i64() const {
+  inline Num i32_extend_to_i64_s() const {
     int64_t result_s = static_cast<int64_t>(this->toInt());
     Num res(result_s);
-    debug_print("i32.extend_to_i64", *this, *this, res);
+    debug_print("i32.extend_to_i64_s", *this, *this, res);
+    return res;
+  }
+
+  // i64.extend_i32_u: zero-extend low 32 bits to i64
+  inline Num i32_extend_to_i64_u() const {
+    uint64_t result_u = static_cast<uint64_t>(this->toUInt());
+    Num res(static_cast<int64_t>(result_u));
+    debug_print("i32.extend_to_i64_u", *this, *this, res);
     return res;
   }
 
@@ -611,6 +619,26 @@ struct Num {
     return res;
   }
 
+  inline Num convert_i32_to_f32_s() const {
+    uint32_t r_bits = f32_to_bits(static_cast<float>(toInt()));
+    return Num(static_cast<int32_t>(r_bits));
+  }
+
+  inline Num convert_i32_to_f32_u() const {
+    uint32_t r_bits = f32_to_bits(static_cast<float>(toUInt()));
+    return Num(static_cast<int32_t>(r_bits));
+  }
+
+  inline Num convert_i64_to_f32_s() const {
+    uint32_t r_bits = f32_to_bits(static_cast<float>(toInt64()));
+    return Num(static_cast<int32_t>(r_bits));
+  }
+
+  inline Num convert_i64_to_f32_u() const {
+    uint32_t r_bits = f32_to_bits(static_cast<float>(toUInt64()));
+    return Num(static_cast<int32_t>(r_bits));
+  }
+
   // f32.min / f32.max: follow wasm-ish semantics: if either is NaN, return NaN
   // (propagate)
   inline Num f32_min(const Num &other) const {
@@ -827,6 +855,26 @@ struct Num {
     Num res(static_cast<int64_t>(r_bits));
     debug_print("f64.neg", *this, *this, res);
     return res;
+  }
+
+  inline Num convert_i32_to_f64_s() const {
+    uint64_t r_bits = f64_to_bits(static_cast<double>(toInt()));
+    return Num(static_cast<int64_t>(r_bits));
+  }
+
+  inline Num convert_i32_to_f64_u() const {
+    uint64_t r_bits = f64_to_bits(static_cast<double>(toUInt()));
+    return Num(static_cast<int64_t>(r_bits));
+  }
+
+  inline Num convert_i64_to_f64_s() const {
+    uint64_t r_bits = f64_to_bits(static_cast<double>(toInt64()));
+    return Num(static_cast<int64_t>(r_bits));
+  }
+
+  inline Num convert_i64_to_f64_u() const {
+    uint64_t r_bits = f64_to_bits(static_cast<double>(toUInt64()));
+    return Num(static_cast<int64_t>(r_bits));
   }
 
   // f64.min / f64.max: follow wasm-ish semantics: if either is NaN, return

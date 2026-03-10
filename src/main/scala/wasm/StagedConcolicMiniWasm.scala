@@ -515,10 +515,44 @@ trait ConcreteOps extends StagedWasmValueDomains with ValueCreation {
       }
     }
 
-    def extend(): StagedConcreteNum = {
-      num.tipe match {
-        case NumType(I32Type) => StagedConcreteNum(NumType(I64Type), "i32-extend-to-i64".reflectCtrlWith[Num](num.i))
-      }
+    def extendS(): StagedConcreteNum = num.tipe match {
+      case NumType(I32Type) => StagedConcreteNum(NumType(I64Type), "i32-extend-to-i64-s".reflectCtrlWith[Num](num.i))
+    }
+
+    def extendU(): StagedConcreteNum = num.tipe match {
+      case NumType(I32Type) => StagedConcreteNum(NumType(I64Type), "i32-extend-to-i64-u".reflectCtrlWith[Num](num.i))
+    }
+
+    def convertI32ToF32S(): StagedConcreteNum = num.tipe match {
+      case NumType(I32Type) => StagedConcreteNum(NumType(F32Type), "i32-convert-to-f32-s".reflectCtrlWith[Num](num.i))
+    }
+
+    def convertI64ToF32S(): StagedConcreteNum = num.tipe match {
+      case NumType(I64Type) => StagedConcreteNum(NumType(F32Type), "i64-convert-to-f32-s".reflectCtrlWith[Num](num.i))
+    }
+
+    def convertI32ToF32U(): StagedConcreteNum = num.tipe match {
+      case NumType(I32Type) => StagedConcreteNum(NumType(F32Type), "i32-convert-to-f32-u".reflectCtrlWith[Num](num.i))
+    }
+
+    def convertI64ToF32U(): StagedConcreteNum = num.tipe match {
+      case NumType(I64Type) => StagedConcreteNum(NumType(F32Type), "i64-convert-to-f32-u".reflectCtrlWith[Num](num.i))
+    }
+
+    def convertI32ToF64S(): StagedConcreteNum = num.tipe match {
+      case NumType(I32Type) => StagedConcreteNum(NumType(F64Type), "i32-convert-to-f64-s".reflectCtrlWith[Num](num.i))
+    }
+
+    def convertI64ToF64S(): StagedConcreteNum = num.tipe match {
+      case NumType(I64Type) => StagedConcreteNum(NumType(F64Type), "i64-convert-to-f64-s".reflectCtrlWith[Num](num.i))
+    }
+
+    def convertI32ToF64U(): StagedConcreteNum = num.tipe match {
+      case NumType(I32Type) => StagedConcreteNum(NumType(F64Type), "i32-convert-to-f64-u".reflectCtrlWith[Num](num.i))
+    }
+
+    def convertI64ToF64U(): StagedConcreteNum = num.tipe match {
+      case NumType(I64Type) => StagedConcreteNum(NumType(F64Type), "i64-convert-to-f64-u".reflectCtrlWith[Num](num.i))
     }
 
     def assert(): Rep[Unit] = {
@@ -1896,15 +1930,25 @@ trait StagedWasmEvaluator extends SAIOps
   }
 
   def evalCvtOpC(op: CvtOp, value: StagedConcreteNum): StagedConcreteNum = op match {
-    case Extend(NumType(I32Type), NumType(I64Type), ZX) => value.extend
+    case Extend(NumType(I32Type), NumType(I64Type), SX) => value.extendS()
+    case Extend(NumType(I32Type), NumType(I64Type), ZX) => value.extendU()
+    case ConvertTo(NumType(I32Type), NumType(F32Type), SX) => value.convertI32ToF32S()
+    case ConvertTo(NumType(I32Type), NumType(F32Type), ZX) => value.convertI32ToF32U()
+    case ConvertTo(NumType(I64Type), NumType(F32Type), SX) => value.convertI64ToF32S()
+    case ConvertTo(NumType(I64Type), NumType(F32Type), ZX) => value.convertI64ToF32U()
+    case ConvertTo(NumType(I32Type), NumType(F64Type), SX) => value.convertI32ToF64S()
+    case ConvertTo(NumType(I32Type), NumType(F64Type), ZX) => value.convertI32ToF64U()
+    case ConvertTo(NumType(I64Type), NumType(F64Type), SX) => value.convertI64ToF64S()
+    case ConvertTo(NumType(I64Type), NumType(F64Type), ZX) => value.convertI64ToF64U()
+    case _ => throw new UnsupportedOperationException(s"Unsupported concrete conversion $op")
   }
 
   def evalCvtOpS(op: CvtOp, value: StagedSymbolicNum, c: StagedConcreteNum): StagedSymbolicNum = {
-    val res = if (allConcrete(value)) {
-      c.toStagedSymbolicNum.s
-    } else {
+    var res = c.toStagedSymbolicNum.s
+    if (!allConcrete(value)) {
       op match {
         case Extend(NumType(I32Type), NumType(I64Type), ZX) => value.extend().s
+        case _ => "debug-assert".reflectCtrlWith[SymVal](false, "All runtime float point must be concrete values") 
       }
     }
     StagedSymbolicNum(c.tipe, res)
@@ -2063,6 +2107,7 @@ trait StagedWasmCppGen extends CGenBase with CppSAICodeGenBase {
   registerHeader("<stdbool.h>")
   registerHeader("<stdint.h>")
   registerHeader("<variant>")
+  registerHeader("<cassert>")
 
   override def mayInline(n: Node): Boolean = n match {
     case Node(_, "stack-pop", _, _)
@@ -2321,8 +2366,26 @@ trait StagedWasmCppGen extends CGenBase with CppSAICodeGenBase {
       shallow(lhs); emit(".i32_or("); shallow(rhs); emit(")")
     case Node(_, "i64-binary-or", List(lhs, rhs), _) =>
       shallow(lhs); emit(".i64_or("); shallow(rhs); emit(")")
-    case Node(_, "i32-extend-to-i64", List(num), _) =>
-      emit("("); shallow(num); emit(".i32_extend_to_i64())")
+    case Node(_, "i32-extend-to-i64-s", List(num), _) =>
+      emit("("); shallow(num); emit(".i32_extend_to_i64_s())")
+    case Node(_, "i32-extend-to-i64-u", List(num), _) =>
+      emit("("); shallow(num); emit(".i32_extend_to_i64_u())")
+    case Node(_, "i32-convert-to-f32-s", List(num), _) =>
+      emit("("); shallow(num); emit(".convert_i32_to_f32_s())")
+    case Node(_, "i32-convert-to-f32-u", List(num), _) =>
+      emit("("); shallow(num); emit(".convert_i32_to_f32_u())")
+    case Node(_, "i64-convert-to-f32-s", List(num), _) =>
+      emit("("); shallow(num); emit(".convert_i64_to_f32_s())")
+    case Node(_, "i64-convert-to-f32-u", List(num), _) =>
+      emit("("); shallow(num); emit(".convert_i64_to_f32_u())")
+    case Node(_, "i32-convert-to-f64-s", List(num), _) =>
+      emit("("); shallow(num); emit(".convert_i32_to_f64_s())")
+    case Node(_, "i32-convert-to-f64-u", List(num), _) =>
+      emit("("); shallow(num); emit(".convert_i32_to_f64_u())")
+    case Node(_, "i64-convert-to-f64-s", List(num), _) =>
+      emit("("); shallow(num); emit(".convert_i64_to_f64_s())")
+    case Node(_, "i64-convert-to-f64-u", List(num), _) =>
+      emit("("); shallow(num); emit(".convert_i64_to_f64_u())")
     case Node(_, "f32-binary-add", List(lhs, rhs), _) =>
       shallow(lhs); emit(".f32_add("); shallow(rhs); emit(")")
     case Node(_, "f64-binary-add", List(lhs, rhs), _) =>
@@ -2421,6 +2484,8 @@ trait StagedWasmCppGen extends CGenBase with CppSAICodeGenBase {
       emit("make_symbolic("); shallow(num); emit(", "); shallow(width); emit(")")
     case Node(_, "sym-env-read", List(sym), _) =>
       emit("SymEnv.read("); shallow(sym); emit(")")
+    case (Node(_, "debug-assert", List(cond, msg), _)) =>
+      emit("assert("); shallow(cond); emit(" && "); shallow(msg); emit(")")
     case Node(_, "assert-true", List(cond), _) =>
       emit("GENSYM_ASSERT("); shallow(cond); emit(")")
     case Node(_, "sym-assert-true", List(s_cond), _) =>
