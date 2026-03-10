@@ -981,34 +981,43 @@ trait StagedFrames extends SAIOps with StagedWasmValueDomains {
       "sym-frame-set".reflectCtrlWith[Unit](i, s.s)
     }
 
-    def pushFrameC(locals: List[ValueType]): Rep[Unit] = {
+    def pushFrameCallerC(locals: List[ValueType]): Rep[Unit] = {
       // Predef.println(s"[DEBUG] push frame: $locals")
       val size = locals.size
-      "frame-push".reflectCtrlWith[Unit](size)
+      "frame-push-caller".reflectCtrlWith[Unit](size)
     }
 
-    def extendFrameC(size: Int): Rep[Unit] = {
-      if (size > 0) "frame-extend".reflectCtrlWith[Unit](size)
+    def pushFrameCalleeC(size: Int): Rep[Unit] = {
+      if (size > 0) "frame-push-callee".reflectCtrlWith[Unit](size)
     }
 
-    def pushFrameS(locals: List[ValueType]): Rep[Unit] = {
-      // Predef.println(s"[DEBUG] push frame: $locals")
-      val size = locals.size
+    def pushFrameCallerS(locals: List[ValueType]): Rep[Unit] = {
+      "sym-frame-push-ptr".reflectCtrlWith[Unit]()
       for (ty <- locals) {
         "sym-frame-push-slot".reflectCtrlWith[Unit](ty.size * 8)
       }
     }
 
-    def extendFrameS(size: Int): Rep[Unit] = {
-      if (size > 0) "sym-frame-extend".reflectCtrlWith[Unit](size)
+    def pushFrameCalleeS(locals: List[ValueType]): Rep[Unit] = {
+      for (ty <- locals) {
+        "sym-frame-push-slot".reflectCtrlWith[Unit](ty.size * 8)
+      }
     }
 
-    def popFrameC(size: Int): Rep[Unit] = {
-      "frame-pop".reflectCtrlWith[Unit](size)
+    def popFrameCallerC(size: Int): Rep[Unit] = {
+      "frame-pop-caller".reflectCtrlWith[Unit](size)
     }
 
-    def popFrameS(size: Int): Rep[Unit] = {
-      "sym-frame-pop".reflectCtrlWith[Unit](size)
+    def popFrameCalleeC(size: Int): Rep[Unit] = {
+      "frame-pop-callee".reflectCtrlWith[Unit](size)
+    }
+
+    def popFrameCallerS(size: Int): Rep[Unit] = {
+      "sym-frame-pop-caller".reflectCtrlWith[Unit](size)
+    }
+
+    def popFrameCalleeS(size: Int): Rep[Unit] = {
+      "sym-frame-pop-callee".reflectCtrlWith[Unit](size)
     }
 
     def putAllC(args: List[StagedConcreteNum]): Rep[Unit] = {
@@ -1573,7 +1582,6 @@ trait StagedWasmEvaluator extends SAIOps
       case CallIndirect(ty, table) =>
         Predef.assert(table == 0, "Currently we can only have one table!")
         val functy = module.types(ty)
-        Predef.println(s"Table = ")
         evalCallIndirect(rest, kont, trail, functy.asInstanceOf[FuncType])
       case _ =>
         val todo = "todo-op".reflectCtrlWith[Unit]()
@@ -1606,15 +1614,17 @@ trait StagedWasmEvaluator extends SAIOps
     val func = readFuncTable(index.toInt)
     val restK: Rep[Cont[Unit]] = topFun((_: Rep[Unit]) => {
       info(s"Returned from call_indirect, stackSize =", Stack.size)
+      Frames.popFrameCallerC(functy.inps.size)
+      Frames.popFrameCallerS(functy.inps.size)
       eval(rest, kont, trail)(newCtx.copy(stackTypes = functy.out.reverse ++ newCtx.stackTypes.drop(functy.inps.size)))
     })
     val newMKont: Rep[MCont[Unit]] = currentMCont.prependCont(restK)
     updateCurrentMCont(newMKont)
-
+    info(s"Calling function at index ", index.toInt, " with call_indirect, stackSize =", Stack.size)
     val argsC = Stack.takeC(functy.inps)
     val argsS = Stack.takeS(functy.inps)
-    Frames.pushFrameC(functy.inps)
-    Frames.pushFrameS(functy.inps)
+    Frames.pushFrameCallerC(functy.inps)
+    Frames.pushFrameCallerS(functy.inps)
     Frames.putAllC(argsC)
     Frames.putAllS(argsS)
     invokeFunc(func)
@@ -1626,6 +1636,8 @@ trait StagedWasmEvaluator extends SAIOps
     } else {
       def retK(ctx: Context): Rep[Cont[Unit]] = topFun((_: Rep[Unit]) => {
         info(s"Return from the function at $funcIndex, stackSize =", Stack.size)
+        Frames.popFrameCalleeC(locals.size)
+        Frames.popFrameCalleeS(locals.size)
         val offset = ctx.stackTypes.size - ty.out.size
         Stack.shiftC(offset, ty.out.size)
         Stack.shiftS(offset, ty.out.size)
@@ -1634,6 +1646,8 @@ trait StagedWasmEvaluator extends SAIOps
 
       val func = topFun((_: Rep[Unit]) => {
         info(s"Entered the function at $funcIndex, stackSize =", Stack.size)
+        Frames.pushFrameCalleeC(locals.size)
+        Frames.pushFrameCalleeS(locals)
         // the return instruction is also stack polymorphic
         eval(body, retK _, retK _::Nil)(Context(Nil, inps ++ locals))
       })
@@ -1661,13 +1675,13 @@ trait StagedWasmEvaluator extends SAIOps
           // (more or less like `return`)
           val restK: Rep[Cont[Unit]] = topFun((_: Rep[Unit]) => {
             info(s"Exiting the function at $funcIndex, stackSize =", Stack.size)
-            Frames.popFrameC(ty.inps.size + bodyLocals.size)
-            Frames.popFrameS(ty.inps.size + bodyLocals.size)
+            Frames.popFrameCallerC(ty.inps.size)
+            Frames.popFrameCallerS(ty.inps.size)
             eval(rest, kont, trail)(newCtx.copy(stackTypes = ty.out.reverse ++ ctx.stackTypes.drop(ty.inps.size)))
           })
 
-          Frames.pushFrameC(ty.inps ++ bodyLocals)
-          Frames.pushFrameS(ty.inps ++ bodyLocals)
+          Frames.pushFrameCallerC(ty.inps)
+          Frames.pushFrameCallerS(ty.inps)
           Frames.putAllC(argsC)
           Frames.putAllS(argsS)
           val newMKont: Rep[MCont[Unit]] = currentMCont.prependCont(restK)
@@ -1925,13 +1939,13 @@ trait StagedWasmEvaluator extends SAIOps
     initGlobals(module.globals)
     initTable(module)
     initMemory()
-    Frames.pushFrameC(locals)
-    Frames.pushFrameS(locals)
+    Frames.pushFrameCallerC(locals)
+    Frames.pushFrameCallerS(locals)
 
     val restK: Rep[Cont[Unit]] = topFun((_: Rep[Unit]) => {
       info(s"Exiting the entry function")
-      Frames.popFrameC(locals.size)
-      Frames.popFrameS(locals.size)
+      Frames.popFrameCallerC(locals.size)
+      Frames.popFrameCallerS(locals.size)
       enterCurrentMCont()
     })
 
@@ -2099,12 +2113,18 @@ trait StagedWasmCppGen extends CGenBase with CppSAICodeGenBase {
       emit("Stack.initialize();\n")
     case Node(_, "stack-print", _, _) =>
       emit("Stack.print();\n")
-    case Node(_, "frame-push", List(i), _) =>
-      emit("Frames.pushFrame("); shallow(i); emit(");\n")
+    case Node(_, "frame-push-caller", List(i), _) =>
+      emit("Frames.pushFrameCaller("); shallow(i); emit(");\n")
     case Node(_, "sym-frame-push-slot", List(width), _) =>
       emit("SymFrames.pushFrameSlot("); shallow(width); emit(");\n")
-    case Node(_, "frame-pop", List(i), _) =>
-      emit("Frames.popFrame("); shallow(i); emit(");\n")
+    case Node(_, "sym-frame-push-ptr", _, _) =>
+      emit("SymFrames.pushFramePtr();\n")
+    case Node(_, "frame-pop-caller", List(i), _) =>
+      emit("Frames.popFrameCaller("); shallow(i); emit(");\n")
+    case Node(_, "frame-pop-callee", List(i), _) =>
+      emit("Frames.popFrameCallee("); shallow(i); emit(");\n")
+    case Node(_, "sym-frame-pop-callee", List(i), _) =>
+      emit("SymFrames.popFrameCallee("); shallow(i); emit(");\n")
     case Node(_, "frame-set", List(i, value), _) =>
       emit("Frames.set("); shallow(i); emit(", "); shallow(value); emit(");\n")
     case Node(_, "sym-frame-set", List(i, s_value), _) =>
@@ -2160,16 +2180,14 @@ trait StagedWasmCppGen extends CGenBase with CppSAICodeGenBase {
       emit("Stack.pop()")
     case Node(_, "sym-stack-pop", _, _) =>
       emit("SymStack.pop()")
-    case Node(_, "frame-extend", List(i), _) =>
-      emit("Frames.extendFrame("); shallow(i); emit(")")
-    case Node(_, "sym-frame-extend", List(i), _) =>
-      emit("SymFrames.extendFrame("); shallow(i); emit(")")
+    case Node(_, "frame-push-callee", List(i), _) =>
+      emit("Frames.pushFrameCallee("); shallow(i); emit(")")
     case Node(_, "control-make", List(k, mk), _) =>
       emit("makeControl("); shallow(k); emit(", "); shallow(mk); emit(")")
-    case Node(_, "frame-pop", List(i), _) =>
-      emit("Frames.popFrame("); shallow(i); emit(")")
-    case Node(_, "sym-frame-pop", List(i), _) =>
-      emit("SymFrames.popFrame("); shallow(i); emit(")")
+    case Node(_, "frame-pop-caller", List(i), _) =>
+      emit("Frames.popFrameCaller("); shallow(i); emit(")")
+    case Node(_, "sym-frame-pop-caller", List(i), _) =>
+      emit("SymFrames.popFrameCaller("); shallow(i); emit(")")
     case Node(_, "stack-peek", _, _) =>
       emit("Stack.peek()")
     case Node(_, "sym-stack-peek", _, _) =>
@@ -2203,9 +2221,9 @@ trait StagedWasmCppGen extends CGenBase with CppSAICodeGenBase {
     case Node(_, "sym-global-set", List(i, s_value), _) =>
       emit("SymGlobals.set("); shallow(i); emit(", "); shallow(s_value); emit(")")
     case Node(_, "global-reserve", List(i), _) =>
-      emit("Globals.pushFrame("); shallow(i); emit(")")
+      emit("Globals.pushFrameCaller("); shallow(i); emit(")")
     case Node(_, "sym-global-reserve", List(i), _) =>
-      emit("SymGlobals.pushFrame("); shallow(i); emit(")")
+      emit("SymGlobals.pushFrameCaller("); shallow(i); emit(")")
     case Node(_, "sym-global-reserve-slot", List(width), _) =>
       emit("SymGlobals.pushFrameSlot("); shallow(width); emit(")")
     case Node(_, "is-zero", List(num), _) =>

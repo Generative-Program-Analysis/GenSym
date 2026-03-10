@@ -127,7 +127,7 @@ static Stack_t Stack;
 const int FRAME_SIZE = 1024 * 8;
 class Frames_t {
 public:
-  Frames_t() : count(0), stack_ptr(new Num[FRAME_SIZE]) {
+  Frames_t() : count(0), stack_ptr(new Num[FRAME_SIZE]), frame_ptrs() {
     size_t page_size = (size_t)sysconf(_SC_PAGESIZE);
     // pre touch the memory to avoid page faults during execution
     for (int i = 0; i < FRAME_SIZE; i += page_size) {
@@ -135,34 +135,65 @@ public:
     }
   }
 
-  std::monostate popFrame(std::int32_t size) {
+  std::monostate popFrameCaller(std::int32_t size) {
     assert(size >= 0);
+    assert(size <= count);
+    assert(!frame_ptrs.empty());
+    auto frame_base = frame_ptrs.back();
+    assert(frame_base + size == count);
+    count -= size;
+    frame_ptrs.pop_back();
+    return std::monostate{};
+  }
+
+  std::monostate popFrameCallee(std::int32_t size) {
+    assert(size >= 0);
+    assert(size <= count);
     count -= size;
     return std::monostate{};
   }
 
   Num get(std::int32_t index) {
-    assert(index >= 0 && index < count && "Index out of bounds");
+    assert(!frame_ptrs.empty() && "No active frame");
+    auto frame_base = frame_ptrs.back();
+    assert(index >= 0 && frame_base + index < count && "Index out of bounds");
     Profile.step(StepProfileKind::GET);
-    auto ret = stack_ptr[count - 1 - index];
+    auto ret = stack_ptr[frame_base + index];
     return ret;
   }
 
   void set(std::int32_t index, Num num) {
+    assert(!frame_ptrs.empty() && "No active frame");
+    auto frame_base = frame_ptrs.back();
+    assert(index >= 0 && frame_base + index < count && "Index out of bounds");
     Profile.step(StepProfileKind::SET);
-    stack_ptr[count - 1 - index] = num;
+    stack_ptr[frame_base + index] = num;
   }
 
-  void pushFrame(std::int32_t size) {
+  void pushFrameCaller(std::int32_t size) {
     assert(size >= 0);
+    frame_ptrs.push_back(count);
     count += size;
     // Zero-initialize the new stack frames.
     for (std::int32_t i = 0; i < size; ++i) {
-      stack_ptr[count - 1 - i] = Num(0);
+      stack_ptr[count - size + i] = Num(0);
     }
   }
 
-  void reset() { count = 0; }
+  void pushFrameCallee(std::int32_t size) {
+    assert(size >= 0);
+    assert(!frame_ptrs.empty() && "No active frame");
+    auto old_count = count;
+    count += size;
+    for (std::int32_t i = 0; i < size; ++i) {
+      stack_ptr[old_count + i] = Num(0);
+    }
+  }
+
+  void reset() {
+    count = 0;
+    frame_ptrs.clear();
+  }
 
   size_t size() const { return count; }
 
@@ -179,6 +210,7 @@ public:
 private:
   int32_t count;
   Num *stack_ptr;
+  std::vector<int32_t> frame_ptrs;
 };
 
 static Frames_t Frames;
