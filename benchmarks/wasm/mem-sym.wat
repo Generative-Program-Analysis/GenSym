@@ -12,24 +12,48 @@
     i32.load
     i32.const 25
     i32.eq
-    if (result i32)  ;; if x == 25
-      i32.const 0 
+    if  ;; if x == 25
+      i32.const 0
       call 0 ;; assert false
-      i32.const 1 ;; to satisfy the type checker, this line will never be reached
-    else
-      i32.const 1
-      i32.load
-      i32.const 1
-      i32.eq
-      if (result i32) ;; if x >> 8 == 1
-        i32.const 0
-        call 0 ;; assert false
-        i32.const 1 ;; to satisfy the type checker, this line will never be reached
-      else
-        i32.const 1
-      end
-      i32.const 1
     end
+    i32.const 1
+    i32.load
+    i32.const 1
+    i32.eq
+    if ;; if x >> 8 == 1
+      i32.const 0
+      call 0 ;; assert false
+    end
+    i32.const 4
+    i64.load
+    i64.eqz
+    i32.eqz
+    if
+      i32.const 0
+      call 0 ;; assert false
+    end
+    i32.const 0
+    i64.load
+    i64.const 32
+    i64.shr_u
+    i64.eqz
+    i32.eqz
+    if
+      i32.const 0
+      call 0 ;; assert false
+    end
+    i32.const 8
+    i64.const 0x0102030405060708
+    i64.store
+    i32.const 8
+    i64.load
+    i64.const 0x0102030405060708
+    i64.ne
+    if
+      i32.const 0
+      call 0 ;; assert false
+    end
+    i32.const 1
   )
   (func (;2;) (type 1)
     i32.const 0

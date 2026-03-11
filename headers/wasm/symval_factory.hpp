@@ -2,8 +2,8 @@
 #define WASM_SYMVAL_FACTORY_HPP
 
 #include "heap_mem_bookkeeper.hpp"
-#include "symval_decl.hpp"
 #include "symbolic_decl.hpp"
+#include "symval_decl.hpp"
 
 namespace SVFactory {
 
@@ -116,7 +116,7 @@ struct UnaryOpKeyHash {
 
 // Caches.
 static std::unordered_map<int, SymVal> SymbolStore;
-static std::unordered_map<int64_t, SymVal> concrete_pool;
+static std::unordered_map<int64_t, SymVal> FPStore;
 static std::unordered_map<SmallBVKey, SymVal, SmallBVKeyHash> SmallBVStore;
 static std::unordered_map<ExtractKey, SymVal, ExtractKeyHash>
     ExtractOperationStore;
@@ -126,26 +126,27 @@ static std::unordered_map<UnaryOpKey, SymVal, UnaryOpKeyHash>
 
 // Factory implementations.
 inline SymVal make_concrete_bv(Num num, int width) {
-  auto it = concrete_pool.find(num.toInt());
-  if (it != concrete_pool.end()) {
+  auto key = SmallBVKey(width, num.toInt64());
+  auto it = SmallBVStore.find(key);
+  if (it != SmallBVStore.end()) {
     return it->second;
   }
 
   auto new_val =
       SymVal(SymBookKeeper.allocate<SymConcrete>(num, KindBV, width));
-  concrete_pool.insert({num.toInt(), new_val});
+  SmallBVStore.insert({key, new_val});
   return new_val;
 }
 
 inline SymVal make_concrete_fp(Num num, int width) {
-  auto it = concrete_pool.find(num.toInt());
-  if (it != concrete_pool.end()) {
+  auto it = FPStore.find(num.toInt64());
+  if (it != FPStore.end()) {
     return it->second;
   }
 
   auto new_val =
       SymVal(SymBookKeeper.allocate<SymConcrete>(num, KindFP, width));
-  concrete_pool.insert({num.toInt(), new_val});
+  FPStore.insert({num.toInt64(), new_val});
   return new_val;
 }
 
@@ -205,7 +206,8 @@ inline SymVal make_extract(const SymVal &value, int high, int low) {
 
   if (auto concrete = std::dynamic_pointer_cast<SymConcrete>(value.symptr)) {
     if (concrete->kind != KindBV) {
-      throw std::runtime_error("Extract only supports bitvector concrete values");
+      throw std::runtime_error(
+          "Extract only supports bitvector concrete values");
     }
     // extract from concrete bitvector value
     int64_t val = concrete->value.value;
@@ -520,7 +522,8 @@ inline SymVal make_binary(BinOperation op, const SymVal &lhs,
     }
   }
 
-  auto result = SymVal(SVFactory::SymBookKeeper.allocate<SymBinary>(op, lhs, rhs));
+  auto result =
+      SymVal(SVFactory::SymBookKeeper.allocate<SymBinary>(op, lhs, rhs));
   BinaryOperationStore.insert({key, result});
   return result;
 }
@@ -594,8 +597,8 @@ inline SymVal make_unary(UnaryOperation op, const SymVal &value) {
         break;
       }
       if (negated_op != inner_binary->op) {
-        auto result =
-            SVFactory::make_binary(negated_op, inner_binary->lhs, inner_binary->rhs);
+        auto result = SVFactory::make_binary(negated_op, inner_binary->lhs,
+                                             inner_binary->rhs);
         UnaryOperationStore.insert({key, result});
         return result;
       }
@@ -609,7 +612,8 @@ inline SymVal make_unary(UnaryOperation op, const SymVal &value) {
 
 inline SymVal make_concat(const SymVal &lhs, const SymVal &rhs) {
   if (auto lhs_concrete = std::dynamic_pointer_cast<SymConcrete>(lhs.symptr)) {
-    if (auto rhs_concrete = std::dynamic_pointer_cast<SymConcrete>(rhs.symptr)) {
+    if (auto rhs_concrete =
+            std::dynamic_pointer_cast<SymConcrete>(rhs.symptr)) {
       if (lhs_concrete->kind == KindBV && rhs_concrete->kind == KindBV) {
         int new_width = lhs_concrete->width() + rhs_concrete->width();
         int64_t new_value =

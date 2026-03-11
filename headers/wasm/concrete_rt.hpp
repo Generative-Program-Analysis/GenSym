@@ -280,6 +280,18 @@ struct Memory_t {
     return result;
   }
 
+  int64_t loadLong(int32_t base, int32_t offset) {
+    int32_t addr = base + offset;
+    if (!(addr + 7 < memory.size()) || addr < 0) {
+      throw std::runtime_error("Invalid memory access " + std::to_string(addr));
+    }
+    int64_t result = 0;
+    for (int i = 0; i < 8; ++i) {
+      result |= static_cast<int64_t>(memory[addr + i]) << (8 * i);
+    }
+    return result;
+  }
+
   std::monostate storeInt(int32_t base, int32_t offset, int32_t value) {
     int32_t addr = base + offset;
     // Ensure we don't write out of bounds
@@ -293,6 +305,17 @@ struct Memory_t {
     std::cout << "[Debug] storing int " << value << " to memory at address "
               << addr << std::endl;
 #endif
+    return std::monostate{};
+  }
+
+  std::monostate storeLong(int32_t base, int32_t offset, int64_t value) {
+    int32_t addr = base + offset;
+    if (!(addr + 7 < memory.size()) || addr < 0) {
+      throw std::runtime_error("Invalid memory access " + std::to_string(addr));
+    }
+    for (int i = 0; i < 8; ++i) {
+      memory[addr + i] = static_cast<uint8_t>((static_cast<uint64_t>(value) >> (8 * i)) & 0xFF);
+    }
     return std::monostate{};
   }
 

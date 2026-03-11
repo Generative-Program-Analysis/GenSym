@@ -515,10 +515,44 @@ trait ConcreteOps extends StagedWasmValueDomains with ValueCreation {
       }
     }
 
-    def extend(): StagedConcreteNum = {
-      num.tipe match {
-        case NumType(I32Type) => StagedConcreteNum(NumType(I64Type), "i32-extend-to-i64".reflectCtrlWith[Num](num.i))
-      }
+    def extendS(): StagedConcreteNum = num.tipe match {
+      case NumType(I32Type) => StagedConcreteNum(NumType(I64Type), "i32-extend-to-i64-s".reflectCtrlWith[Num](num.i))
+    }
+
+    def extendU(): StagedConcreteNum = num.tipe match {
+      case NumType(I32Type) => StagedConcreteNum(NumType(I64Type), "i32-extend-to-i64-u".reflectCtrlWith[Num](num.i))
+    }
+
+    def convertI32ToF32S(): StagedConcreteNum = num.tipe match {
+      case NumType(I32Type) => StagedConcreteNum(NumType(F32Type), "i32-convert-to-f32-s".reflectCtrlWith[Num](num.i))
+    }
+
+    def convertI64ToF32S(): StagedConcreteNum = num.tipe match {
+      case NumType(I64Type) => StagedConcreteNum(NumType(F32Type), "i64-convert-to-f32-s".reflectCtrlWith[Num](num.i))
+    }
+
+    def convertI32ToF32U(): StagedConcreteNum = num.tipe match {
+      case NumType(I32Type) => StagedConcreteNum(NumType(F32Type), "i32-convert-to-f32-u".reflectCtrlWith[Num](num.i))
+    }
+
+    def convertI64ToF32U(): StagedConcreteNum = num.tipe match {
+      case NumType(I64Type) => StagedConcreteNum(NumType(F32Type), "i64-convert-to-f32-u".reflectCtrlWith[Num](num.i))
+    }
+
+    def convertI32ToF64S(): StagedConcreteNum = num.tipe match {
+      case NumType(I32Type) => StagedConcreteNum(NumType(F64Type), "i32-convert-to-f64-s".reflectCtrlWith[Num](num.i))
+    }
+
+    def convertI64ToF64S(): StagedConcreteNum = num.tipe match {
+      case NumType(I64Type) => StagedConcreteNum(NumType(F64Type), "i64-convert-to-f64-s".reflectCtrlWith[Num](num.i))
+    }
+
+    def convertI32ToF64U(): StagedConcreteNum = num.tipe match {
+      case NumType(I32Type) => StagedConcreteNum(NumType(F64Type), "i32-convert-to-f64-u".reflectCtrlWith[Num](num.i))
+    }
+
+    def convertI64ToF64U(): StagedConcreteNum = num.tipe match {
+      case NumType(I64Type) => StagedConcreteNum(NumType(F64Type), "i64-convert-to-f64-u".reflectCtrlWith[Num](num.i))
     }
 
     def assert(): Rep[Unit] = {
@@ -1039,17 +1073,23 @@ trait StagedMemory extends SAIOps with StagedWasmValueDomains with Continuations
   object Memory {
     // TODO: why this is only one function, rather than `storeInC` and `storeInS`?
     // TODO: what should the type of SymVal be?
-    def storeInt(base: Rep[Int], offset: Int, value: (Rep[Int], StagedSymbolicNum)): Rep[Unit] = {
-      "memory-store-int".reflectCtrlWith[Unit](base, offset, value._1)
-      "sym-store-int".reflectCtrlWith[Unit](base, offset, value._2.s)
+    def store(ty: ValueType, base: Rep[Int], offset: Int, value: (StagedConcreteNum, StagedSymbolicNum)): Rep[Unit] = ty match {
+      case NumType(I32Type) => 
+        "memory-store-int".reflectCtrlWith[Unit](base, offset, value._1.i)
+        "sym-store-int".reflectCtrlWith[Unit](base, offset, value._2.s)
+      case NumType(I64Type) => 
+        "memory-store-long".reflectCtrlWith[Unit](base, offset, value._1.i)
+        "sym-store-long".reflectCtrlWith[Unit](base, offset, value._2.s)
     }
 
-    def loadIntC(base: Rep[Int], offset: Int): StagedConcreteNum = {
-      StagedConcreteNum(NumType(I32Type), "I32V".reflectCtrlWith[Num]("memory-load-int".reflectCtrlWith[Int](base, offset)))
+    def loadC(ty: ValueType, base: Rep[Int], offset: Int): StagedConcreteNum = ty match {
+      case NumType(I32Type) => StagedConcreteNum(NumType(I32Type), "I32V".reflectCtrlWith[Num]("memory-load-int".reflectCtrlWith[Int](base, offset)))
+      case NumType(I64Type) => StagedConcreteNum(NumType(I64Type), "I64V".reflectCtrlWith[Num]("memory-load-long".reflectCtrlWith[Long](base, offset)))
     }
 
-    def loadIntS(base: Rep[Int], offset: Int): StagedSymbolicNum = {
-      StagedSymbolicNum(NumType(I32Type), "sym-load-int".reflectCtrlWith[SymVal](base, offset))
+    def loadS(ty: ValueType, base: Rep[Int], offset: Int): StagedSymbolicNum = ty match {
+      case NumType(I32Type) => StagedSymbolicNum(NumType(I32Type), "sym-load-int".reflectCtrlWith[SymVal](base, offset))
+      case NumType(I64Type) => StagedSymbolicNum(NumType(I64Type), "sym-load-long".reflectCtrlWith[SymVal](base, offset))
     }
 
     // Returns the previous memory size on success, or -1 if the memory cannot be grown.
@@ -1319,7 +1359,8 @@ trait StagedWasmEvaluator extends SAIOps
           }
         }
         eval(rest, kont, trail)(newCtx)
-      case Store(StoreOp(align, offset, NumType(I32Type), None)) =>
+      case Nop => eval(rest, kont, trail)
+      case Store(StoreOp(align, offset, ty, None)) =>
         val newCtx2 = withBlock {
           val (ty1, newCtx1) = ctx.pop()
           val value = Stack.popC(ty1)
@@ -1327,18 +1368,17 @@ trait StagedWasmEvaluator extends SAIOps
           val (ty2, newCtx2) = newCtx1.pop()
           val addr = Stack.popC(ty2)
           val symAddr = Stack.popS(ty2)
-          Memory.storeInt(addr.toInt, offset, (value.toInt, symValue))
+          Memory.store(ty, addr.toInt, offset, (value, symValue))
           newCtx2
         }
         eval(rest, kont, trail)(newCtx2)
-      case Nop => eval(rest, kont, trail)
       case Load(LoadOp(align, offset, ty, None, None)) =>
         val newCtx1 = withBlock {
           val (ty1, newCtx1) = ctx.pop()
           val addr = Stack.popC(ty1)
           Stack.popS(ty1)
-          val num = Memory.loadIntC(addr.toInt, offset)
-          val sym = Memory.loadIntS(addr.toInt, offset)
+          val num = Memory.loadC(ty, addr.toInt, offset)
+          val sym = Memory.loadS(ty, addr.toInt, offset)
           Stack.pushC(num)
           Stack.pushS(sym)
           newCtx1
@@ -1896,15 +1936,25 @@ trait StagedWasmEvaluator extends SAIOps
   }
 
   def evalCvtOpC(op: CvtOp, value: StagedConcreteNum): StagedConcreteNum = op match {
-    case Extend(NumType(I32Type), NumType(I64Type), ZX) => value.extend
+    case Extend(NumType(I32Type), NumType(I64Type), SX) => value.extendS()
+    case Extend(NumType(I32Type), NumType(I64Type), ZX) => value.extendU()
+    case ConvertTo(NumType(I32Type), NumType(F32Type), SX) => value.convertI32ToF32S()
+    case ConvertTo(NumType(I32Type), NumType(F32Type), ZX) => value.convertI32ToF32U()
+    case ConvertTo(NumType(I64Type), NumType(F32Type), SX) => value.convertI64ToF32S()
+    case ConvertTo(NumType(I64Type), NumType(F32Type), ZX) => value.convertI64ToF32U()
+    case ConvertTo(NumType(I32Type), NumType(F64Type), SX) => value.convertI32ToF64S()
+    case ConvertTo(NumType(I32Type), NumType(F64Type), ZX) => value.convertI32ToF64U()
+    case ConvertTo(NumType(I64Type), NumType(F64Type), SX) => value.convertI64ToF64S()
+    case ConvertTo(NumType(I64Type), NumType(F64Type), ZX) => value.convertI64ToF64U()
+    case _ => throw new UnsupportedOperationException(s"Unsupported concrete conversion $op")
   }
 
   def evalCvtOpS(op: CvtOp, value: StagedSymbolicNum, c: StagedConcreteNum): StagedSymbolicNum = {
-    val res = if (allConcrete(value)) {
-      c.toStagedSymbolicNum.s
-    } else {
+    var res = c.toStagedSymbolicNum.s
+    if (!allConcrete(value)) {
       op match {
         case Extend(NumType(I32Type), NumType(I64Type), ZX) => value.extend().s
+        case _ => "debug-assert".reflectCtrlWith[SymVal](false, "All runtime float point must be concrete values") 
       }
     }
     StagedSymbolicNum(c.tipe, res)
@@ -2063,6 +2113,7 @@ trait StagedWasmCppGen extends CGenBase with CppSAICodeGenBase {
   registerHeader("<stdbool.h>")
   registerHeader("<stdint.h>")
   registerHeader("<variant>")
+  registerHeader("<cassert>")
 
   override def mayInline(n: Node): Boolean = n match {
     case Node(_, "stack-pop", _, _)
@@ -2198,9 +2249,13 @@ trait StagedWasmCppGen extends CGenBase with CppSAICodeGenBase {
     case Node(_, "slice-reverse", List(slice), _) =>
       shallow(slice); emit(".reverse")
     case Node(_, "memory-store-int", List(base, offset, value), _) =>
-      emit("Memory.storeInt("); shallow(base); emit(", "); shallow(offset); emit(", "); shallow(value); emit(")")
+      emit("Memory.storeInt("); shallow(base); emit(", "); shallow(offset); emit(", "); shallow(value); emit(".toInt())")
+    case Node(_, "memory-store-long", List(base, offset, value), _) =>
+      emit("Memory.storeLong("); shallow(base); emit(", "); shallow(offset); emit(", "); shallow(value); emit(".toInt64())")
     case Node(_, "memory-load-int", List(base, offset), _) =>
       emit("Memory.loadInt("); shallow(base); emit(", "); shallow(offset); emit(")")
+    case Node(_, "memory-load-long", List(base, offset), _) =>
+      emit("Memory.loadLong("); shallow(base); emit(", "); shallow(offset); emit(")")
     case Node(_, "memory-grow", List(delta), _) =>
       emit("Memory.grow("); shallow(delta); emit(")")
     case Node(_, "stack-size", _, _) =>
@@ -2208,8 +2263,12 @@ trait StagedWasmCppGen extends CGenBase with CppSAICodeGenBase {
     // Symbolic Memory
     case Node(_, "sym-store-int", List(base, offset, s_value), _) =>
       emit("SymMemory.storeSym("); shallow(base); emit(", "); shallow(offset); emit(", "); shallow(s_value); emit(")")
+    case Node(_, "sym-store-long", List(base, offset, s_value), _) =>
+      emit("SymMemory.storeSymLong("); shallow(base); emit(", "); shallow(offset); emit(", "); shallow(s_value); emit(")")
     case Node(_, "sym-load-int", List(base, offset), _) =>
       emit("SymMemory.loadSym("); shallow(base); emit(", "); shallow(offset); emit(")")
+    case Node(_, "sym-load-long", List(base, offset), _) =>
+      emit("SymMemory.loadSymLong("); shallow(base); emit(", "); shallow(offset); emit(")")
     case Node(_, "sym-memory-grow", List(delta), _) =>
       emit("SymMemory.grow("); shallow(delta); emit(")")
     // Globals
@@ -2321,8 +2380,26 @@ trait StagedWasmCppGen extends CGenBase with CppSAICodeGenBase {
       shallow(lhs); emit(".i32_or("); shallow(rhs); emit(")")
     case Node(_, "i64-binary-or", List(lhs, rhs), _) =>
       shallow(lhs); emit(".i64_or("); shallow(rhs); emit(")")
-    case Node(_, "i32-extend-to-i64", List(num), _) =>
-      emit("("); shallow(num); emit(".i32_extend_to_i64())")
+    case Node(_, "i32-extend-to-i64-s", List(num), _) =>
+      emit("("); shallow(num); emit(".i32_extend_to_i64_s())")
+    case Node(_, "i32-extend-to-i64-u", List(num), _) =>
+      emit("("); shallow(num); emit(".i32_extend_to_i64_u())")
+    case Node(_, "i32-convert-to-f32-s", List(num), _) =>
+      emit("("); shallow(num); emit(".convert_i32_to_f32_s())")
+    case Node(_, "i32-convert-to-f32-u", List(num), _) =>
+      emit("("); shallow(num); emit(".convert_i32_to_f32_u())")
+    case Node(_, "i64-convert-to-f32-s", List(num), _) =>
+      emit("("); shallow(num); emit(".convert_i64_to_f32_s())")
+    case Node(_, "i64-convert-to-f32-u", List(num), _) =>
+      emit("("); shallow(num); emit(".convert_i64_to_f32_u())")
+    case Node(_, "i32-convert-to-f64-s", List(num), _) =>
+      emit("("); shallow(num); emit(".convert_i32_to_f64_s())")
+    case Node(_, "i32-convert-to-f64-u", List(num), _) =>
+      emit("("); shallow(num); emit(".convert_i32_to_f64_u())")
+    case Node(_, "i64-convert-to-f64-s", List(num), _) =>
+      emit("("); shallow(num); emit(".convert_i64_to_f64_s())")
+    case Node(_, "i64-convert-to-f64-u", List(num), _) =>
+      emit("("); shallow(num); emit(".convert_i64_to_f64_u())")
     case Node(_, "f32-binary-add", List(lhs, rhs), _) =>
       shallow(lhs); emit(".f32_add("); shallow(rhs); emit(")")
     case Node(_, "f64-binary-add", List(lhs, rhs), _) =>
@@ -2421,6 +2498,8 @@ trait StagedWasmCppGen extends CGenBase with CppSAICodeGenBase {
       emit("make_symbolic("); shallow(num); emit(", "); shallow(width); emit(")")
     case Node(_, "sym-env-read", List(sym), _) =>
       emit("SymEnv.read("); shallow(sym); emit(")")
+    case (Node(_, "debug-assert", List(cond, msg), _)) =>
+      emit("assert("); shallow(cond); emit(" && "); shallow(msg); emit(")")
     case Node(_, "assert-true", List(cond), _) =>
       emit("GENSYM_ASSERT("); shallow(cond); emit(")")
     case Node(_, "sym-assert-true", List(s_cond), _) =>

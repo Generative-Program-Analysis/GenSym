@@ -115,6 +115,30 @@
     local.get 3
     f64.le
     i32.eqz
+    call 0
+
+    i32.const -1
+    f32.convert_i32_s
+    f32.const -1.0
+    f32.eq
+    call 0
+
+    i32.const -1
+    f32.convert_i32_u
+    f32.const 0x1p+32 (;=4294967296;)
+    f32.eq
+    call 0
+
+    i32.const -1
+    f64.convert_i32_u
+    f64.const 4294967295.0
+    f64.eq
+    call 0
+
+    i64.const -1
+    f64.convert_i64_s
+    f64.const -1.0
+    f64.eq
     call 0)
 
   ;; symbolic branch guard for f32
