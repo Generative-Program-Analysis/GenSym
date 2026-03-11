@@ -314,7 +314,7 @@ inline std::tuple<int, bool> count_dag_size_aux(Symbolic &val,
   } else if (auto witness = dynamic_cast<Witness *>(&val)) {
     assert(false && "Witness should not appear during instruction execution");
   } else {
-    throw std::runtime_error("Unknown symbolic type in dag size counting");
+    assert(false && "Unknown symbolic type in dag size counting");
   }
 }
 

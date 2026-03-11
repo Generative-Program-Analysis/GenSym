@@ -42,7 +42,6 @@ public:
   void push(SymVal val) {
     // Push a symbolic value to the stack
     stack.push_back(val);
-    symbolic_size += val->size();
   }
 
   SymVal pop() {
@@ -54,12 +53,10 @@ public:
 #ifdef USE_IMM
     auto ret = *(stack.end() - 1);
     stack.take(stack.size() - 1);
-    symbolic_size -= ret->size();
     return ret;
 #else
     auto ret = stack.back();
     stack.pop_back();
-    symbolic_size -= ret->size();
     return ret;
 #endif
   }
@@ -71,7 +68,6 @@ public:
     for (size_t i = n - size; i < n; ++i) {
       assert(i - offset >= 0);
 #ifdef USE_IMM
-      symbolic_size -= stack[i - offset]->size();
       stack.set(i - offset, stack[i]);
 #else
       stack[i - offset] = stack[i];
@@ -149,10 +145,6 @@ public:
     auto frame_base = current_frame_base();
     assert(frame_base + size == stack.size());
 
-    for (int i = 0; i < size; ++i) {
-      symbolic_size -= stack[stack.size() - 1 - i]->size();
-    }
-
 #ifdef USE_IMM
     stack.take(stack.size() - size);
 #else
@@ -172,10 +164,6 @@ public:
     // Pop the frame of the given size
     assert(size >= 0);
     assert(static_cast<size_t>(size) <= stack.size());
-
-    for (int i = 0; i < size; ++i) {
-      symbolic_size -= stack[stack.size() - 1 - i]->size();
-    }
 
 #ifdef USE_IMM
     stack.take(stack.size() - size);
@@ -203,7 +191,6 @@ public:
     auto frame_base = current_frame_base();
     assert(index >= 0 &&
            static_cast<size_t>(frame_base + index) < stack.size());
-    symbolic_size += val->size() - stack[frame_base + index]->size();
 #ifdef USE_IMM
     stack.set(frame_base + index, val);
 #else
@@ -451,11 +438,6 @@ public:
     exists = (it != memory.end());
 #endif
     auto old_value = loadSymByte(addr);
-    if (exists) {
-      // We are overwriting an existing symbolic value
-      symbolic_size -= old_value->size();
-    }
-    symbolic_size += value->size();
 #ifdef USE_IMM
     memory.set(addr, value);
 #else
