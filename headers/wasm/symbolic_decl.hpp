@@ -10,6 +10,7 @@ enum BinOperation {
   SUB,     // Subtraction
   MUL,     // Multiplication
   DIV,     // Division
+  DIV_U,   // Unsigned division
   AND,     // Logical AND
   OR,      // Logical OR
   EQ_BOOL, // Equal (return a boolean) TODO: remove bv version of comparison ops
@@ -17,10 +18,12 @@ enum BinOperation {
   LT_BOOL,  // Less than (return a boolean)
   LTU_BOOL, // Unsigned less than (return a boolean)
   LEQ_BOOL, // Less than or equal (return a boolean)
+  LEU_BOOL, // Unsigned less than or equal (return a boolean)
   GT_BOOL,  // Greater than (return a boolean)
   GTU_BOOL, // Unsigned greater than (return a boolean)
   GEQ_BOOL, // Greater than or equal (return a boolean)
   GEU_BOOL, // Unsigned greater than or equal (return a boolean)
+  SHL,      // Shift left
   SHR_U,    // Shift right unsigned
   SHR_S,    // Shift right signed
   REM_U,    // Unsigned remainder
@@ -33,7 +36,7 @@ enum BinOperation {
 enum UnaryOperation {
   NOT,     // bool not
   BOOL2BV, // bool to bitvector,
-  EXTEND,   // bitvector extension, extend i32 to i64
+  EXTEND,  // bitvector extension, extend i32 to i64
 };
 
 enum ValueKind { KindBV, KindBool, KindFP };
@@ -145,6 +148,8 @@ struct SymBinary : public Symbolic {
     case SUB:
     case MUL:
     case DIV:
+    case DIV_U:
+    case SHL:
     case SHR_U:
     case SHR_S:
     case REM_U:
@@ -166,6 +171,7 @@ struct SymBinary : public Symbolic {
     case LT_BOOL:
     case LTU_BOOL:
     case LEQ_BOOL:
+    case LEU_BOOL:
     case GT_BOOL:
     case GTU_BOOL:
     case GEQ_BOOL:

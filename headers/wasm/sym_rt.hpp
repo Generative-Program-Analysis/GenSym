@@ -354,7 +354,39 @@ public:
     SymVal s7 = (it != memory.end()) ? it->second : SVFactory::ZeroByte;
 #endif
 
-    return s7.concat(s6).concat(s5).concat(s4).concat(s3).concat(s2).concat(s1).concat(s0);
+    return s7.concat(s6)
+        .concat(s5)
+        .concat(s4)
+        .concat(s3)
+        .concat(s2)
+        .concat(s1)
+        .concat(s0);
+  }
+
+  SymVal loadSymFloat(int32_t base, int32_t offset) {
+    // For simplicity, we treat float as concrete value for now
+    auto symbv = loadSym(base, offset);
+    assert(symbv.is_concrete() && "Currently only support concrete symbolic "
+                                  "value for float-point values");
+    if (auto concrete = dynamic_cast<SymConcrete *>(symbv.symptr.get())) {
+      auto value = concrete->value;
+      return SVFactory::make_concrete_fp(value, 32);
+    } else {
+      assert(false && "unreachable");
+    }
+  }
+
+  SymVal loadSymDouble(int32_t base, int32_t offset) {
+    // For simplicity, we treat double as concrete value for now
+    auto symbv = loadSymLong(base, offset);
+    assert(symbv.is_concrete() && "Currently only support concrete symbolic "
+                                  "value for float-point values");
+    if (auto concrete = dynamic_cast<SymConcrete *>(symbv.symptr.get())) {
+      auto value = concrete->value;
+      return SVFactory::make_concrete_fp(value, 64);
+    } else {
+      assert(false && "unreachable");
+    }
   }
 
   // when loading a symval, we need to concat 4 symbolic values
@@ -394,6 +426,18 @@ public:
     storeSymByte(addr + 6, s6);
     storeSymByte(addr + 7, s7);
     return std::monostate{};
+  }
+
+  std::monostate storeSymFloat(int32_t base, int32_t offset, SymVal value) {
+    assert(value.is_concrete() && "Currently only support concrete symbolic "
+                                  "value for float-point values");
+    return storeSym(base, offset, value);
+  }
+
+  std::monostate storeSymDouble(int32_t base, int32_t offset, SymVal value) {
+    assert(value.is_concrete() && "Currently only support concrete symbolic "
+                                  "value for float-point values");
+    return storeSymLong(base, offset, value);
   }
 
   std::monostate storeSymByte(int32_t addr, SymVal value) {

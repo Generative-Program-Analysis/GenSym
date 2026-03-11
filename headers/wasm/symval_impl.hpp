@@ -21,6 +21,10 @@ inline SymVal SymVal::div(const SymVal &other) const {
   return SVFactory::make_binary(DIV, *this, other);
 }
 
+inline SymVal SymVal::div_u(const SymVal &other) const {
+  return SVFactory::make_binary(DIV_U, *this, other);
+}
+
 inline SymVal SymVal::land(const SymVal &other) const {
   return SVFactory::make_binary(AND, *this, other);
 }
@@ -70,6 +74,10 @@ inline SymVal SymVal::le(const SymVal &other) const {
   return SVFactory::make_binary(LEQ_BOOL, *this, other);
 }
 
+inline SymVal SymVal::leu(const SymVal &other) const {
+  return SVFactory::make_binary(LEU_BOOL, *this, other);
+}
+
 inline SymVal SymVal::gt(const SymVal &other) const {
   return SVFactory::make_binary(GT_BOOL, *this, other);
 }
@@ -84,6 +92,10 @@ inline SymVal SymVal::ge(const SymVal &other) const {
 
 inline SymVal SymVal::geu(const SymVal &other) const {
   return SVFactory::make_binary(GEU_BOOL, *this, other);
+}
+
+inline SymVal SymVal::shl(const SymVal &other) const {
+  return SVFactory::make_binary(SHL, *this, other);
 }
 
 inline SymVal SymVal::shr_u(const SymVal &other) const {

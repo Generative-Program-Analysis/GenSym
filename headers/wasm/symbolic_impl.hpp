@@ -76,6 +76,9 @@ inline z3::expr Symbolic::build_z3_expr_aux() {
     case LEQ_BOOL: {
       return left <= right;
     }
+    case LEU_BOOL: {
+      return z3::ule(left, right);
+    }
     case GT_BOOL: {
       return left > right;
     }
@@ -84,6 +87,18 @@ inline z3::expr Symbolic::build_z3_expr_aux() {
     }
     case GEU_BOOL: {
       return z3::uge(left, right);
+    }
+    case SHL: {
+      if (bit_width == 32) {
+        z3::expr shift_mask = global_z3_ctx().bv_val(0x1F, bit_width);
+        return z3::shl(left, right & shift_mask);
+      } else if (bit_width == 64) {
+        z3::expr shift_mask = global_z3_ctx().bv_val(0x3F, bit_width);
+        return z3::shl(left, right & shift_mask);
+      } else {
+        throw std::runtime_error("Unsupported bit width for SHL: " +
+                                 std::to_string(bit_width));
+      }
     }
     case SHR_U: {
       return z3::lshr(left, right);
@@ -108,6 +123,9 @@ inline z3::expr Symbolic::build_z3_expr_aux() {
     }
     case DIV: {
       return left / right;
+    }
+    case DIV_U: {
+      return z3::udiv(left, right);
     }
     case B_AND: {
       return left & right;

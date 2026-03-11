@@ -555,6 +555,10 @@ trait ConcreteOps extends StagedWasmValueDomains with ValueCreation {
       case NumType(I64Type) => StagedConcreteNum(NumType(F64Type), "i64-convert-to-f64-u".reflectCtrlWith[Num](num.i))
     }
 
+    def truncF64ToI32U(): StagedConcreteNum = num.tipe match {
+      case NumType(F64Type) => StagedConcreteNum(NumType(I32Type), "f64-trunc-to-i32-u".reflectCtrlWith[Num](num.i))
+    }
+
     def assert(): Rep[Unit] = {
       "assert-true".reflectCtrlWith[Unit](num.toInt != 0)
     }
@@ -1085,11 +1089,15 @@ trait StagedMemory extends SAIOps with StagedWasmValueDomains with Continuations
     def loadC(ty: ValueType, base: Rep[Int], offset: Int): StagedConcreteNum = ty match {
       case NumType(I32Type) => StagedConcreteNum(NumType(I32Type), "I32V".reflectCtrlWith[Num]("memory-load-int".reflectCtrlWith[Int](base, offset)))
       case NumType(I64Type) => StagedConcreteNum(NumType(I64Type), "I64V".reflectCtrlWith[Num]("memory-load-long".reflectCtrlWith[Long](base, offset)))
+      case NumType(F32Type) => StagedConcreteNum(NumType(F32Type), "F32V".reflectCtrlWith[Num]("memory-load-float".reflectCtrlWith[Float](base, offset)))
+      case NumType(F64Type) => StagedConcreteNum(NumType(F64Type), "F64V".reflectCtrlWith[Num]("memory-load-double".reflectCtrlWith[Double](base, offset)))
     }
 
     def loadS(ty: ValueType, base: Rep[Int], offset: Int): StagedSymbolicNum = ty match {
       case NumType(I32Type) => StagedSymbolicNum(NumType(I32Type), "sym-load-int".reflectCtrlWith[SymVal](base, offset))
       case NumType(I64Type) => StagedSymbolicNum(NumType(I64Type), "sym-load-long".reflectCtrlWith[SymVal](base, offset))
+      case NumType(F32Type) => StagedSymbolicNum(NumType(F32Type), "sym-load-float".reflectCtrlWith[SymVal](base, offset))
+      case NumType(F64Type) => StagedSymbolicNum(NumType(F64Type), "sym-load-double".reflectCtrlWith[SymVal](base, offset))
     }
 
     // Returns the previous memory size on success, or -1 if the memory cannot be grown.
@@ -1454,7 +1462,7 @@ trait StagedWasmEvaluator extends SAIOps
         val newCtx3 = newCtx2.push(resTy)
         eval(rest, kont, trail)(newCtx3)
       case Convert(cvt) =>
-        withBlock {
+        val newCtx2 = withBlock {
           val (ty, newCtx) = ctx.pop()
           val num = Stack.popC(ty)
           val sym = Stack.popS(ty)
@@ -1462,7 +1470,9 @@ trait StagedWasmEvaluator extends SAIOps
           val newSym = evalCvtOpS(cvt, sym, newNum)
           Stack.pushC(newNum)
           Stack.pushS(newSym)
+          newCtx.push(newNum.tipe)
         }
+        eval(rest, kont, trail)(newCtx2)
       case WasmBlock(ty, inner) =>
         // no need to modify the stack when entering a block
         // the type system guarantees that we will never take more than the input size from the stack
@@ -1946,17 +1956,17 @@ trait StagedWasmEvaluator extends SAIOps
     case ConvertTo(NumType(I32Type), NumType(F64Type), ZX) => value.convertI32ToF64U()
     case ConvertTo(NumType(I64Type), NumType(F64Type), SX) => value.convertI64ToF64S()
     case ConvertTo(NumType(I64Type), NumType(F64Type), ZX) => value.convertI64ToF64U()
+    case TruncTo(NumType(F64Type),NumType(I32Type),ZX) => value.truncF64ToI32U()
     case _ => throw new UnsupportedOperationException(s"Unsupported concrete conversion $op")
   }
 
   def evalCvtOpS(op: CvtOp, value: StagedSymbolicNum, c: StagedConcreteNum): StagedSymbolicNum = {
-    var res = c.toStagedSymbolicNum.s
-    if (!allConcrete(value)) {
-      op match {
-        case Extend(NumType(I32Type), NumType(I64Type), ZX) => value.extend().s
-        case _ => "debug-assert".reflectCtrlWith[SymVal](false, "All runtime float point must be concrete values") 
-      }
-    }
+    val res = if (allConcrete(value)) {
+      c.toStagedSymbolicNum.s
+    } else (op match {
+      case _ => StagedSymbolicNum(NumType(I32Type) /* Just a place holder here */, 
+                                  "debug-unreachable".reflectCtrlWith[SymVal]("All runtime converted value must be concrete values"))
+    }).s
     StagedSymbolicNum(c.tipe, res)
   }
 
@@ -2035,6 +2045,13 @@ trait StagedWasmEvaluator extends SAIOps
     func(())
   }
 
+  // Convert WAT-style hex escapes (\XX) to C++-style (\xXX)
+  // WAT uses \00, \80 etc. but C++ interprets \8 as invalid octal
+  def convertWatEscapesToCpp(s: String): String = {
+    val hexEscape = """\\([0-9a-fA-F]{2})""".r
+    hexEscape.replaceAllIn(s, m => "\\\\x" + m.group(1))
+  }
+
   def initMemory(): Rep[Unit] = {
     def initMemoryTopFun = topFun((_: Rep[Unit]) => {
       info("Initializing memory...")
@@ -2047,7 +2064,7 @@ trait StagedWasmEvaluator extends SAIOps
             evalSeq(offsetInstr::Nil, (_: Context) => forwardKont, ((_: Context) => forwardKont)::Nil)
             val offsetC = Stack.popC(NumType(I32Type))
             Stack.popS(NumType(I32Type))
-            "memory-initialize".reflectCtrlWith[Unit](offsetC.toInt, bytes)
+            "memory-initialize".reflectCtrlWith[Unit](offsetC.toInt, convertWatEscapesToCpp(bytes))
           case _ => ()
         }
       }
@@ -2256,6 +2273,10 @@ trait StagedWasmCppGen extends CGenBase with CppSAICodeGenBase {
       emit("Memory.loadInt("); shallow(base); emit(", "); shallow(offset); emit(")")
     case Node(_, "memory-load-long", List(base, offset), _) =>
       emit("Memory.loadLong("); shallow(base); emit(", "); shallow(offset); emit(")")
+    case Node(_, "memory-load-float", List(base, offset), _) =>
+      emit("Memory.loadInt("); shallow(base); emit(", "); shallow(offset); emit(")")
+    case Node(_, "memory-load-double", List(base, offset), _) =>
+      emit("Memory.loadLong("); shallow(base); emit(", "); shallow(offset); emit(")")
     case Node(_, "memory-grow", List(delta), _) =>
       emit("Memory.grow("); shallow(delta); emit(")")
     case Node(_, "stack-size", _, _) =>
@@ -2269,6 +2290,10 @@ trait StagedWasmCppGen extends CGenBase with CppSAICodeGenBase {
       emit("SymMemory.loadSym("); shallow(base); emit(", "); shallow(offset); emit(")")
     case Node(_, "sym-load-long", List(base, offset), _) =>
       emit("SymMemory.loadSymLong("); shallow(base); emit(", "); shallow(offset); emit(")")
+    case Node(_, "sym-load-float", List(base, offset), _) =>
+      emit("SymMemory.loadSymFloat("); shallow(base); emit(", "); shallow(offset); emit(")")
+    case Node(_, "sym-load-double", List(base, offset), _) =>
+      emit("SymMemory.loadSymDouble("); shallow(base); emit(", "); shallow(offset); emit(")")
     case Node(_, "sym-memory-grow", List(delta), _) =>
       emit("SymMemory.grow("); shallow(delta); emit(")")
     // Globals
@@ -2400,6 +2425,8 @@ trait StagedWasmCppGen extends CGenBase with CppSAICodeGenBase {
       emit("("); shallow(num); emit(".convert_i64_to_f64_s())")
     case Node(_, "i64-convert-to-f64-u", List(num), _) =>
       emit("("); shallow(num); emit(".convert_i64_to_f64_u())")
+    case Node(_, "f64-trunc-to-i32-u", List(num), _) =>
+      emit("("); shallow(num); emit(".trunc_f64_to_i32_u())")
     case Node(_, "f32-binary-add", List(lhs, rhs), _) =>
       shallow(lhs); emit(".f32_add("); shallow(rhs); emit(")")
     case Node(_, "f64-binary-add", List(lhs, rhs), _) =>
@@ -2448,6 +2475,8 @@ trait StagedWasmCppGen extends CGenBase with CppSAICodeGenBase {
       shallow(lhs); emit(".mul("); shallow(rhs); emit(")")
     case Node(_, "sym-binary-div", List(lhs, rhs), _) =>
       shallow(lhs); emit(".div("); shallow(rhs); emit(")")
+    case Node(_, "sym-binary-div-u", List(lhs, rhs), _) =>
+      shallow(lhs); emit(".div_u("); shallow(rhs); emit(")")
     case Node(_, "sym-binary-and", List(lhs, rhs), _) =>
       shallow(lhs); emit(".bitwise_and("); shallow(rhs); emit(")")
     case Node(_, "sym-relation-le", List(lhs, rhs), _) =>
@@ -2476,6 +2505,8 @@ trait StagedWasmCppGen extends CGenBase with CppSAICodeGenBase {
       shallow(lhs); emit(".gtu("); shallow(rhs); emit(").bool2bv()")
     case Node(_, "sym-relation-les", List(lhs, rhs), _) =>
       shallow(lhs); emit(".le("); shallow(rhs); emit(").bool2bv()")
+    case Node(_, "sym-binary-shl", List(lhs, rhs), _) =>
+      shallow(lhs); emit(".shl("); shallow(rhs); emit(")")
     case Node(_, "sym-binary-shr-u", List(lhs, rhs), _) =>
       shallow(lhs); emit(".shr_u("); shallow(rhs); emit(")")
     case Node(_, "sym-binary-shr-s", List(lhs, rhs), _) =>
@@ -2498,8 +2529,8 @@ trait StagedWasmCppGen extends CGenBase with CppSAICodeGenBase {
       emit("make_symbolic("); shallow(num); emit(", "); shallow(width); emit(")")
     case Node(_, "sym-env-read", List(sym), _) =>
       emit("SymEnv.read("); shallow(sym); emit(")")
-    case (Node(_, "debug-assert", List(cond, msg), _)) =>
-      emit("assert("); shallow(cond); emit(" && "); shallow(msg); emit(")")
+    case (Node(_, "debug-unreachable", List(msg), _)) =>
+      emit("debug_unreachable("); shallow(msg); emit(")")
     case Node(_, "assert-true", List(cond), _) =>
       emit("GENSYM_ASSERT("); shallow(cond); emit(")")
     case Node(_, "sym-assert-true", List(s_cond), _) =>
