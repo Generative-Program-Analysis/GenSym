@@ -52,18 +52,36 @@ inline bool starts_with(const std::string &str, const std::string &prefix) {
 }
 #endif
 
-inline std::monostate info() {
-#ifdef DEBUG
+inline std::monostate print_infos() {
   std::cout << std::endl;
-#endif
+  return std::monostate{};
+}
+
+template <typename T, typename... Args>
+std::monostate print_infos(const T &first, const Args &...args) {
+  std::cout << first << " ";
+  print_infos(args...);
   return std::monostate{};
 }
 
 template <typename T, typename... Args>
 std::monostate info(const T &first, const Args &...args) {
 #ifdef DEBUG
-  std::cout << first << " ";
-  info(args...);
+  print_infos(first, args...);
+#endif
+  return std::monostate{};
+}
+
+constexpr const char *DEBUG_OPTS_ENV_VAR = "GENSYM_DEBUG";
+
+template <typename... Args>
+std::monostate infoWhen(const char *dbg_option, const Args &...args) {
+#ifdef DEBUGWHEN
+  const char *env_value = std::getenv(DEBUG_OPTS_ENV_VAR);
+  if (env_value && std::string(env_value).find(std::string(dbg_option)) !=
+                       std::string::npos) {
+    print_infos(args...);
+  }
 #endif
   return std::monostate{};
 }

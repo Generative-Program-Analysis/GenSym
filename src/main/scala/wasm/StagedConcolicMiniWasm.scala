@@ -1112,6 +1112,10 @@ trait DebugInfo extends SAIOps {
   def info(xs: Rep[_]*): Rep[Unit] = {
     "info".reflectCtrlWith[Unit](xs: _*)
   }
+
+  def infoWhen(envVar: Rep[String], xs: Rep[_]*): Rep[Unit] = {
+    "infoWhen".reflectCtrlWith[Unit](envVar :: xs.toList: _*)
+  }
 }
 
 @virtualize
@@ -1671,7 +1675,7 @@ trait StagedWasmEvaluator extends SAIOps
     })
     val newMKont: Rep[MCont[Unit]] = currentMCont.prependCont(restK)
     updateCurrentMCont(newMKont)
-    info(s"Calling function at index ", index.toInt, " with call_indirect, stackSize =", Stack.size)
+    infoWhen("CALL", s"Calling function at index ", index.toInt, " with call_indirect, stackSize =", Stack.size)
     val argsC = Stack.takeC(functy.inps)
     val argsS = Stack.takeS(functy.inps)
     Frames.pushFrameCallerC(functy.inps)
@@ -1718,7 +1722,7 @@ trait StagedWasmEvaluator extends SAIOps
         val callee = evalFunc(ty, body, funcIndex, ty.inps, bodyLocals)
         // Predef.println(s"[DEBUG] locals size: ${locals.size}")
         withBlock {
-          info("Taking arguments from stack to call function at ", funcIndex)
+          infoWhen("CALL", s"Taking arguments from stack to call function at ", funcIndex)
           val newCtx = ctx.take(ty.inps.size)
           val argsC = Stack.takeC(ty.inps)
           val argsS = Stack.takeS(ty.inps)
