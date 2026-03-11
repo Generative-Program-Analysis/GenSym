@@ -204,7 +204,7 @@ store
 ;
 
 selectInstr
-  : numType SELECT
+  : SELECT
 ;
 
 callIndirectInstr
