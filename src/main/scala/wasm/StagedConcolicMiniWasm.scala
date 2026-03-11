@@ -2039,6 +2039,13 @@ trait StagedWasmEvaluator extends SAIOps
     func(())
   }
 
+  // Convert WAT-style hex escapes (\XX) to C++-style (\xXX)
+  // WAT uses \00, \80 etc. but C++ interprets \8 as invalid octal
+  def convertWatEscapesToCpp(s: String): String = {
+    val hexEscape = """\\([0-9a-fA-F]{2})""".r
+    hexEscape.replaceAllIn(s, m => "\\\\x" + m.group(1))
+  }
+
   def initMemory(): Rep[Unit] = {
     def initMemoryTopFun = topFun((_: Rep[Unit]) => {
       info("Initializing memory...")
@@ -2051,7 +2058,7 @@ trait StagedWasmEvaluator extends SAIOps
             evalSeq(offsetInstr::Nil, (_: Context) => forwardKont, ((_: Context) => forwardKont)::Nil)
             val offsetC = Stack.popC(NumType(I32Type))
             Stack.popS(NumType(I32Type))
-            "memory-initialize".reflectCtrlWith[Unit](offsetC.toInt, bytes)
+            "memory-initialize".reflectCtrlWith[Unit](offsetC.toInt, convertWatEscapesToCpp(bytes))
           case _ => ()
         }
       }
