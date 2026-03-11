@@ -2,6 +2,7 @@
 #define WASM_CONCRETE_NUM_HPP
 #include "wasm/profile.hpp"
 #include "wasm/utils.hpp"
+#include <cmath>
 #include <cstdint>
 
 struct Num {
@@ -875,6 +876,27 @@ struct Num {
   inline Num convert_i64_to_f64_u() const {
     uint64_t r_bits = f64_to_bits(static_cast<double>(toUInt64()));
     return Num(static_cast<int64_t>(r_bits));
+  }
+
+  inline Num trunc_f64_to_i32_u() const {
+    uint64_t bits = toUInt64();
+    double value = f64_from_bits(bits);
+
+    if (std::isnan(value)) {
+      throw std::runtime_error("i32.trunc_f64_u: NaN");
+    }
+    if (std::isinf(value)) {
+      throw std::runtime_error("i32.trunc_f64_u: Infinity");
+    }
+    if (value < 0.0 || value >= 4294967296.0) {
+      throw std::runtime_error("i32.trunc_f64_u: Out of range");
+    }
+
+    double truncated = std::trunc(value);
+    uint32_t result = static_cast<uint32_t>(truncated);
+    Num res(static_cast<int32_t>(result));
+    debug_print("i32.trunc_f64_u", *this, *this, res);
+    return res;
   }
 
   // f64.min / f64.max: follow wasm-ish semantics: if either is NaN, return

@@ -365,6 +365,12 @@ inline SymVal make_binary(BinOperation op, const SymVal &lhs,
         if (lhs_width == 64 && rhs_width == 64)
           return make_eval_bool(lhs_value.i64_lt_u(rhs_value));
         break;
+      case LEU_BOOL:
+        if (lhs_width == 32 && rhs_width == 32)
+          return make_eval_bool(lhs_value.i32_le_u(rhs_value));
+        if (lhs_width == 64 && rhs_width == 64)
+          return make_eval_bool(lhs_value.i64_le_u(rhs_value));
+        break;
       case GTU_BOOL:
         if (lhs_width == 32 && rhs_width == 32)
           return make_eval_bool(lhs_value.i32_gt_u(rhs_value));

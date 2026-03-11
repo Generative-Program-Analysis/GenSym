@@ -28,6 +28,7 @@ struct SymVal {
   SymVal minus(const SymVal &other) const;
   SymVal mul(const SymVal &other) const;
   SymVal div(const SymVal &other) const;
+  SymVal div_u(const SymVal &other) const;
   SymVal eq_bool(const SymVal &other) const;
   SymVal neq_bool(const SymVal &other) const;
   SymVal land(const SymVal &other) const;
@@ -37,10 +38,12 @@ struct SymVal {
   SymVal lt(const SymVal &other) const;
   SymVal ltu(const SymVal &other) const;
   SymVal le(const SymVal &other) const;
+  SymVal leu(const SymVal &other) const;
   SymVal gt(const SymVal &other) const;
   SymVal gtu(const SymVal &other) const;
   SymVal ge(const SymVal &other) const;
   SymVal geu(const SymVal &other) const;
+  SymVal shl(const SymVal &other) const;
   SymVal shr_u(const SymVal &other) const;
   SymVal shr_s(const SymVal &other) const;
   SymVal bv_negate() const;
@@ -82,5 +85,11 @@ template <typename... Args> inline bool allConcrete(const Args &...args) {
 }
 
 inline SymVal Concrete(Num num, int width);
+
+[[noreturn]] inline SymVal debug_unreachable(const char* msg) {
+    std::cerr << "unreachable: " << msg << '\n';
+    assert(false && "unreachable reached");
+    std::abort();
+}
 
 #endif // WASM_SYMVAL_HPP
