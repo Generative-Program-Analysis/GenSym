@@ -396,6 +396,16 @@ public:
     return std::monostate{};
   }
 
+  std::monostate storeSymFloat(int32_t base, int32_t offset, SymVal value) {
+    assert(value.is_concrete() && "Currently only support concrete symbolic value for float-point values");
+    return storeSym(base, offset, value);
+  }
+
+  std::monostate storeSymDouble(int32_t base, int32_t offset, SymVal value) {
+    assert(value.is_concrete() && "Currently only support concrete symbolic value for float-point values");
+    return storeSymLong(base, offset, value);
+  }
+
   std::monostate storeSymByte(int32_t addr, SymVal value) {
     // assume the input value is 8-bit symbolic value
     bool exists;

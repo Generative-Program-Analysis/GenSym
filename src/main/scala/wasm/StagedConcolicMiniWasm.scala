@@ -1085,11 +1085,15 @@ trait StagedMemory extends SAIOps with StagedWasmValueDomains with Continuations
     def loadC(ty: ValueType, base: Rep[Int], offset: Int): StagedConcreteNum = ty match {
       case NumType(I32Type) => StagedConcreteNum(NumType(I32Type), "I32V".reflectCtrlWith[Num]("memory-load-int".reflectCtrlWith[Int](base, offset)))
       case NumType(I64Type) => StagedConcreteNum(NumType(I64Type), "I64V".reflectCtrlWith[Num]("memory-load-long".reflectCtrlWith[Long](base, offset)))
+      case NumType(F32Type) => StagedConcreteNum(NumType(F32Type), "F32V".reflectCtrlWith[Num]("memory-load-float".reflectCtrlWith[Float](base, offset)))
+      case NumType(F64Type) => StagedConcreteNum(NumType(F64Type), "F64V".reflectCtrlWith[Num]("memory-load-double".reflectCtrlWith[Double](base, offset)))
     }
 
     def loadS(ty: ValueType, base: Rep[Int], offset: Int): StagedSymbolicNum = ty match {
       case NumType(I32Type) => StagedSymbolicNum(NumType(I32Type), "sym-load-int".reflectCtrlWith[SymVal](base, offset))
       case NumType(I64Type) => StagedSymbolicNum(NumType(I64Type), "sym-load-long".reflectCtrlWith[SymVal](base, offset))
+      case NumType(F32Type) => StagedSymbolicNum(NumType(F32Type), "sym-load-float".reflectCtrlWith[SymVal](base, offset))
+      case NumType(F64Type) => StagedSymbolicNum(NumType(F64Type), "sym-load-double".reflectCtrlWith[SymVal](base, offset))
     }
 
     // Returns the previous memory size on success, or -1 if the memory cannot be grown.
@@ -2256,6 +2260,10 @@ trait StagedWasmCppGen extends CGenBase with CppSAICodeGenBase {
       emit("Memory.loadInt("); shallow(base); emit(", "); shallow(offset); emit(")")
     case Node(_, "memory-load-long", List(base, offset), _) =>
       emit("Memory.loadLong("); shallow(base); emit(", "); shallow(offset); emit(")")
+    case Node(_, "memory-load-float", List(base, offset), _) =>
+      emit("Memory.loadFloat("); shallow(base); emit(", "); shallow(offset); emit(")")
+    case Node(_, "memory-load-double", List(base, offset), _) =>
+      emit("Memory.loadDouble("); shallow(base); emit(", "); shallow(offset); emit(")")
     case Node(_, "memory-grow", List(delta), _) =>
       emit("Memory.grow("); shallow(delta); emit(")")
     case Node(_, "stack-size", _, _) =>
@@ -2269,6 +2277,10 @@ trait StagedWasmCppGen extends CGenBase with CppSAICodeGenBase {
       emit("SymMemory.loadSym("); shallow(base); emit(", "); shallow(offset); emit(")")
     case Node(_, "sym-load-long", List(base, offset), _) =>
       emit("SymMemory.loadSymLong("); shallow(base); emit(", "); shallow(offset); emit(")")
+    case Node(_, "sym-load-float", List(base, offset), _) =>
+      emit("SymMemory.loadSymFloat("); shallow(base); emit(", "); shallow(offset); emit(")")
+    case Node(_, "sym-load-double", List(base, offset), _) =>
+      emit("SymMemory.loadSymDouble("); shallow(base); emit(", "); shallow(offset); emit(")")
     case Node(_, "sym-memory-grow", List(delta), _) =>
       emit("SymMemory.grow("); shallow(delta); emit(")")
     // Globals
