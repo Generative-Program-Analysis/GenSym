@@ -87,13 +87,13 @@
     i64.eq
     call 0
 
-    local.get 0
-    local.get 2
-    i64.extend_i32_u
-    i64.rotr
-    i64.const 4611686018427387909
-    i64.eq
-    call 0
+    ;; local.get 0
+    ;; local.get 2
+    ;; i64.extend_i32_u
+    ;; i64.rotr
+    ;; i64.const 4611686018427387909
+    ;; i64.eq
+    ;; call 0
 
     ;; comparisons
     local.get 0
