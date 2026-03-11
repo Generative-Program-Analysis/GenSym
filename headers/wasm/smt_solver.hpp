@@ -59,7 +59,18 @@ compose_query_results(const std::vector<QueryResult> &results) {
     }
   }
   ImmNumMapBox combined_map_box(combined_map);
-  return QueryResult{combined_map_box, combined_model};
+
+  z3::solver solver(global_z3_ctx());
+
+  // build a combined z3 model
+  for (const auto &[id, num] : combined_map) {
+    // TODO: fix symbol name for other types
+    solver.add(
+        global_z3_ctx().bv_const(("s_int" + std::to_string(id)).c_str(), 32) ==
+        global_z3_ctx().bv_val(num.value, 32));
+  }
+  solver.check();
+  return QueryResult{combined_map_box, solver.get_model()};
 }
 
 // VectorGroupResult groups a vector. key is the vector index, and value is the
