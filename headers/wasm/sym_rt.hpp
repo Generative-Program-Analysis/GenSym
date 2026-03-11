@@ -315,6 +315,48 @@ public:
 #endif
   }
 
+  SymVal loadSymLong(int32_t base, int32_t offset) {
+#ifdef USE_IMM
+    int32_t addr = base + offset;
+    auto it = memory.find(addr);
+    SymVal s0 = it ? *it : SVFactory::ZeroByte;
+    it = memory.find(addr + 1);
+    SymVal s1 = it ? *it : SVFactory::ZeroByte;
+    it = memory.find(addr + 2);
+    SymVal s2 = it ? *it : SVFactory::ZeroByte;
+    it = memory.find(addr + 3);
+    SymVal s3 = it ? *it : SVFactory::ZeroByte;
+    it = memory.find(addr + 4);
+    SymVal s4 = it ? *it : SVFactory::ZeroByte;
+    it = memory.find(addr + 5);
+    SymVal s5 = it ? *it : SVFactory::ZeroByte;
+    it = memory.find(addr + 6);
+    SymVal s6 = it ? *it : SVFactory::ZeroByte;
+    it = memory.find(addr + 7);
+    SymVal s7 = it ? *it : SVFactory::ZeroByte;
+#else
+    int32_t addr = base + offset;
+    auto it = memory.find(addr);
+    SymVal s0 = (it != memory.end()) ? it->second : SVFactory::ZeroByte;
+    it = memory.find(addr + 1);
+    SymVal s1 = (it != memory.end()) ? it->second : SVFactory::ZeroByte;
+    it = memory.find(addr + 2);
+    SymVal s2 = (it != memory.end()) ? it->second : SVFactory::ZeroByte;
+    it = memory.find(addr + 3);
+    SymVal s3 = (it != memory.end()) ? it->second : SVFactory::ZeroByte;
+    it = memory.find(addr + 4);
+    SymVal s4 = (it != memory.end()) ? it->second : SVFactory::ZeroByte;
+    it = memory.find(addr + 5);
+    SymVal s5 = (it != memory.end()) ? it->second : SVFactory::ZeroByte;
+    it = memory.find(addr + 6);
+    SymVal s6 = (it != memory.end()) ? it->second : SVFactory::ZeroByte;
+    it = memory.find(addr + 7);
+    SymVal s7 = (it != memory.end()) ? it->second : SVFactory::ZeroByte;
+#endif
+
+    return s7.concat(s6).concat(s5).concat(s4).concat(s3).concat(s2).concat(s1).concat(s0);
+  }
+
   // when loading a symval, we need to concat 4 symbolic values
   // This sounds terribly bad for SMT...
   // Load a 4-byte symbolic value from memory
@@ -330,6 +372,27 @@ public:
     storeSymByte(addr + 1, s1);
     storeSymByte(addr + 2, s2);
     storeSymByte(addr + 3, s3);
+    return std::monostate{};
+  }
+
+  std::monostate storeSymLong(int32_t base, int32_t offset, SymVal value) {
+    int32_t addr = base + offset;
+    SymVal s0 = value.extract(1, 1);
+    SymVal s1 = value.extract(2, 2);
+    SymVal s2 = value.extract(3, 3);
+    SymVal s3 = value.extract(4, 4);
+    SymVal s4 = value.extract(5, 5);
+    SymVal s5 = value.extract(6, 6);
+    SymVal s6 = value.extract(7, 7);
+    SymVal s7 = value.extract(8, 8);
+    storeSymByte(addr, s0);
+    storeSymByte(addr + 1, s1);
+    storeSymByte(addr + 2, s2);
+    storeSymByte(addr + 3, s3);
+    storeSymByte(addr + 4, s4);
+    storeSymByte(addr + 5, s5);
+    storeSymByte(addr + 6, s6);
+    storeSymByte(addr + 7, s7);
     return std::monostate{};
   }
 

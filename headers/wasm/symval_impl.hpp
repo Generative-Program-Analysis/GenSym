@@ -3,6 +3,7 @@
 
 #include "symval_decl.hpp"
 #include "symval_factory.hpp"
+#include "wasm/concrete_num.hpp"
 
 inline SymVal SymVal::add(const SymVal &other) const {
   return SVFactory::make_binary(ADD, *this, other);
@@ -99,13 +100,13 @@ inline SymVal SymVal::rem_u(const SymVal &other) const {
 
 inline SymVal SymVal::is_zero() const {
   return SVFactory::make_binary(
-      EQ_BOOL, *this, SVFactory::make_concrete_bv(I32V(0), symptr->width()));
+      EQ_BOOL, *this, SVFactory::make_concrete_bv(I64V(0), symptr->width()));
 }
 
 inline SymVal SymVal::bv_negate() const {
   assert(symptr->width() != 1);
   return SVFactory::make_binary(
-      EQ_BOOL, *this, SVFactory::make_concrete_bv(I32V(0), symptr->width()));
+      EQ_BOOL, *this, SVFactory::make_concrete_bv(I64V(0), symptr->width()));
 }
 
 inline SymVal SymVal::bool_not() const {
