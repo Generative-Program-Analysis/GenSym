@@ -146,6 +146,7 @@ class TestStagedConcolicEval extends CppCompilationTestBase {
   test("global - concrete") { testFileConcreteCpp("./benchmarks/wasm/global-sym.wat", None) }
   // TODO: Waiting symbolic memory's implementations
   test("load - concrete") { testFileConcreteCpp("./benchmarks/wasm/load.wat", None, expect=Some(List(1))) }
+  test("select - concrete") { testFileConcreteCpp("./benchmarks/wasm/select.wat", Some("real_main")) }
   test("load overflow 1 - concrete") { testFileConcreteCpp("./benchmarks/wasm/load-overflow1.wat", None, expect=Some(List(1))) }
   test("load overflow 2 - concrete") { testFileConcreteCpp("./benchmarks/wasm/load-overflow2.wat", None, expect=Some(List(1))) }
 
