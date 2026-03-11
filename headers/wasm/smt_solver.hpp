@@ -36,6 +36,7 @@ static QueryResult
 compose_query_results(const std::vector<QueryResult> &results) {
   ManagedTimer timer(TimeProfileKind::SPLIT_CONDITIONS);
   NumMap combined_map;
+  z3::model combined_model(global_z3_ctx());
   for (const auto &res : results) {
     auto num_map = res.map_box;
     for (const auto &[id, num] : *num_map) {
@@ -44,20 +45,21 @@ compose_query_results(const std::vector<QueryResult> &results) {
           "Conflicting symbolic environment ids when composing query results");
       combined_map[id] = num;
     }
+    const z3::model &model = res.model;
+    for (unsigned i = 0; i < model.num_consts(); ++i) {
+      z3::func_decl decl = model.get_const_decl(i);
+      std::string name = decl.name().str();
+      assert((starts_with(name, "s_int") || starts_with(name, "s_f32") ||
+              starts_with(name, "s_f64")) &&
+             "Unexpected declaration in query result model");
+      assert(!combined_model.has_interp(decl) &&
+             "Internal Error: Conflicting constant declarations when composing query results");
+      z3::expr value = model.get_const_interp(decl);
+      combined_model.add_const_interp(decl, value);
+    }
   }
   ImmNumMapBox combined_map_box(combined_map);
-
-  z3::solver solver(global_z3_ctx());
-
-  // build a combined z3 model
-  for (const auto &[id, num] : combined_map) {
-    // TODO: fix symbol name for other types
-    solver.add(
-        global_z3_ctx().bv_const(("s_int" + std::to_string(id)).c_str(), 32) ==
-        global_z3_ctx().bv_val(num.value, 32));
-  }
-  solver.check();
-  return QueryResult{combined_map_box, solver.get_model()};
+  return QueryResult{combined_map_box, combined_model};
 }
 
 // VectorGroupResult groups a vector. key is the vector index, and value is the
