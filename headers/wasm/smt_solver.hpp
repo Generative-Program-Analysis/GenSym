@@ -51,8 +51,9 @@ compose_query_results(const std::vector<QueryResult> &results) {
 
   // build a combined z3 model
   for (const auto &[id, num] : combined_map) {
+    // TODO: fix symbol name for other types
     solver.add(
-        global_z3_ctx().bv_const(("s_" + std::to_string(id)).c_str(), 32) ==
+        global_z3_ctx().bv_const(("s_int" + std::to_string(id)).c_str(), 32) ==
         global_z3_ctx().bv_val(num.value, 32));
   }
   solver.check();
