@@ -249,7 +249,7 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
       ty.kind match {
         case I32Type => {
           if (ctx.NAT.getText.startsWith("0x")) {
-            val parsedValue = java.lang.Long.parseLong(ctx.NAT.getText.substring(2).replace("_", ""), 16)
+            val parsedValue = java.lang.Long.parseUnsignedLong(ctx.NAT.getText.substring(2).replace("_", ""), 16)
             // Convert to signed 32-bit integer if it exceeds the max 32-bit signed integer range
             val intValue = if (parsedValue > Int.MaxValue) (parsedValue - (1L << 32)).toInt else parsedValue.toInt
             I32V(intValue)
@@ -261,7 +261,7 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
           if (ctx.NAT.getText.startsWith("0x")) {
             // println(s"parsing hex: ${ctx.NAT.getText.substring(2)}")
             // also skip underscore
-            I64V(java.lang.Long.parseLong(ctx.NAT.getText.substring(2).replace("_", ""), 16))
+            I64V(java.lang.Long.parseUnsignedLong(ctx.NAT.getText.substring(2).replace("_", ""), 16))
             // I64V(java.lang.Long.parseLong(ctx.NAT.getText.substring(2), 16))
           } else {
             I64V(ctx.NAT.getText.toLong)
@@ -340,10 +340,17 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
     else if (ctx.GLOBAL_GET() != null) GlobalGet(getVar(ctx.idx(0)).toInt)
     else if (ctx.load() != null) {
       val ty = visitNumType(ctx.load.numType)
-      val (memSize, sign) = if (ctx.load.MEM_SIZE() != null) {
-        (Some(visitMemSize(ctx.load.MEM_SIZE.getText)),
-          Some(visitSignExt(ctx.load.SIGN_POSTFIX.getText)))
-      } else (None, None)
+      val opStr = ctx.load.LOAD.getText.stripPrefix(".")
+      val (memSize, sign) = opStr match {
+        case "load" => (None, None)
+        case "load8_s" => (Some(Pack8), Some(SX))
+        case "load8_u" => (Some(Pack8), Some(ZX))
+        case "load16_s" => (Some(Pack16), Some(SX))
+        case "load16_u" => (Some(Pack16), Some(ZX))
+        case "load32_s" => (Some(Pack32), Some(SX))
+        case "load32_u" => (Some(Pack32), Some(ZX))
+        case _ => throw new RuntimeException(s"Unsupported load opcode: ${ctx.load.LOAD.getText}")
+      }
       val offset = if (ctx.offsetEq() != null) {
         ctx.offsetEq.NAT.getText.toInt
       } else 0
@@ -354,9 +361,14 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
     }
     else if (ctx.store() != null) {
       val ty = visitNumType(ctx.store.numType)
-      val memSize = if (ctx.store.MEM_SIZE() != null) {
-        Some(visitMemSize(ctx.store.MEM_SIZE.getText))
-      } else None
+      val opStr = ctx.store.STORE.getText.stripPrefix(".")
+      val memSize = opStr match {
+        case "store" => None
+        case "store8" => Some(Pack8)
+        case "store16" => Some(Pack16)
+        case "store32" => Some(Pack32)
+        case _ => throw new RuntimeException(s"Unsupported store opcode: ${ctx.store.STORE.getText}")
+      }
       val offset = if (ctx.offsetEq() != null) {
         ctx.offsetEq.NAT.getText.toInt
       } else 0

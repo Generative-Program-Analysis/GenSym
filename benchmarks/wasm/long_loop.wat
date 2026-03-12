@@ -16,7 +16,7 @@
       i32.add
       local.set 1
       local.get 0
-      call 0
+      drop
       local.get 0
       i32.const 100000
       i32.lt_s
