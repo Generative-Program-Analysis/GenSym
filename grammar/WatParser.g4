@@ -196,11 +196,11 @@ offsetEq : OFFSET_EQ NAT ;
 alignEq: ALIGN_EQ NAT ;
 
 load
-    : numType LOAD (MEM_SIZE UNDERSCORE SIGN_POSTFIX)?
+    : numType LOAD
 ;
 
 store
-  : numType STORE (MEM_SIZE)?
+  : numType STORE
 ;
 
 selectInstr
