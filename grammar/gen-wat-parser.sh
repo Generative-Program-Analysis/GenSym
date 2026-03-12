@@ -19,4 +19,6 @@ do
   rm $file
 done
 
-rm *.tokens *.interp
+mkdir -p "$(dirname "$0")/.antlr"
+mv *.tokens *.interp .antlr/
+
