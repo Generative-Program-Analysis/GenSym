@@ -249,7 +249,7 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
       ty.kind match {
         case I32Type => {
           if (ctx.NAT.getText.startsWith("0x")) {
-            val parsedValue = java.lang.Long.parseLong(ctx.NAT.getText.substring(2).replace("_", ""), 16)
+            val parsedValue = java.lang.Long.parseUnsignedLong(ctx.NAT.getText.substring(2).replace("_", ""), 16)
             // Convert to signed 32-bit integer if it exceeds the max 32-bit signed integer range
             val intValue = if (parsedValue > Int.MaxValue) (parsedValue - (1L << 32)).toInt else parsedValue.toInt
             I32V(intValue)
@@ -261,7 +261,7 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
           if (ctx.NAT.getText.startsWith("0x")) {
             // println(s"parsing hex: ${ctx.NAT.getText.substring(2)}")
             // also skip underscore
-            I64V(java.lang.Long.parseLong(ctx.NAT.getText.substring(2).replace("_", ""), 16))
+            I64V(java.lang.Long.parseUnsignedLong(ctx.NAT.getText.substring(2).replace("_", ""), 16))
             // I64V(java.lang.Long.parseLong(ctx.NAT.getText.substring(2), 16))
           } else {
             I64V(ctx.NAT.getText.toLong)

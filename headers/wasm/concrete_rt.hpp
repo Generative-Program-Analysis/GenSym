@@ -280,6 +280,73 @@ struct Memory_t {
     return result;
   }
 
+  uint8_t loadByte(int32_t base, int32_t offset) {
+    int32_t addr = base + offset;
+    if (!(addr < memory.size()) || addr < 0) {
+      throw std::runtime_error("Invalid memory access " + std::to_string(addr));
+    }
+    return memory[addr];
+  }
+
+  int32_t loadInt8U(int32_t base, int32_t offset) {
+    return static_cast<uint32_t>(loadByte(base, offset));
+  }
+
+  int32_t loadInt8S(int32_t base, int32_t offset) {
+    return static_cast<int8_t>(loadByte(base, offset));
+  }
+
+  int32_t loadInt16U(int32_t base, int32_t offset) {
+    uint32_t b0 = static_cast<uint32_t>(loadByte(base, offset));
+    uint32_t b1 = static_cast<uint32_t>(loadByte(base, offset + 1));
+    return static_cast<int32_t>(b0 | (b1 << 8));
+  }
+
+  int32_t loadInt16S(int32_t base, int32_t offset) {
+    uint32_t b0 = static_cast<uint32_t>(loadByte(base, offset));
+    uint32_t b1 = static_cast<uint32_t>(loadByte(base, offset + 1));
+    uint16_t raw = static_cast<uint16_t>(b0 | (b1 << 8));
+    return static_cast<int16_t>(raw);
+  }
+
+  int64_t loadLong8U(int32_t base, int32_t offset) {
+    return static_cast<uint64_t>(loadByte(base, offset));
+  }
+
+  int64_t loadLong8S(int32_t base, int32_t offset) {
+    return static_cast<int8_t>(loadByte(base, offset));
+  }
+
+  int64_t loadLong16U(int32_t base, int32_t offset) {
+    uint64_t b0 = static_cast<uint64_t>(loadByte(base, offset));
+    uint64_t b1 = static_cast<uint64_t>(loadByte(base, offset + 1));
+    return static_cast<int64_t>(b0 | (b1 << 8));
+  }
+
+  int64_t loadLong16S(int32_t base, int32_t offset) {
+    uint64_t b0 = static_cast<uint64_t>(loadByte(base, offset));
+    uint64_t b1 = static_cast<uint64_t>(loadByte(base, offset + 1));
+    uint16_t raw = static_cast<uint16_t>(b0 | (b1 << 8));
+    return static_cast<int16_t>(raw);
+  }
+
+  int64_t loadLong32U(int32_t base, int32_t offset) {
+    uint64_t b0 = static_cast<uint64_t>(loadByte(base, offset));
+    uint64_t b1 = static_cast<uint64_t>(loadByte(base, offset + 1));
+    uint64_t b2 = static_cast<uint64_t>(loadByte(base, offset + 2));
+    uint64_t b3 = static_cast<uint64_t>(loadByte(base, offset + 3));
+    return static_cast<int64_t>(b0 | (b1 << 8) | (b2 << 16) | (b3 << 24));
+  }
+
+  int64_t loadLong32S(int32_t base, int32_t offset) {
+    uint64_t b0 = static_cast<uint64_t>(loadByte(base, offset));
+    uint64_t b1 = static_cast<uint64_t>(loadByte(base, offset + 1));
+    uint64_t b2 = static_cast<uint64_t>(loadByte(base, offset + 2));
+    uint64_t b3 = static_cast<uint64_t>(loadByte(base, offset + 3));
+    uint32_t raw = static_cast<uint32_t>(b0 | (b1 << 8) | (b2 << 16) | (b3 << 24));
+    return static_cast<int32_t>(raw);
+  }
+
   int64_t loadLong(int32_t base, int32_t offset) {
     int32_t addr = base + offset;
     if (!(addr + 7 < memory.size()) || addr < 0) {
@@ -316,6 +383,34 @@ struct Memory_t {
     for (int i = 0; i < 8; ++i) {
       memory[addr + i] = static_cast<uint8_t>((static_cast<uint64_t>(value) >> (8 * i)) & 0xFF);
     }
+    return std::monostate{};
+  }
+
+  std::monostate storeInt8(int32_t base, int32_t offset, int32_t value) {
+    return store_byte(base + offset, static_cast<uint8_t>(value & 0xFF));
+  }
+
+  std::monostate storeInt16(int32_t base, int32_t offset, int32_t value) {
+    store_byte(base + offset, static_cast<uint8_t>(value & 0xFF));
+    store_byte(base + offset + 1, static_cast<uint8_t>((value >> 8) & 0xFF));
+    return std::monostate{};
+  }
+
+  std::monostate storeLong8(int32_t base, int32_t offset, int64_t value) {
+    return store_byte(base + offset, static_cast<uint8_t>(value & 0xFF));
+  }
+
+  std::monostate storeLong16(int32_t base, int32_t offset, int64_t value) {
+    store_byte(base + offset, static_cast<uint8_t>(value & 0xFF));
+    store_byte(base + offset + 1, static_cast<uint8_t>((value >> 8) & 0xFF));
+    return std::monostate{};
+  }
+
+  std::monostate storeLong32(int32_t base, int32_t offset, int64_t value) {
+    store_byte(base + offset, static_cast<uint8_t>(value & 0xFF));
+    store_byte(base + offset + 1, static_cast<uint8_t>((value >> 8) & 0xFF));
+    store_byte(base + offset + 2, static_cast<uint8_t>((value >> 16) & 0xFF));
+    store_byte(base + offset + 3, static_cast<uint8_t>((value >> 24) & 0xFF));
     return std::monostate{};
   }
 

@@ -205,10 +205,6 @@ inline SymVal make_extract(const SymVal &value, int high, int low) {
   int shift_bits = (low - 1) * 8;
 
   if (auto concrete = std::dynamic_pointer_cast<SymConcrete>(value.symptr)) {
-    if (concrete->kind != KindBV) {
-      throw std::runtime_error(
-          "Extract only supports bitvector concrete values");
-    }
     // extract from concrete bitvector value
     int64_t val = concrete->value.value;
     int64_t mask = (1LL << ((high - low + 1) * 8)) - 1;
@@ -358,6 +354,12 @@ inline SymVal make_binary(BinOperation op, const SymVal &lhs,
           return make_eval_bv(lhs_value.i32_shr_s(rhs_value), 32);
         if (lhs_width == 64 && rhs_width == 64)
           return make_eval_bv(lhs_value.i64_shr_s(rhs_value), 64);
+        break;
+      case SHL:
+        if (lhs_width == 32 && rhs_width == 32)
+          return make_eval_bv(lhs_value.i32_shl(rhs_value), 32);
+        if (lhs_width == 64 && rhs_width == 64)
+          return make_eval_bv(lhs_value.i64_shl(rhs_value), 64);
         break;
       case LTU_BOOL:
         if (lhs_width == 32 && rhs_width == 32)
