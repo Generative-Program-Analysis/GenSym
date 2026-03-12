@@ -376,6 +376,64 @@ public:
     }
   }
 
+  SymVal loadSymInt8U(int32_t base, int32_t offset) {
+    return SVFactory::make_smallbv(24, 0).concat(loadSymByte(base + offset));
+  }
+
+  SymVal loadSymInt8S(int32_t base, int32_t offset) {
+    auto value = loadSymInt8U(base, offset);
+    auto shift = SVFactory::make_concrete_bv(I32V(24), 32);
+    return value.shl(shift).shr_s(shift);
+  }
+
+  SymVal loadSymInt16U(int32_t base, int32_t offset) {
+    auto low = loadSymByte(base + offset);
+    auto high = loadSymByte(base + offset + 1);
+    return SVFactory::make_smallbv(16, 0).concat(high).concat(low);
+  }
+
+  SymVal loadSymInt16S(int32_t base, int32_t offset) {
+    auto value = loadSymInt16U(base, offset);
+    auto shift = SVFactory::make_concrete_bv(I32V(16), 32);
+    return value.shl(shift).shr_s(shift);
+  }
+
+  SymVal loadSymLong8U(int32_t base, int32_t offset) {
+    return SVFactory::make_smallbv(56, 0).concat(loadSymByte(base + offset));
+  }
+
+  SymVal loadSymLong8S(int32_t base, int32_t offset) {
+    auto value = loadSymLong8U(base, offset);
+    auto shift = SVFactory::make_concrete_bv(I64V(56), 64);
+    return value.shl(shift).shr_s(shift);
+  }
+
+  SymVal loadSymLong16U(int32_t base, int32_t offset) {
+    auto low = loadSymByte(base + offset);
+    auto high = loadSymByte(base + offset + 1);
+    return SVFactory::make_smallbv(48, 0).concat(high).concat(low);
+  }
+
+  SymVal loadSymLong16S(int32_t base, int32_t offset) {
+    auto value = loadSymLong16U(base, offset);
+    auto shift = SVFactory::make_concrete_bv(I64V(48), 64);
+    return value.shl(shift).shr_s(shift);
+  }
+
+  SymVal loadSymLong32U(int32_t base, int32_t offset) {
+    auto b0 = loadSymByte(base + offset);
+    auto b1 = loadSymByte(base + offset + 1);
+    auto b2 = loadSymByte(base + offset + 2);
+    auto b3 = loadSymByte(base + offset + 3);
+    return SVFactory::make_smallbv(32, 0).concat(b3).concat(b2).concat(b1).concat(b0);
+  }
+
+  SymVal loadSymLong32S(int32_t base, int32_t offset) {
+    auto value = loadSymLong32U(base, offset);
+    auto shift = SVFactory::make_concrete_bv(I64V(32), 64);
+    return value.shl(shift).shr_s(shift);
+  }
+
   // when loading a symval, we need to concat 4 symbolic values
   // This sounds terribly bad for SMT...
   // Load a 4-byte symbolic value from memory
@@ -396,6 +454,7 @@ public:
 
   std::monostate storeSymLong(int32_t base, int32_t offset, SymVal value) {
     int32_t addr = base + offset;
+    // TODO: Can we receive a float point symbolic value here? which may produce a bug
     SymVal s0 = value.extract(1, 1);
     SymVal s1 = value.extract(2, 2);
     SymVal s2 = value.extract(3, 3);
@@ -412,6 +471,41 @@ public:
     storeSymByte(addr + 5, s5);
     storeSymByte(addr + 6, s6);
     storeSymByte(addr + 7, s7);
+    return std::monostate{};
+  }
+
+  std::monostate storeSymInt8(int32_t base, int32_t offset, SymVal value) {
+    int32_t addr = base + offset;
+    storeSymByte(addr, value.extract(1, 1));
+    return std::monostate{};
+  }
+
+  std::monostate storeSymInt16(int32_t base, int32_t offset, SymVal value) {
+    int32_t addr = base + offset;
+    storeSymByte(addr, value.extract(1, 1));
+    storeSymByte(addr + 1, value.extract(2, 2));
+    return std::monostate{};
+  }
+
+  std::monostate storeSymLong8(int32_t base, int32_t offset, SymVal value) {
+    int32_t addr = base + offset;
+    storeSymByte(addr, value.extract(1, 1));
+    return std::monostate{};
+  }
+
+  std::monostate storeSymLong16(int32_t base, int32_t offset, SymVal value) {
+    int32_t addr = base + offset;
+    storeSymByte(addr, value.extract(1, 1));
+    storeSymByte(addr + 1, value.extract(2, 2));
+    return std::monostate{};
+  }
+
+  std::monostate storeSymLong32(int32_t base, int32_t offset, SymVal value) {
+    int32_t addr = base + offset;
+    storeSymByte(addr, value.extract(1, 1));
+    storeSymByte(addr + 1, value.extract(2, 2));
+    storeSymByte(addr + 2, value.extract(3, 3));
+    storeSymByte(addr + 3, value.extract(4, 4));
     return std::monostate{};
   }
 

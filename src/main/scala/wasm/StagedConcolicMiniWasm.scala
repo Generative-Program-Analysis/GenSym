@@ -1073,31 +1073,152 @@ trait StagedFrames extends SAIOps with StagedWasmValueDomains {
 }
 
 @virtualize
-trait StagedMemory extends SAIOps with StagedWasmValueDomains with Continuations {
+trait StagedMemory extends SAIOps with StagedWasmValueDomains with Continuations { this: ConcreteOps with ValueCreation =>
+  def normalizeStoreOp(ty: ValueType, packSize: Option[PackSize]): PackSize = (ty, packSize) match {
+    case (NumType(I32Type), None) => Pack32
+    case (NumType(I64Type), None) => Pack64
+    case (NumType(F32Type), None) => Pack32
+    case (NumType(F64Type), None) => Pack64
+    case (NumType(I32Type), Some(Pack8 | Pack16)) => packSize.get
+    case (NumType(I64Type), Some(Pack8 | Pack16 | Pack32)) => packSize.get
+    case _ => throw new RuntimeException(s"Unsupported memory.store combination: ty=$ty packSize=$packSize")
+  }
+
+  def normalizeLoadOp(ty: ValueType, packSize: Option[PackSize], sign: Option[Extension]): (PackSize, Extension) = (ty, packSize, sign) match {
+    case (NumType(I32Type), None, None) => (Pack32, ZX)
+    case (NumType(I64Type), None, None) => (Pack64, ZX)
+    case (NumType(F32Type), None, None) => (Pack32, ZX)
+    case (NumType(F64Type), None, None) => (Pack64, ZX)
+    case (NumType(I32Type), Some(Pack8 | Pack16), Some(SX | ZX)) => (packSize.get, sign.get)
+    case (NumType(I64Type), Some(Pack8 | Pack16 | Pack32), Some(SX | ZX)) => (packSize.get, sign.get)
+    case _ => throw new RuntimeException(s"Unsupported memory.load combination: ty=$ty packSize=$packSize sign=$sign")
+  }
+
   object Memory {
-    // TODO: why this is only one function, rather than `storeInC` and `storeInS`?
-    // TODO: what should the type of SymVal be?
-    def store(ty: ValueType, base: Rep[Int], offset: Int, value: (StagedConcreteNum, StagedSymbolicNum)): Rep[Unit] = ty match {
-      case NumType(I32Type) => 
+    def store(ty: ValueType, pack: PackSize, base: Rep[Int], offset: Int, value: (StagedConcreteNum, StagedSymbolicNum)): Rep[Unit] = (ty, pack) match {
+      case (NumType(I32Type), Pack32) =>
         "memory-store-int".reflectCtrlWith[Unit](base, offset, value._1.i)
         "sym-store-int".reflectCtrlWith[Unit](base, offset, value._2.s)
-      case NumType(I64Type) => 
+      case (NumType(I32Type), Pack8) =>
+        "memory-store-int8".reflectCtrlWith[Unit](base, offset, value._1.i)
+        "sym-store-int8".reflectCtrlWith[Unit](base, offset, value._2.s)
+      case (NumType(I32Type), Pack16) =>
+        "memory-store-int16".reflectCtrlWith[Unit](base, offset, value._1.i)
+        "sym-store-int16".reflectCtrlWith[Unit](base, offset, value._2.s)
+      case (NumType(I64Type), Pack64) =>
         "memory-store-long".reflectCtrlWith[Unit](base, offset, value._1.i)
         "sym-store-long".reflectCtrlWith[Unit](base, offset, value._2.s)
+      case (NumType(I64Type), Pack8) =>
+        "memory-store-long8".reflectCtrlWith[Unit](base, offset, value._1.i)
+        "sym-store-long8".reflectCtrlWith[Unit](base, offset, value._2.s)
+      case (NumType(I64Type), Pack16) =>
+        "memory-store-long16".reflectCtrlWith[Unit](base, offset, value._1.i)
+        "sym-store-long16".reflectCtrlWith[Unit](base, offset, value._2.s)
+      case (NumType(I64Type), Pack32) =>
+        "memory-store-long32".reflectCtrlWith[Unit](base, offset, value._1.i)
+        "sym-store-long32".reflectCtrlWith[Unit](base, offset, value._2.s)
+      case (NumType(F32Type), Pack32) =>
+        "memory-store-int".reflectCtrlWith[Unit](base, offset, value._1.i)
+        "sym-store-int".reflectCtrlWith[Unit](base, offset, value._2.s)
+      case (NumType(F64Type), Pack64) =>
+        "memory-store-long".reflectCtrlWith[Unit](base, offset, value._1.i)
+        "sym-store-long".reflectCtrlWith[Unit](base, offset, value._2.s)
+      case _ =>
+        throw new RuntimeException(s"Unsupported memory.store combination: ty=$ty pack=$pack")
     }
 
-    def loadC(ty: ValueType, base: Rep[Int], offset: Int): StagedConcreteNum = ty match {
-      case NumType(I32Type) => StagedConcreteNum(NumType(I32Type), "I32V".reflectCtrlWith[Num]("memory-load-int".reflectCtrlWith[Int](base, offset)))
-      case NumType(I64Type) => StagedConcreteNum(NumType(I64Type), "I64V".reflectCtrlWith[Num]("memory-load-long".reflectCtrlWith[Long](base, offset)))
-      case NumType(F32Type) => StagedConcreteNum(NumType(F32Type), "F32V".reflectCtrlWith[Num]("memory-load-float".reflectCtrlWith[Float](base, offset)))
-      case NumType(F64Type) => StagedConcreteNum(NumType(F64Type), "F64V".reflectCtrlWith[Num]("memory-load-double".reflectCtrlWith[Double](base, offset)))
+    private def loadI32C(pack: PackSize, ext: Extension, base: Rep[Int], offset: Int): StagedConcreteNum = (pack, ext) match {
+      case (Pack32, ZX) =>
+        StagedConcreteNum(NumType(I32Type), "I32V".reflectCtrlWith[Num]("memory-load-int".reflectCtrlWith[Int](base, offset)))
+      case (Pack8, ZX) =>
+        StagedConcreteNum(NumType(I32Type), "I32V".reflectCtrlWith[Num]("memory-load-int8-u".reflectCtrlWith[Int](base, offset)))
+      case (Pack8, SX) =>
+        StagedConcreteNum(NumType(I32Type), "I32V".reflectCtrlWith[Num]("memory-load-int8-s".reflectCtrlWith[Int](base, offset)))
+      case (Pack16, ZX) =>
+        StagedConcreteNum(NumType(I32Type), "I32V".reflectCtrlWith[Num]("memory-load-int16-u".reflectCtrlWith[Int](base, offset)))
+      case (Pack16, SX) =>
+        StagedConcreteNum(NumType(I32Type), "I32V".reflectCtrlWith[Num]("memory-load-int16-s".reflectCtrlWith[Int](base, offset)))
+      case _ =>
+        throw new RuntimeException(s"Unsupported i32.load pack=$pack ext=$ext")
     }
 
-    def loadS(ty: ValueType, base: Rep[Int], offset: Int): StagedSymbolicNum = ty match {
-      case NumType(I32Type) => StagedSymbolicNum(NumType(I32Type), "sym-load-int".reflectCtrlWith[SymVal](base, offset))
-      case NumType(I64Type) => StagedSymbolicNum(NumType(I64Type), "sym-load-long".reflectCtrlWith[SymVal](base, offset))
-      case NumType(F32Type) => StagedSymbolicNum(NumType(F32Type), "sym-load-float".reflectCtrlWith[SymVal](base, offset))
-      case NumType(F64Type) => StagedSymbolicNum(NumType(F64Type), "sym-load-double".reflectCtrlWith[SymVal](base, offset))
+    private def loadI64C(pack: PackSize, ext: Extension, base: Rep[Int], offset: Int): StagedConcreteNum = (pack, ext) match {
+      case (Pack64, ZX) =>
+        StagedConcreteNum(NumType(I64Type), "I64V".reflectCtrlWith[Num]("memory-load-long".reflectCtrlWith[Long](base, offset)))
+      case (Pack8, ZX) =>
+        StagedConcreteNum(NumType(I64Type), "I64V".reflectCtrlWith[Num]("memory-load-long8-u".reflectCtrlWith[Long](base, offset)))
+      case (Pack8, SX) =>
+        StagedConcreteNum(NumType(I64Type), "I64V".reflectCtrlWith[Num]("memory-load-long8-s".reflectCtrlWith[Long](base, offset)))
+      case (Pack16, ZX) =>
+        StagedConcreteNum(NumType(I64Type), "I64V".reflectCtrlWith[Num]("memory-load-long16-u".reflectCtrlWith[Long](base, offset)))
+      case (Pack16, SX) =>
+        StagedConcreteNum(NumType(I64Type), "I64V".reflectCtrlWith[Num]("memory-load-long16-s".reflectCtrlWith[Long](base, offset)))
+      case (Pack32, ZX) =>
+        StagedConcreteNum(NumType(I64Type), "I64V".reflectCtrlWith[Num]("memory-load-long32-u".reflectCtrlWith[Long](base, offset)))
+      case (Pack32, SX) =>
+        StagedConcreteNum(NumType(I64Type), "I64V".reflectCtrlWith[Num]("memory-load-long32-s".reflectCtrlWith[Long](base, offset)))
+      case _ =>
+        throw new RuntimeException(s"Unsupported i64.load pack=$pack ext=$ext")
+    }
+
+    private def loadI32S(pack: PackSize, ext: Extension, base: Rep[Int], offset: Int): StagedSymbolicNum = (pack, ext) match {
+      case (Pack32, ZX) =>
+        StagedSymbolicNum(NumType(I32Type), "sym-load-int".reflectCtrlWith[SymVal](base, offset))
+      case (Pack8, ZX) =>
+        StagedSymbolicNum(NumType(I32Type), "sym-load-int8-u".reflectCtrlWith[SymVal](base, offset))
+      case (Pack8, SX) =>
+        StagedSymbolicNum(NumType(I32Type), "sym-load-int8-s".reflectCtrlWith[SymVal](base, offset))
+      case (Pack16, ZX) =>
+        StagedSymbolicNum(NumType(I32Type), "sym-load-int16-u".reflectCtrlWith[SymVal](base, offset))
+      case (Pack16, SX) =>
+        StagedSymbolicNum(NumType(I32Type), "sym-load-int16-s".reflectCtrlWith[SymVal](base, offset))
+      case _ =>
+        throw new RuntimeException(s"Unsupported symbolic i32.load pack=$pack ext=$ext")
+    }
+
+    private def loadI64S(pack: PackSize, ext: Extension, base: Rep[Int], offset: Int): StagedSymbolicNum = (pack, ext) match {
+      case (Pack64, ZX) =>
+        StagedSymbolicNum(NumType(I64Type), "sym-load-long".reflectCtrlWith[SymVal](base, offset))
+      case (Pack8, ZX) =>
+        StagedSymbolicNum(NumType(I64Type), "sym-load-long8-u".reflectCtrlWith[SymVal](base, offset))
+      case (Pack8, SX) =>
+        StagedSymbolicNum(NumType(I64Type), "sym-load-long8-s".reflectCtrlWith[SymVal](base, offset))
+      case (Pack16, ZX) =>
+        StagedSymbolicNum(NumType(I64Type), "sym-load-long16-u".reflectCtrlWith[SymVal](base, offset))
+      case (Pack16, SX) =>
+        StagedSymbolicNum(NumType(I64Type), "sym-load-long16-s".reflectCtrlWith[SymVal](base, offset))
+      case (Pack32, ZX) =>
+        StagedSymbolicNum(NumType(I64Type), "sym-load-long32-u".reflectCtrlWith[SymVal](base, offset))
+      case (Pack32, SX) =>
+        StagedSymbolicNum(NumType(I64Type), "sym-load-long32-s".reflectCtrlWith[SymVal](base, offset))
+      case _ =>
+        throw new RuntimeException(s"Unsupported symbolic i64.load pack=$pack ext=$ext")
+    }
+
+    def loadC(ty: ValueType, pack: PackSize, ext: Extension, base: Rep[Int], offset: Int): StagedConcreteNum = ty match {
+      case NumType(I32Type) =>
+        loadI32C(pack, ext, base, offset)
+      case NumType(I64Type) =>
+        loadI64C(pack, ext, base, offset)
+      case NumType(F32Type) if pack == Pack32 && ext == ZX =>
+        StagedConcreteNum(NumType(F32Type), "I32V".reflectCtrlWith[Num]("memory-load-int".reflectCtrlWith[Float](base, offset)))
+      case NumType(F64Type) if pack == Pack64 && ext == ZX =>
+        StagedConcreteNum(NumType(F64Type), "I64V".reflectCtrlWith[Num]("memory-load-long".reflectCtrlWith[Double](base, offset)))
+      case _ =>
+        throw new RuntimeException(s"Unsupported memory.load concrete combination: ty=$ty pack=$pack ext=$ext")
+    }
+
+    def loadS(ty: ValueType, pack: PackSize, ext: Extension, base: Rep[Int], offset: Int): StagedSymbolicNum = ty match {
+      case NumType(I32Type) =>
+        loadI32S(pack, ext, base, offset)
+      case NumType(I64Type) =>
+        loadI64S(pack, ext, base, offset)
+      case NumType(F32Type) if pack == Pack32 && ext == ZX =>
+        StagedSymbolicNum(NumType(F32Type), "sym-load-float".reflectCtrlWith[SymVal](base, offset))
+      case NumType(F64Type) if pack == Pack64 && ext == ZX =>
+        StagedSymbolicNum(NumType(F64Type), "sym-load-double".reflectCtrlWith[SymVal](base, offset))
+      case _ =>
+        throw new RuntimeException(s"Unsupported memory.load symbolic combination: ty=$ty pack=$pack ext=$ext")
     }
 
     // Returns the previous memory size on success, or -1 if the memory cannot be grown.
@@ -1372,7 +1493,7 @@ trait StagedWasmEvaluator extends SAIOps
         }
         eval(rest, kont, trail)(newCtx)
       case Nop => eval(rest, kont, trail)
-      case Store(StoreOp(align, offset, ty, None)) =>
+      case Store(StoreOp(align, offset, ty, packSize)) =>
         val newCtx2 = withBlock {
           val (ty1, newCtx1) = ctx.pop()
           val value = Stack.popC(ty1)
@@ -1380,22 +1501,23 @@ trait StagedWasmEvaluator extends SAIOps
           val (ty2, newCtx2) = newCtx1.pop()
           val addr = Stack.popC(ty2)
           val symAddr = Stack.popS(ty2)
-          Memory.store(ty, addr.toInt, offset, (value, symValue))
+          val normalizedPack = normalizeStoreOp(ty, packSize)
+          Memory.store(ty, normalizedPack, addr.toInt, offset, (value, symValue))
           newCtx2
         }
         eval(rest, kont, trail)(newCtx2)
-      case Load(LoadOp(align, offset, ty, None, None)) =>
-        val newCtx1 = withBlock {
+      case Load(LoadOp(align, offset, ty, packSize, sign)) =>
+        val newCtx2 = withBlock {
           val (ty1, newCtx1) = ctx.pop()
           val addr = Stack.popC(ty1)
           Stack.popS(ty1)
-          val num = Memory.loadC(ty, addr.toInt, offset)
-          val sym = Memory.loadS(ty, addr.toInt, offset)
+          val (normalizedPack, normalizedExt) = normalizeLoadOp(ty, packSize, sign)
+          val num = Memory.loadC(ty, normalizedPack, normalizedExt, addr.toInt, offset)
+          val sym = Memory.loadS(ty, normalizedPack, normalizedExt, addr.toInt, offset)
           Stack.pushC(num)
           Stack.pushS(sym)
-          newCtx1
+          newCtx1.push(ty)
         }
-        val newCtx2 = newCtx1.push(ty)
         eval(rest, kont, trail)(newCtx2)
       case MemorySize => ???
       case MemoryGrow =>
@@ -1639,8 +1761,6 @@ trait StagedWasmEvaluator extends SAIOps
         val functy = module.types(ty)
         evalCallIndirect(rest, kont, trail, functy.asInstanceOf[FuncType])
       case _ =>
-        val todo = "todo-op".reflectCtrlWith[Unit]()
-        Predef.println(s"[WARNING] Encountered unimplemented instruction $inst, treat it as NOP")
         Predef.assert(false, s"Unimplemented instruction $inst")
         eval(rest, kont, trail)
     }
@@ -2271,16 +2391,42 @@ trait StagedWasmCppGen extends CGenBase with CppSAICodeGenBase {
       shallow(slice); emit(".reverse")
     case Node(_, "memory-store-int", List(base, offset, value), _) =>
       emit("Memory.storeInt("); shallow(base); emit(", "); shallow(offset); emit(", "); shallow(value); emit(".toInt())")
+    case Node(_, "memory-store-int8", List(base, offset, value), _) =>
+      emit("Memory.storeInt8("); shallow(base); emit(", "); shallow(offset); emit(", "); shallow(value); emit(".toInt())")
+    case Node(_, "memory-store-int16", List(base, offset, value), _) =>
+      emit("Memory.storeInt16("); shallow(base); emit(", "); shallow(offset); emit(", "); shallow(value); emit(".toInt())")
     case Node(_, "memory-store-long", List(base, offset, value), _) =>
       emit("Memory.storeLong("); shallow(base); emit(", "); shallow(offset); emit(", "); shallow(value); emit(".toInt64())")
+    case Node(_, "memory-store-long8", List(base, offset, value), _) =>
+      emit("Memory.storeLong8("); shallow(base); emit(", "); shallow(offset); emit(", "); shallow(value); emit(".toInt64())")
+    case Node(_, "memory-store-long16", List(base, offset, value), _) =>
+      emit("Memory.storeLong16("); shallow(base); emit(", "); shallow(offset); emit(", "); shallow(value); emit(".toInt64())")
+    case Node(_, "memory-store-long32", List(base, offset, value), _) =>
+      emit("Memory.storeLong32("); shallow(base); emit(", "); shallow(offset); emit(", "); shallow(value); emit(".toInt64())")
     case Node(_, "memory-load-int", List(base, offset), _) =>
       emit("Memory.loadInt("); shallow(base); emit(", "); shallow(offset); emit(")")
+    case Node(_, "memory-load-int8-u", List(base, offset), _) =>
+      emit("Memory.loadInt8U("); shallow(base); emit(", "); shallow(offset); emit(")")
+    case Node(_, "memory-load-int8-s", List(base, offset), _) =>
+      emit("Memory.loadInt8S("); shallow(base); emit(", "); shallow(offset); emit(")")
+    case Node(_, "memory-load-int16-u", List(base, offset), _) =>
+      emit("Memory.loadInt16U("); shallow(base); emit(", "); shallow(offset); emit(")")
+    case Node(_, "memory-load-int16-s", List(base, offset), _) =>
+      emit("Memory.loadInt16S("); shallow(base); emit(", "); shallow(offset); emit(")")
     case Node(_, "memory-load-long", List(base, offset), _) =>
       emit("Memory.loadLong("); shallow(base); emit(", "); shallow(offset); emit(")")
-    case Node(_, "memory-load-float", List(base, offset), _) =>
-      emit("Memory.loadInt("); shallow(base); emit(", "); shallow(offset); emit(")")
-    case Node(_, "memory-load-double", List(base, offset), _) =>
-      emit("Memory.loadLong("); shallow(base); emit(", "); shallow(offset); emit(")")
+    case Node(_, "memory-load-long8-u", List(base, offset), _) =>
+      emit("Memory.loadLong8U("); shallow(base); emit(", "); shallow(offset); emit(")")
+    case Node(_, "memory-load-long8-s", List(base, offset), _) =>
+      emit("Memory.loadLong8S("); shallow(base); emit(", "); shallow(offset); emit(")")
+    case Node(_, "memory-load-long16-u", List(base, offset), _) =>
+      emit("Memory.loadLong16U("); shallow(base); emit(", "); shallow(offset); emit(")")
+    case Node(_, "memory-load-long16-s", List(base, offset), _) =>
+      emit("Memory.loadLong16S("); shallow(base); emit(", "); shallow(offset); emit(")")
+    case Node(_, "memory-load-long32-u", List(base, offset), _) =>
+      emit("Memory.loadLong32U("); shallow(base); emit(", "); shallow(offset); emit(")")
+    case Node(_, "memory-load-long32-s", List(base, offset), _) =>
+      emit("Memory.loadLong32S("); shallow(base); emit(", "); shallow(offset); emit(")")
     case Node(_, "memory-grow", List(delta), _) =>
       emit("Memory.grow("); shallow(delta); emit(")")
     case Node(_, "stack-size", _, _) =>
@@ -2288,12 +2434,42 @@ trait StagedWasmCppGen extends CGenBase with CppSAICodeGenBase {
     // Symbolic Memory
     case Node(_, "sym-store-int", List(base, offset, s_value), _) =>
       emit("SymMemory.storeSym("); shallow(base); emit(", "); shallow(offset); emit(", "); shallow(s_value); emit(")")
+    case Node(_, "sym-store-int8", List(base, offset, s_value), _) =>
+      emit("SymMemory.storeSymInt8("); shallow(base); emit(", "); shallow(offset); emit(", "); shallow(s_value); emit(")")
+    case Node(_, "sym-store-int16", List(base, offset, s_value), _) =>
+      emit("SymMemory.storeSymInt16("); shallow(base); emit(", "); shallow(offset); emit(", "); shallow(s_value); emit(")")
     case Node(_, "sym-store-long", List(base, offset, s_value), _) =>
       emit("SymMemory.storeSymLong("); shallow(base); emit(", "); shallow(offset); emit(", "); shallow(s_value); emit(")")
+    case Node(_, "sym-store-long8", List(base, offset, s_value), _) =>
+      emit("SymMemory.storeSymLong8("); shallow(base); emit(", "); shallow(offset); emit(", "); shallow(s_value); emit(")")
+    case Node(_, "sym-store-long16", List(base, offset, s_value), _) =>
+      emit("SymMemory.storeSymLong16("); shallow(base); emit(", "); shallow(offset); emit(", "); shallow(s_value); emit(")")
+    case Node(_, "sym-store-long32", List(base, offset, s_value), _) =>
+      emit("SymMemory.storeSymLong32("); shallow(base); emit(", "); shallow(offset); emit(", "); shallow(s_value); emit(")")
     case Node(_, "sym-load-int", List(base, offset), _) =>
       emit("SymMemory.loadSym("); shallow(base); emit(", "); shallow(offset); emit(")")
+    case Node(_, "sym-load-int8-u", List(base, offset), _) =>
+      emit("SymMemory.loadSymInt8U("); shallow(base); emit(", "); shallow(offset); emit(")")
+    case Node(_, "sym-load-int8-s", List(base, offset), _) =>
+      emit("SymMemory.loadSymInt8S("); shallow(base); emit(", "); shallow(offset); emit(")")
+    case Node(_, "sym-load-int16-u", List(base, offset), _) =>
+      emit("SymMemory.loadSymInt16U("); shallow(base); emit(", "); shallow(offset); emit(")")
+    case Node(_, "sym-load-int16-s", List(base, offset), _) =>
+      emit("SymMemory.loadSymInt16S("); shallow(base); emit(", "); shallow(offset); emit(")")
     case Node(_, "sym-load-long", List(base, offset), _) =>
       emit("SymMemory.loadSymLong("); shallow(base); emit(", "); shallow(offset); emit(")")
+    case Node(_, "sym-load-long8-u", List(base, offset), _) =>
+      emit("SymMemory.loadSymLong8U("); shallow(base); emit(", "); shallow(offset); emit(")")
+    case Node(_, "sym-load-long8-s", List(base, offset), _) =>
+      emit("SymMemory.loadSymLong8S("); shallow(base); emit(", "); shallow(offset); emit(")")
+    case Node(_, "sym-load-long16-u", List(base, offset), _) =>
+      emit("SymMemory.loadSymLong16U("); shallow(base); emit(", "); shallow(offset); emit(")")
+    case Node(_, "sym-load-long16-s", List(base, offset), _) =>
+      emit("SymMemory.loadSymLong16S("); shallow(base); emit(", "); shallow(offset); emit(")")
+    case Node(_, "sym-load-long32-u", List(base, offset), _) =>
+      emit("SymMemory.loadSymLong32U("); shallow(base); emit(", "); shallow(offset); emit(")")
+    case Node(_, "sym-load-long32-s", List(base, offset), _) =>
+      emit("SymMemory.loadSymLong32S("); shallow(base); emit(", "); shallow(offset); emit(")")
     case Node(_, "sym-load-float", List(base, offset), _) =>
       emit("SymMemory.loadSymFloat("); shallow(base); emit(", "); shallow(offset); emit(")")
     case Node(_, "sym-load-double", List(base, offset), _) =>
