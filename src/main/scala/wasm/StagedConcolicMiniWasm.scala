@@ -1112,6 +1112,10 @@ trait DebugInfo extends SAIOps {
   def info(xs: Rep[_]*): Rep[Unit] = {
     "info".reflectCtrlWith[Unit](xs: _*)
   }
+
+  def infoWhen(envVar: Rep[String], xs: Rep[_]*): Rep[Unit] = {
+    "infoWhen".reflectCtrlWith[Unit](envVar :: xs.toList: _*)
+  }
 }
 
 @virtualize
@@ -1575,7 +1579,7 @@ trait StagedWasmEvaluator extends SAIOps
           }
           tailCall(thnK, ())
         } else {
-          info(s"Continue")
+          info(s"Continue rest of the block")
           withBlock {
             val control = makeControl(thnK, currentMCont)
             ExploreTree.moveCursor(false, control)
@@ -1671,7 +1675,7 @@ trait StagedWasmEvaluator extends SAIOps
     })
     val newMKont: Rep[MCont[Unit]] = currentMCont.prependCont(restK)
     updateCurrentMCont(newMKont)
-    info(s"Calling function at index ", index.toInt, " with call_indirect, stackSize =", Stack.size)
+    infoWhen("CALL", s"Calling function at index ", index.toInt, " with call_indirect, stackSize =", Stack.size)
     val argsC = Stack.takeC(functy.inps)
     val argsS = Stack.takeS(functy.inps)
     Frames.pushFrameCallerC(functy.inps)
@@ -1686,7 +1690,7 @@ trait StagedWasmEvaluator extends SAIOps
       compileCache(funcIndex)
     } else {
       def retK(ctx: Context): Rep[Cont[Unit]] = topFun((_: Rep[Unit]) => {
-        info(s"Return from the function at $funcIndex, stackSize =", Stack.size)
+        infoWhen("CALL", s"Exiting the function at $funcIndex, stackSize =", Stack.size)
         Frames.popFrameCalleeC(locals.size)
         Frames.popFrameCalleeS(locals.size)
         val offset = ctx.stackTypes.size - ty.out.size
@@ -1696,7 +1700,7 @@ trait StagedWasmEvaluator extends SAIOps
       })
 
       val func = topFun((_: Rep[Unit]) => {
-        info(s"Entered the function at $funcIndex, stackSize =", Stack.size)
+        infoWhen("CALL", s"Entered the function at $funcIndex, stackSize =", Stack.size)
         Frames.pushFrameCalleeC(locals.size)
         Frames.pushFrameCalleeS(locals)
         // the return instruction is also stack polymorphic
@@ -1718,14 +1722,14 @@ trait StagedWasmEvaluator extends SAIOps
         val callee = evalFunc(ty, body, funcIndex, ty.inps, bodyLocals)
         // Predef.println(s"[DEBUG] locals size: ${locals.size}")
         withBlock {
-          info("Taking arguments from stack to call function at ", funcIndex)
+          infoWhen("CALL", s"Taking arguments from stack to call function at ", funcIndex)
           val newCtx = ctx.take(ty.inps.size)
           val argsC = Stack.takeC(ty.inps)
           val argsS = Stack.takeS(ty.inps)
           // We make a new trail by `restK`, since function creates a new block to escape
           // (more or less like `return`)
           val restK: Rep[Cont[Unit]] = topFun((_: Rep[Unit]) => {
-            info(s"Exiting the function at $funcIndex, stackSize =", Stack.size)
+            infoWhen("CALL", s"Returning from the function at $funcIndex, stackSize =", Stack.size)
             Frames.popFrameCallerC(ty.inps.size)
             Frames.popFrameCallerS(ty.inps.size)
             eval(rest, kont, trail)(newCtx.copy(stackTypes = ty.out.reverse ++ ctx.stackTypes.drop(ty.inps.size)))
