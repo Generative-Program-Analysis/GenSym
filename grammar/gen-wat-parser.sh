@@ -19,6 +19,7 @@ do
   rm $file
 done
 
+# Move the generated files to .antlr folder so we can debug the syntax with Antlr vscode extension
 mkdir -p "$(dirname "$0")/.antlr"
 mv *.tokens *.interp .antlr/
 
