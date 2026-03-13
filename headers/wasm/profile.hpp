@@ -235,72 +235,82 @@ public:
 
   void write_as_json(std::ostream &os) const {
     os << "  \"profile_summary\": {\n";
+    bool needs_comma = false;
+    auto write_field_prefix = [&](const char *key) {
+      if (needs_comma) {
+        os << ",\n";
+      }
+      os << "    \"" << key << "\": ";
+      needs_comma = true;
+    };
+    auto write_field = [&](const char *key, const auto &value) {
+      write_field_prefix(key);
+      os << value;
+    };
     if (PROFILE_STEP) {
-      os << "    \"total_push_operations\": "
-         << op_count[static_cast<std::size_t>(StepProfileKind::PUSH)] << ",\n";
-      os << "    \"total_pop_operations\": "
-         << op_count[static_cast<std::size_t>(StepProfileKind::POP)] << ",\n";
-      os << "    \"total_peek_operations\": "
-         << op_count[static_cast<std::size_t>(StepProfileKind::PEEK)] << ",\n";
-      os << "    \"total_shift_operations\": "
-         << op_count[static_cast<std::size_t>(StepProfileKind::SHIFT)] << ",\n";
-      os << "    \"total_set_operations\": "
-         << op_count[static_cast<std::size_t>(StepProfileKind::SET)] << ",\n";
-      os << "    \"total_get_operations\": "
-         << op_count[static_cast<std::size_t>(StepProfileKind::GET)] << ",\n";
-      os << "    \"total_binary_operations\": "
-         << op_count[static_cast<std::size_t>(StepProfileKind::BINARY)]
-         << ",\n";
-      os << "    \"total_tree_fill_operations\": "
-         << op_count[static_cast<std::size_t>(StepProfileKind::TREE_FILL)]
-         << ",\n";
-      os << "    \"total_cursor_move_operations\": "
-         << op_count[static_cast<std::size_t>(StepProfileKind::CURSOR_MOVE)]
-         << ",\n";
-      os << "    \"total_other_instructions_executed\": " << step_count
-         << ",\n";
-      os << "    \"total_mem_grow_operations\": "
-         << op_count[static_cast<std::size_t>(StepProfileKind::MEM_GROW)]
-         << ",\n";
-      os << "    \"total_snapshot_create_operations\": "
-         << op_count[static_cast<std::size_t>(StepProfileKind::SNAPSHOT_CREATE)]
-         << ",\n";
-      os << "    \"total_sym_eval_operations\": "
-         << op_count[static_cast<std::size_t>(StepProfileKind::SYM_EVAL)]
-         << "\n";
+      write_field(
+          "total_push_operations",
+          op_count[static_cast<std::size_t>(StepProfileKind::PUSH)]);
+      write_field("total_pop_operations",
+                  op_count[static_cast<std::size_t>(StepProfileKind::POP)]);
+      write_field("total_peek_operations",
+                  op_count[static_cast<std::size_t>(StepProfileKind::PEEK)]);
+      write_field("total_shift_operations",
+                  op_count[static_cast<std::size_t>(StepProfileKind::SHIFT)]);
+      write_field("total_set_operations",
+                  op_count[static_cast<std::size_t>(StepProfileKind::SET)]);
+      write_field("total_get_operations",
+                  op_count[static_cast<std::size_t>(StepProfileKind::GET)]);
+      write_field("total_binary_operations",
+                  op_count[static_cast<std::size_t>(StepProfileKind::BINARY)]);
+      write_field(
+          "total_tree_fill_operations",
+          op_count[static_cast<std::size_t>(StepProfileKind::TREE_FILL)]);
+      write_field(
+          "total_cursor_move_operations",
+          op_count[static_cast<std::size_t>(StepProfileKind::CURSOR_MOVE)]);
+      write_field("total_other_instructions_executed", step_count);
+      write_field("total_mem_grow_operations",
+                  op_count[static_cast<std::size_t>(StepProfileKind::MEM_GROW)]);
+      write_field("total_snapshot_create_operations",
+                  op_count[static_cast<std::size_t>(
+                      StepProfileKind::SNAPSHOT_CREATE)]);
+      write_field("total_sym_eval_operations",
+                  op_count[static_cast<std::size_t>(StepProfileKind::SYM_EVAL)]);
     }
     if (PROFILE_TIME) {
-      os << "    \"total_time_instruction_execution_s\": "
-         << std::setprecision(15)
-         << time_count[static_cast<std::size_t>(TimeProfileKind::INSTR)]
-         << ",\n";
-      os << "    \"total_time_solver_s\": " << std::setprecision(15)
+      write_field_prefix("total_time_instruction_execution_s");
+      os << std::setprecision(15)
+         << time_count[static_cast<std::size_t>(TimeProfileKind::INSTR)];
+      write_field_prefix("total_time_solver_s");
+      os << std::setprecision(15)
          << time_count[static_cast<std::size_t>(
-                TimeProfileKind::CALL_Z3_SOLVER)]
-         << ",\n";
-      os << "    \"total_time_resuming_from_snapshot_s\": "
-         << std::setprecision(15)
+                TimeProfileKind::CALL_Z3_SOLVER)];
+      write_field_prefix("total_time_resuming_from_snapshot_s");
+      os << std::setprecision(15)
          << time_count[static_cast<std::size_t>(
-                TimeProfileKind::RESUME_SNAPSHOT)]
-         << ",\n";
-      os << "    \"total_time_counting_symbolic_size_s\": "
-         << std::setprecision(15)
+                TimeProfileKind::RESUME_SNAPSHOT)];
+      write_field_prefix("total_time_counting_symbolic_size_s");
+      os << std::setprecision(15)
          << time_count[static_cast<std::size_t>(
-                TimeProfileKind::COUNT_SYM_SIZE)]
-         << "\n";
-      os << "    \"total_time_splitting_path_conditions_s\": "
-         << std::setprecision(15)
+                TimeProfileKind::COUNT_SYM_SIZE)];
+      write_field_prefix("total_time_splitting_path_conditions_s");
+      os << std::setprecision(15)
          << time_count[static_cast<std::size_t>(
-                TimeProfileKind::SPLIT_CONDITIONS)]
-         << ",\n";
+                TimeProfileKind::SPLIT_CONDITIONS)];
+      write_field_prefix("total_time_main_loop_s");
+      os << std::setprecision(15)
+         << time_count[static_cast<std::size_t>(TimeProfileKind::MAIN_LOOP)];
     }
     if (PROFILE_CACHE) {
-      os << "    \"total_cache_hits\": " << cache_hit_count << ",\n";
-      os << "    \"total_cache_misses\": " << cache_miss_count << ",\n";
-      os << "    \"cache_hit_rate\": "
-         << static_cast<double>(cache_hit_count) /
-                static_cast<double>(cache_hit_count + cache_miss_count)
-         << "\n";
+      write_field("total_cache_hits", cache_hit_count);
+      write_field("total_cache_misses", cache_miss_count);
+      write_field("cache_hit_rate",
+                  static_cast<double>(cache_hit_count) /
+                      static_cast<double>(cache_hit_count + cache_miss_count));
+    }
+    if (needs_comma) {
+      os << '\n';
     }
     os << "  }\n";
   }
