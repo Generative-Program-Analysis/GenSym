@@ -285,6 +285,10 @@ public:
       write_field_prefix("total_time_solver_s");
       os << std::setprecision(15)
          << time_count[static_cast<std::size_t>(
+                TimeProfileKind::SOLVER_TOTAL)];
+      write_field_prefix("total_time_z3_api_call_s");
+      os << std::setprecision(15)
+         << time_count[static_cast<std::size_t>(
                 TimeProfileKind::CALL_Z3_SOLVER)];
       write_field_prefix("total_time_resuming_from_snapshot_s");
       os << std::setprecision(15)

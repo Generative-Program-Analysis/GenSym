@@ -86,6 +86,7 @@ public:
       : PathPicker(unexplored_paths, visited) {}
 
   std::optional<PathFrontier> pick_path() override {
+    ManagedTimer timer(TimeProfileKind::SOLVER_TOTAL);
     NodeBox *node = unexplored_paths.back();
     unexplored_paths.pop_back();
 
@@ -102,7 +103,6 @@ public:
 
     std::optional<QueryResult> result;
     {
-      ManagedTimer timer(TimeProfileKind::SOLVER_TOTAL);
       auto cond = node->collect_path_conds();
       result = solver.solve_path_conds(cond, true);
     }

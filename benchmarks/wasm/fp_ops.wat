@@ -139,6 +139,18 @@
     f64.convert_i64_s
     f64.const -1.0
     f64.eq
+    call 0
+
+    f32.const 3.75
+    i32.trunc_f32_s
+    i32.const 3
+    i32.eq
+    call 0
+
+    f32.const 3.75
+    i32.trunc_f32_u
+    i32.const 3
+    i32.eq
     call 0)
 
   ;; symbolic branch guard for f32

@@ -37,9 +37,25 @@ class TestBenchmark extends FunSuite {
     }
   }
 
-  test("compile-btree-benchmarks") { compileDirToCpp("./benchmarks/pldi2026/btree/", Some("main")) }
+  def compileDirTreeToCpp(dir: String,
+                          main: Option[String] = None): Unit = {
+    import java.io.File
+
+    def walk(file: File): Unit = {
+      if (file.isDirectory) {
+        Option(file.listFiles()).getOrElse(Array.empty).foreach(walk)
+      } else if (file.getName.endsWith(".wat")) {
+        compileToCpp(file.getAbsolutePath, main)
+      }
+    }
+
+    walk(new File(dir))
+  }
+
+  test("compile-btree-benchmarks") { compileDirToCpp("./benchmarks/pldi2026/btree/tests-normalized", Some("main")) }
   test("compile-crafted-benchmarks") { compileDirToCpp("./benchmarks/pldi2026/crafted/") }
   test("compile-aws-aws-encryption-sdk") { compileDirToCpp("./benchmarks/pldi2026/aws-encryption-sdk/tests-original-normalized/", Some("__original_main")) }
+  test("compile-collection-c-benchmarks") { compileDirTreeToCpp("./benchmarks/pldi2026/Collection-C/tests-normalized/", Some("__original_main")) }
   test("compile-a-single-file") {
     sys.env.get("INPUT") match {
       case Some(path) => compileToCpp(path)

@@ -475,7 +475,9 @@ struct FuncTable_t {
                                std::to_string(index));
     }
     if (!table[index]) {
-      assert(false);
+      std::cout << "Function table entry at index " << index
+                << " is empty or invalid" << std::endl;
+      assert(false && "Function table entry is empty or invalid");
       throw std::runtime_error("Function table entry at index " +
                                std::to_string(index) + " is empty or invalid");
     }
@@ -483,11 +485,12 @@ struct FuncTable_t {
   }
 
   std::monostate set(Num offset, int32_t index, Func_t func) {
+    assert(offset.value == 1 && "Only support one function table per module for now");
     if (index < 0 || index >= table.size()) {
       throw std::runtime_error("Function table set out of bounds: " +
                                std::to_string(index));
     }
-    table[offset.toInt() + index] = func;
+    table[index] = func;
     return std::monostate{};
   }
 };

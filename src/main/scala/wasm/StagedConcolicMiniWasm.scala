@@ -559,6 +559,14 @@ trait ConcreteOps extends StagedWasmValueDomains with ValueCreation {
       case NumType(F64Type) => StagedConcreteNum(NumType(I32Type), "f64-trunc-to-i32-u".reflectCtrlWith[Num](num.i))
     }
 
+    def truncF32ToI32S(): StagedConcreteNum = num.tipe match {
+      case NumType(F32Type) => StagedConcreteNum(NumType(I32Type), "f32-trunc-to-i32-s".reflectCtrlWith[Num](num.i))
+    }
+
+    def truncF32ToI32U(): StagedConcreteNum = num.tipe match {
+      case NumType(F32Type) => StagedConcreteNum(NumType(I32Type), "f32-trunc-to-i32-u".reflectCtrlWith[Num](num.i))
+    }
+
     def assert(): Rep[Unit] = {
       "assert-true".reflectCtrlWith[Unit](num.toInt != 0)
     }
@@ -2080,6 +2088,8 @@ trait StagedWasmEvaluator extends SAIOps
     case ConvertTo(NumType(I32Type), NumType(F64Type), ZX) => value.convertI32ToF64U()
     case ConvertTo(NumType(I64Type), NumType(F64Type), SX) => value.convertI64ToF64S()
     case ConvertTo(NumType(I64Type), NumType(F64Type), ZX) => value.convertI64ToF64U()
+    case TruncTo(NumType(F32Type), NumType(I32Type), SX) => value.truncF32ToI32S()
+    case TruncTo(NumType(F32Type), NumType(I32Type), ZX) => value.truncF32ToI32U()
     case TruncTo(NumType(F64Type),NumType(I32Type),ZX) => value.truncF64ToI32U()
     case _ => throw new UnsupportedOperationException(s"Unsupported concrete conversion $op")
   }
@@ -2605,6 +2615,10 @@ trait StagedWasmCppGen extends CGenBase with CppSAICodeGenBase {
       emit("("); shallow(num); emit(".convert_i64_to_f64_s())")
     case Node(_, "i64-convert-to-f64-u", List(num), _) =>
       emit("("); shallow(num); emit(".convert_i64_to_f64_u())")
+    case Node(_, "f32-trunc-to-i32-s", List(num), _) =>
+      emit("("); shallow(num); emit(".trunc_f32_to_i32_s())")
+    case Node(_, "f32-trunc-to-i32-u", List(num), _) =>
+      emit("("); shallow(num); emit(".trunc_f32_to_i32_u())")
     case Node(_, "f64-trunc-to-i32-u", List(num), _) =>
       emit("("); shallow(num); emit(".trunc_f64_to_i32_u())")
     case Node(_, "f32-binary-add", List(lhs, rhs), _) =>
