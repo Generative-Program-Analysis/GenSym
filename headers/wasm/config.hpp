@@ -79,4 +79,10 @@ static const bool ENABLE_COST_MODEL = true;
 static const bool ENABLE_COST_MODEL = false;
 #endif
 
+#ifdef USE_SOFT_ASSERT
+static const bool SOFT_ASSERT = true;
+#else
+static const bool SOFT_ASSERT = false;
+#endif
+
 #endif // CONFIG_HPP

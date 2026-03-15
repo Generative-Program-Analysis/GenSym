@@ -53,7 +53,8 @@ compose_query_results(const std::vector<QueryResult> &results) {
               starts_with(name, "s_f64")) &&
              "Unexpected declaration in query result model");
       assert(!combined_model.has_interp(decl) &&
-             "Internal Error: Conflicting constant declarations when composing query results");
+             "Internal Error: Conflicting constant declarations when composing "
+             "query results");
       z3::expr value = model.get_const_interp(decl);
       combined_model.add_const_interp(decl, value);
     }
@@ -450,8 +451,10 @@ inline std::monostate GENSYM_SYM_ASSERT(SymVal &sym_cond) {
   Profile.remove_instruction_time(TimeProfileKind::INSTR,
                                   time_need_to_be_removed.count());
   if (result.has_value()) {
-    std::cout << "Symbolic assertion failed" << std::endl;
-    throw std::runtime_error("Symbolic assertion failed");
+    GENSYM_INFO("Symbolic assertion failed");
+    if (!SOFT_ASSERT)
+      throw std::runtime_error("Symbolic assertion failed");
+    GENSYM_INFO("Soft assertion configured, continuing execution...");
   }
   return std::monostate{};
 }

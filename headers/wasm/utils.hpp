@@ -1,5 +1,6 @@
 #ifndef UTILS_HPP
 #define UTILS_HPP
+#include "config.hpp"
 #include <iostream>
 #include <variant>
 
@@ -7,9 +8,13 @@
 #define GENSYM_ASSERT(condition)                                               \
   do {                                                                         \
     if (!(condition)) {                                                        \
-      throw std::runtime_error(std::string("Assertion failed: ") + " (" +      \
-                               __FILE__ + ":" + std::to_string(__LINE__) +     \
-                               ")");                                           \
+      std::string message = std::string("Assertion failed: ") + " (" +         \
+                            __FILE__ + ":" + std::to_string(__LINE__) + ")";   \
+      if (SOFT_ASSERT) {                                                       \
+        GENSYM_INFO(message);                                                  \
+      } else {                                                                 \
+        throw std::runtime_error(message);                                     \
+      }                                                                        \
     }                                                                          \
   } while (0)
 #endif
