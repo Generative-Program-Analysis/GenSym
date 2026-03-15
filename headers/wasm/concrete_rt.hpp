@@ -11,6 +11,7 @@
 #include <cstdio>
 #include <iostream>
 #include <memory>
+#include <optional>
 #include <ostream>
 #include <string>
 #include <unistd.h>
@@ -51,6 +52,7 @@ public:
   Num pop() {
     Profile.step(StepProfileKind::POP);
     if (count <= 0) {
+      assert(false);
       throw std::runtime_error("Stack underflow");
     }
 #ifdef DEBUG
@@ -266,6 +268,7 @@ struct Memory_t {
   int32_t loadInt(int32_t base, int32_t offset) {
     int32_t addr = base + offset;
     if (!(addr + 3 < memory.size()) || addr < 0) {
+      assert(false);
       throw std::runtime_error("Invalid memory access " + std::to_string(addr));
     }
     int32_t result = 0;
@@ -285,6 +288,7 @@ struct Memory_t {
   uint8_t loadByte(int32_t base, int32_t offset) {
     int32_t addr = base + offset;
     if (!(addr < memory.size()) || addr < 0) {
+      assert(false);
       throw std::runtime_error("Invalid memory access " + std::to_string(addr));
     }
     return memory[addr];
@@ -353,6 +357,7 @@ struct Memory_t {
   int64_t loadLong(int32_t base, int32_t offset) {
     int32_t addr = base + offset;
     if (!(addr + 7 < memory.size()) || addr < 0) {
+      assert(false);
       throw std::runtime_error("Invalid memory access " + std::to_string(addr));
     }
     int64_t result = 0;
@@ -366,6 +371,7 @@ struct Memory_t {
     int32_t addr = base + offset;
     // Ensure we don't write out of bounds
     if (!(addr + 3 < memory.size())) {
+      assert(false);
       throw std::runtime_error("Invalid memory access " + std::to_string(addr));
     }
     for (int i = 0; i < 4; ++i) {
@@ -381,6 +387,7 @@ struct Memory_t {
   std::monostate storeLong(int32_t base, int32_t offset, int64_t value) {
     int32_t addr = base + offset;
     if (!(addr + 7 < memory.size()) || addr < 0) {
+      assert(false);
       throw std::runtime_error("Invalid memory access " + std::to_string(addr));
     }
     for (int i = 0; i < 8; ++i) {
@@ -474,23 +481,28 @@ struct FuncTable_t {
   std::vector<Func_t> table;
 
   Func_t read(int32_t index) {
-    if (index < 0 || index >= table.size()) {
+    auto offset = index - start_index.value();
+    if (offset < 0 || offset >= table.size()) {
       throw std::runtime_error("Function table read out of bounds: " +
                                std::to_string(index));
     }
-    if (!table[index]) {
+    if (!table[offset]) {
       std::cout << "Function table entry at index " << index
                 << " is empty or invalid" << std::endl;
       assert(false && "Function table entry is empty or invalid");
       throw std::runtime_error("Function table entry at index " +
                                std::to_string(index) + " is empty or invalid");
     }
-    return table[index];
+    return table[offset];
   }
 
   std::monostate set(Num offset, int32_t index, Func_t func) {
-    assert(offset.value == 1 &&
-           "Only support one function table per module for now");
+    if (start_index.has_value()) {
+      assert(offset.toInt() == start_index &&
+             "Currently only supporting one function table per module.");
+    } else {
+      start_index = offset.toInt();
+    }
     if (index < 0 || index >= table.size()) {
       throw std::runtime_error("Function table set out of bounds: " +
                                std::to_string(index));
@@ -498,6 +510,15 @@ struct FuncTable_t {
     table[index] = func;
     return std::monostate{};
   }
+
+  std::monostate setStart(int32_t index) {
+    // set start index to be the function at index 0
+    start_index = index;
+    return std::monostate{};
+  }
+
+private:
+  std::optional<int32_t> start_index;
 };
 
 static FuncTable_t FuncTable;

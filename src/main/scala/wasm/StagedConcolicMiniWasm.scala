@@ -2246,7 +2246,7 @@ trait StagedWasmEvaluator extends SAIOps
             evalSeq(offset, (_: Context) => forwardKont, ((_: Context) => forwardKont)::Nil)
             val offsetC = Stack.popC(NumType(I32Type))
             Stack.popS(NumType(I32Type))
-            Predef.println(s"funcIndices: $funcIndices")
+            // Predef.println(s"funcIndices: $funcIndices")
             for ((fidx, i) <- funcIndices.asInstanceOf[ElemListFunc].funcs.view.zipWithIndex) {
               val FuncDef(_, FuncBodyDef(ty, _, bodyLocals, body)) = module.funcs(fidx)
               val func = evalFunc(ty, body, fidx, ty.inps, bodyLocals)
