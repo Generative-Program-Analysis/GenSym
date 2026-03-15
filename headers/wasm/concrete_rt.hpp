@@ -50,7 +50,9 @@ public:
 
   Num pop() {
     Profile.step(StepProfileKind::POP);
-    assert(count > 0 && "Stack underflow");
+    if (count <= 0) {
+      throw std::runtime_error("Stack underflow");
+    }
 #ifdef DEBUG
     printf("[Debug] popping a value %ld from stack, size of concrete stack is: "
            "%d\n",
@@ -343,7 +345,8 @@ struct Memory_t {
     uint64_t b1 = static_cast<uint64_t>(loadByte(base, offset + 1));
     uint64_t b2 = static_cast<uint64_t>(loadByte(base, offset + 2));
     uint64_t b3 = static_cast<uint64_t>(loadByte(base, offset + 3));
-    uint32_t raw = static_cast<uint32_t>(b0 | (b1 << 8) | (b2 << 16) | (b3 << 24));
+    uint32_t raw =
+        static_cast<uint32_t>(b0 | (b1 << 8) | (b2 << 16) | (b3 << 24));
     return static_cast<int32_t>(raw);
   }
 
@@ -381,7 +384,8 @@ struct Memory_t {
       throw std::runtime_error("Invalid memory access " + std::to_string(addr));
     }
     for (int i = 0; i < 8; ++i) {
-      memory[addr + i] = static_cast<uint8_t>((static_cast<uint64_t>(value) >> (8 * i)) & 0xFF);
+      memory[addr + i] = static_cast<uint8_t>(
+          (static_cast<uint64_t>(value) >> (8 * i)) & 0xFF);
     }
     return std::monostate{};
   }
@@ -485,7 +489,8 @@ struct FuncTable_t {
   }
 
   std::monostate set(Num offset, int32_t index, Func_t func) {
-    assert(offset.value == 1 && "Only support one function table per module for now");
+    assert(offset.value == 1 &&
+           "Only support one function table per module for now");
     if (index < 0 || index >= table.size()) {
       throw std::runtime_error("Function table set out of bounds: " +
                                std::to_string(index));

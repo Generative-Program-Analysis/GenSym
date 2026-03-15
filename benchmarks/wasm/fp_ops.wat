@@ -15,6 +15,16 @@
     f64.const 0x1p-1 (;=0.5;)
     local.set 3
     local.get 0
+    f32.abs
+    f32.const 0x1.cp+1 (;=3.5;)
+    f32.eq
+    call 0
+    local.get 2
+    f64.abs
+    f64.const 0x1.48p+3 (;=10.25;)
+    f64.eq
+    call 0
+    local.get 0
     local.get 1
     f32.add
     f32.const 0x1.6p+2 (;=5.5;)

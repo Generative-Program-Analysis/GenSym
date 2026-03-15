@@ -58,7 +58,9 @@ class TestBenchmark extends FunSuite {
   test("compile-collection-c-benchmarks") { compileDirTreeToCpp("./benchmarks/pldi2026/Collection-C/tests-normalized/", Some("__original_main")) }
   test("compile-a-single-file") {
     sys.env.get("INPUT") match {
-      case Some(path) => compileToCpp(path)
+      case Some(path) =>
+        val main = sys.env.get("MAIN")
+        compileToCpp(path, main)
       case None => println("Environment variable INPUT not set; skipping compileToCpp")
     }
   }

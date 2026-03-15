@@ -51,6 +51,7 @@ struct SymVal {
   SymVal bitwise_and(const SymVal &other) const;
   SymVal bitwise_xor(const SymVal &other) const;
   SymVal bitwise_or(const SymVal &other) const;
+  SymVal abs() const;
   SymVal concat(const SymVal &other) const;
   SymVal extract(int high, int low) const;
   SymVal bv2bool() const;
@@ -83,6 +84,8 @@ template <typename... Args> inline bool allConcrete(const Args &...args) {
                 "all_concrete only accepts SymVal arguments");
   return (... && args.is_concrete());
 }
+
+inline Num isSymbolic(int index);
 
 inline SymVal Concrete(Num num, int width);
 

@@ -425,7 +425,11 @@ public:
     auto b1 = loadSymByte(base + offset + 1);
     auto b2 = loadSymByte(base + offset + 2);
     auto b3 = loadSymByte(base + offset + 3);
-    return SVFactory::make_smallbv(32, 0).concat(b3).concat(b2).concat(b1).concat(b0);
+    return SVFactory::make_smallbv(32, 0)
+        .concat(b3)
+        .concat(b2)
+        .concat(b1)
+        .concat(b0);
   }
 
   SymVal loadSymLong32S(int32_t base, int32_t offset) {
@@ -454,7 +458,8 @@ public:
 
   std::monostate storeSymLong(int32_t base, int32_t offset, SymVal value) {
     int32_t addr = base + offset;
-    // TODO: Can we receive a float point symbolic value here? which may produce a bug
+    // TODO: Can we receive a float point symbolic value here? which may produce
+    // a bug
     SymVal s0 = value.extract(1, 1);
     SymVal s1 = value.extract(2, 2);
     SymVal s2 = value.extract(3, 3);
@@ -659,6 +664,15 @@ private:
 
 static SymEnv_t SymEnv;
 
+inline Num isSymbolic(int index) {
+  auto it = SVFactory::SymbolStore.find(index);
+  if (it != SVFactory::SymbolStore.end()) {
+    return Num(I32V(1));
+  } else {
+    return Num(I32V(0));
+  }
+}
+
 // A snapshot of the symbolic state and execution context (control)
 class Snapshot_t {
 public:
@@ -732,7 +746,7 @@ struct NodeBox {
 
 struct Node {
   friend struct NodeBox;
-  virtual ~Node(){};
+  virtual ~Node() {};
   void set_cost(double c) { instr_cost = c; }
   double get_cost() const { return instr_cost; }
   virtual std::string to_string() = 0;

@@ -37,6 +37,7 @@ enum UnaryOperation {
   NOT,     // bool not
   BOOL2BV, // bool to bitvector,
   EXTEND,  // bitvector extension, extend i32 to i64
+  ABS,     // floating-point absolute value
 };
 
 enum ValueKind { KindBV, KindBool, KindFP };
@@ -231,6 +232,10 @@ struct SymUnary : public Symbolic {
     case NOT:
       _width = 1;
       break;
+    case ABS:
+      assert(value->value_kind() == KindFP);
+      _width = value->width();
+      break;
     default:
       assert(false && "Unknown unary operation");
     }
@@ -253,6 +258,9 @@ struct SymUnary : public Symbolic {
     }
     case BOOL2BV: {
       return ValueKind::KindBV;
+    }
+    case ABS: {
+      return ValueKind::KindFP;
     }
     default: {
       assert(false && "Unknown unary operation");

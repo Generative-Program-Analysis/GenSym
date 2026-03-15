@@ -125,6 +125,10 @@ inline SymVal SymVal::bool_not() const {
   return SVFactory::make_unary(NOT, *this);
 }
 
+inline SymVal SymVal::abs() const {
+  return SVFactory::make_unary(ABS, *this);
+}
+
 inline SymVal SymVal::concat(const SymVal &other) const {
   return SVFactory::make_concat(*this, other);
 }

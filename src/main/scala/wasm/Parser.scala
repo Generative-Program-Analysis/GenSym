@@ -491,6 +491,7 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
         case "reinterpret" =>
           val fromTy = toNumType(fromTySign)
           Reinterpret(fromTy, toTy)
+        case _ => throw new RuntimeException(s"Unsupported convert opcode: ${ctx.CONVERT.getText}")
       }
       Convert(op)
     } else if (ctx.SYM_ASSERT != null) {
