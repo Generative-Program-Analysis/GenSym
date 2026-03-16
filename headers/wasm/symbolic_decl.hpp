@@ -111,7 +111,9 @@ struct SymExtract : public Symbolic {
   int low;
 
   SymExtract(SymVal value, int high, int low)
-      : value(value), high(high), low(low) {}
+      : value(value), high(high), low(low) {
+    assert(value->value_kind() == KindBV);
+  }
 
   int size() override {
     if (_cached_dag_size.has_value()) {
