@@ -223,6 +223,7 @@ inline void ConcolicDriver::main_exploration_loop() {
       GENSYM_INFO("Caught runtime error during execution");
       switch (EXPLORE_MODE) {
       case ExploreMode::EarlyExit:
+        GENSYM_INFO("Exiting exploration due to error...");
         return;
       case ExploreMode::ExitByCoverage:
         if (ExploreTree.all_branch_covered()) {

@@ -1630,7 +1630,12 @@ trait StagedWasmEvaluator extends SAIOps
           val newRestCtx = restCtx.shift(offset, funcTy.out.size)
           eval(rest, kont, trail)(newRestCtx)
         })
-        eval(inner, restK _, restK _ :: trail)
+        def innerK: Rep[Cont[Unit]] = topFun((_: Rep[Unit]) => {
+          info(s"Entering the block, stackSize =", Stack.size)
+          eval(inner, restK _, restK _ :: trail)
+        })
+        tailCall(innerK, ())
+        ()
       case Loop(ty, inner) =>
         val funcTy = ty.funcType
         val exitSize = ctx.stackTypes.size - funcTy.inps.size + funcTy.out.size
@@ -1954,19 +1959,21 @@ trait StagedWasmEvaluator extends SAIOps
         // this semantics here is not standardized in wasp, here is wasp's impl
         // https://github.com/formalsec/wasp/blob/release/0.2.3/wasp/symbolic/concolic.ml#L449
         val (_, newCtx1) = ctx.pop()
-        val a = Stack.popC(NumType(I32Type))
+        val size = Stack.popC(NumType(I32Type))
         Stack.popS(NumType(I32Type))
         val (_, newCtx2) = newCtx1.pop()
-        val b = Stack.popC(NumType(I32Type))
+        val base = Stack.popC(NumType(I32Type))
         Stack.popS(NumType(I32Type))
-        Stack.pushC(b)
-        val s = "Concrete".reflectCtrlWith[SymVal](Values.I32V(b.toInt), 32)
+        val ptr = Values.I32V(gensymAlloc(base.toInt, size.toInt))
+        Stack.pushC(StagedConcreteNum(NumType(I32Type), ptr))
+        val s = "Concrete".reflectCtrlWith[SymVal](ptr, 32)
         Stack.pushS(StagedSymbolicNum(NumType(I32Type), s))
         eval(rest, kont, trail)(newCtx1)
       case Import("mem", "free", _) =>
         val (_, newCtx) = ctx.pop()
-        Stack.popC(NumType(I32Type))
+        val ptr = Stack.popC(NumType(I32Type))
         Stack.popS(NumType(I32Type))
+        gensymFree(ptr.toInt)
         eval(rest, kont, trail)(newCtx)
       case Import("env", "proc_exit", _) =>
         val (_, newCtx) = ctx.pop()
@@ -2192,6 +2199,14 @@ trait StagedWasmEvaluator extends SAIOps
 
   def resetStacks(): Rep[Unit] = {
     "reset-stacks".reflectCtrlWith[Unit]()
+  }
+
+  def gensymAlloc(base: Rep[Int], size: Rep[Int]): Rep[Int] = {
+    "gensym-alloc".reflectCtrlWith[Int](base, size)
+  }
+
+  def gensymFree(ptr: Rep[Int]): Rep[Unit] = {
+    "gensym-free".reflectCtrlWith[Unit](ptr)
   }
 
   def isSymbolic(index: Rep[Int]): StagedConcreteNum = {
@@ -2743,6 +2758,10 @@ trait StagedWasmCppGen extends CGenBase with CppSAICodeGenBase {
       shallow(lhs); emit(".rem_u("); shallow(rhs); emit(")")
     case Node(_, "sym-i32-extend-to-i64", List(num), _) =>
       shallow(num); emit(".extend_to_i64()")
+    case Node(_, "gensym-alloc", List(base, size), _) =>
+      emit("GENSYM_ALLOC("); shallow(base); emit(", "); shallow(size); emit(")")
+    case Node(_, "gensym-free", List(ptr), _) =>
+      emit("GENSYM_FREE("); shallow(ptr); emit(")")
     case Node(_, "num-to-int", List(num), _) =>
       shallow(num); emit(".toInt()")
     case Node(_, "make-i32-symbol", List(num), _) =>

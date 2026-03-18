@@ -265,12 +265,15 @@ struct Memory_t {
     reset();
   }
 
+  void assert_valid_range(int32_t addr, size_t width) const {
+    assert(addr >= 0);
+    assert(static_cast<size_t>(addr) + width <= memory.size());
+    GENSYM_ASSERT_ADDR_ALLOCATED(addr, width);
+  }
+
   int32_t loadInt(int32_t base, int32_t offset) {
     int32_t addr = base + offset;
-    if (!(addr + 3 < memory.size()) || addr < 0) {
-      assert(false);
-      throw std::runtime_error("Invalid memory access " + std::to_string(addr));
-    }
+    assert_valid_range(addr, 4);
     int32_t result = 0;
     // Little-endian: lowest byte at lowest address
     for (int i = 0; i < 4; ++i) {
@@ -287,10 +290,7 @@ struct Memory_t {
 
   uint8_t loadByte(int32_t base, int32_t offset) {
     int32_t addr = base + offset;
-    if (!(addr < memory.size()) || addr < 0) {
-      assert(false);
-      throw std::runtime_error("Invalid memory access " + std::to_string(addr));
-    }
+    assert_valid_range(addr, 1);
     return memory[addr];
   }
 
@@ -356,10 +356,7 @@ struct Memory_t {
 
   int64_t loadLong(int32_t base, int32_t offset) {
     int32_t addr = base + offset;
-    if (!(addr + 7 < memory.size()) || addr < 0) {
-      assert(false);
-      throw std::runtime_error("Invalid memory access " + std::to_string(addr));
-    }
+    assert_valid_range(addr, 8);
     int64_t result = 0;
     for (int i = 0; i < 8; ++i) {
       result |= static_cast<int64_t>(memory[addr + i]) << (8 * i);
@@ -369,11 +366,7 @@ struct Memory_t {
 
   std::monostate storeInt(int32_t base, int32_t offset, int32_t value) {
     int32_t addr = base + offset;
-    // Ensure we don't write out of bounds
-    if (!(addr + 3 < memory.size())) {
-      assert(false);
-      throw std::runtime_error("Invalid memory access " + std::to_string(addr));
-    }
+    assert_valid_range(addr, 4);
     for (int i = 0; i < 4; ++i) {
       memory[addr + i] = static_cast<uint8_t>((value >> (8 * i)) & 0xFF);
     }
@@ -386,10 +379,7 @@ struct Memory_t {
 
   std::monostate storeLong(int32_t base, int32_t offset, int64_t value) {
     int32_t addr = base + offset;
-    if (!(addr + 7 < memory.size()) || addr < 0) {
-      assert(false);
-      throw std::runtime_error("Invalid memory access " + std::to_string(addr));
-    }
+    assert_valid_range(addr, 8);
     for (int i = 0; i < 8; ++i) {
       memory[addr + i] = static_cast<uint8_t>(
           (static_cast<uint64_t>(value) >> (8 * i)) & 0xFF);
@@ -430,7 +420,7 @@ struct Memory_t {
     std::cout << "[Debug] storing byte " << std::to_string(value)
               << " to memory at address " << addr << std::endl;
 #endif
-    assert(addr < memory.size());
+    assert_valid_range(addr, 1);
     memory[addr] = value;
     return std::monostate{};
   }
