@@ -14,6 +14,7 @@ abstract class CppCompilationTestBase extends FunSuite {
     val fromRepo = firstExistingDir(
       Seq(
         "./third-party/z3/build/z3_install/include",
+        "./third-party/z3/build/z3_install/usr/local/include",
         "./third-party/z3/src/api/c++"
       )
     )
@@ -26,7 +27,7 @@ abstract class CppCompilationTestBase extends FunSuite {
 
   protected lazy val z3LibDir: String = {
     val fromEnv = sys.env.get("Z3_LIB_DIR")
-    val fromRepo = firstExistingDir(Seq("./third-party/z3/build/z3_install/lib"))
+    val fromRepo = firstExistingDir(Seq("./third-party/z3/build/z3_install/lib", "./third-party/z3/build/z3_install/usr/local/lib"))
     fromEnv.orElse(fromRepo).getOrElse {
       throw new RuntimeException(
         "Cannot locate Z3 library directory. Set Z3_LIB_DIR or build third-party/z3."
