@@ -83,6 +83,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && ldconfig \
     && rm -rf /var/lib/apt/lists/*
 
+# ── Zsh + Oh My Zsh ──────────────────────────────────────────────────────────
+RUN apt-get update && apt-get install -y --no-install-recommends zsh \
+    && rm -rf /var/lib/apt/lists/* \
+    && sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended \
+    && chsh -s "$(which zsh)"
+
+ENV SHELL=/usr/bin/zsh
+
 # ── Environment variables ─────────────────────────────────────────────────────
 ENV Z3_INCLUDE_DIR=/usr/include \
     Z3_LIB_DIR=/usr/local/lib
