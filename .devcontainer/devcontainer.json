@@ -1,0 +1,31 @@
+{
+  "name": "GenSym",
+  "build": {
+    "dockerfile": "Dockerfile",
+    "context": ".."
+  },
+  "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind,consistency=cached",
+  "workspaceFolder": "/workspace",
+  "remoteEnv": {
+    "Z3_INCLUDE_DIR": "/usr/include",
+    "Z3_LIB_DIR": "/usr/local/lib",
+    "IMMER_INCLUDE_DIR": "${containerWorkspaceFolder}/third-party/immer"
+  },
+  "postCreateCommand": "bash .devcontainer/postCreate.sh",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "scalameta.metals",
+        "scala-lang.scala"
+      ],
+      "settings": {
+        "java.configuration.runtimes": [
+          {
+            "name": "JavaSE-1.8",
+            "path": "/usr/local/java-8"
+          }
+        ]
+      }
+    }
+  }
+}
