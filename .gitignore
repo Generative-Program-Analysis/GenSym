@@ -30,3 +30,4 @@ headers/gensym/external.hpp
 grammar/.antlr/
 *.interp
 *.tokens
+genwasym_runtime/build
