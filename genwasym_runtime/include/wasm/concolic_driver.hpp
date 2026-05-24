@@ -14,6 +14,7 @@
 #include <functional>
 #include <optional>
 #include <ostream>
+#include <set>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -23,11 +24,7 @@ class ConcolicDriver {
 
 public:
   ConcolicDriver(std::function<void()> entrypoint,
-                 std::optional<std::string> tree_file, int branchCount)
-      : entrypoint(entrypoint), tree_file(tree_file) {
-    ExploreTree.true_branch_cov_map.assign(branchCount, false);
-    ExploreTree.false_branch_cov_map.assign(branchCount, false);
-  }
+                 std::optional<std::string> tree_file, int branchCount);
   void run();
 
 private:
@@ -44,16 +41,8 @@ class ManagedConcolicCleanup {
   const ConcolicDriver &driver;
 
 public:
-  ManagedConcolicCleanup(const ConcolicDriver &driver) : driver(driver) {}
-  ~ManagedConcolicCleanup() {
-    // put any cleanup code that needs to be done after each execution here
-
-    // Dump the explore tree if needed
-    if (driver.tree_file.has_value())
-      ExploreTree.dump_graphviz(driver.tree_file.value());
-
-    // Profile.print_summary();
-  }
+  ManagedConcolicCleanup(const ConcolicDriver &driver);
+  ~ManagedConcolicCleanup();
 };
 
 static std::monostate reset_stacks();
@@ -69,8 +58,7 @@ struct PathFrontier {
 class PathPicker {
 public:
   PathPicker(std::vector<NodeBox *> &unexplored_paths,
-             std::set<NodeBox *> &visited)
-      : unexplored_paths(unexplored_paths), visited(visited) {}
+             std::set<NodeBox *> &visited);
 
   virtual std::optional<PathFrontier> pick_path() = 0;
 
@@ -82,79 +70,17 @@ protected:
 class DefaultPathPicker : public PathPicker {
 public:
   DefaultPathPicker(std::vector<NodeBox *> &unexplored_paths,
-                    std::set<NodeBox *> &visited)
-      : PathPicker(unexplored_paths, visited) {}
+                    std::set<NodeBox *> &visited);
 
-  std::optional<PathFrontier> pick_path() override {
-    NodeBox *node = unexplored_paths.back();
-    unexplored_paths.pop_back();
-
-    if (visited.find(node) != visited.end()) {
-      return std::nullopt;
-    } else {
-      visited.insert(node);
-    }
-
-    if (!node->isUnexplored()) {
-      // if it's not unexplored anymore, skip it
-      return std::nullopt;
-    }
-
-    std::optional<QueryResult> result;
-    {
-      ManagedTimer timer(TimeProfileKind::SOLVER_TOTAL);
-      auto cond = node->collect_path_conds();
-      result = solver.solve_path_conds(cond, true);
-    }
-    if (!result.has_value()) {
-      GENSYM_INFO("Found an unreachable path, marking it as unreachable...");
-      node->fillUnreachableNode();
-      return std::nullopt;
-    }
-    return PathFrontier{result.value(), node};
-  }
+  std::optional<PathFrontier> pick_path() override;
 };
 
 class RandomPathPicker : public PathPicker {
 public:
   RandomPathPicker(std::vector<NodeBox *> &unexplored_paths,
-                   std::set<NodeBox *> &visited)
-      : PathPicker(unexplored_paths, visited) {}
-  std::optional<PathFrontier> pick_path() override {
-    ManagedTimer timer(TimeProfileKind::SOLVER_TOTAL);
+                   std::set<NodeBox *> &visited);
 
-    if (unexplored_paths.empty()) {
-      return std::nullopt;
-    }
-    std::vector<std::vector<SymVal>> all_path_conds;
-    std::vector<NodeBox *> candidate_nodes;
-
-    for (auto node : unexplored_paths) {
-      ManagedTimer timer(TimeProfileKind::COLLECT_PATH_CONDITIONS);
-      if (visited.find(node) != visited.end()) {
-        continue;
-      }
-      if (!node->isUnexplored()) {
-        // I suppose thse should not happen
-        // assert(false);
-        continue;
-      }
-      all_path_conds.push_back(node->collect_path_conds());
-      candidate_nodes.push_back(node);
-    }
-
-    auto result = solver.find_reachable_path_with_witness(all_path_conds,
-                                                          candidate_nodes);
-    if (!result.has_value()) {
-      for (auto node : candidate_nodes) {
-        GENSYM_INFO("Found an unreachable path, marking it as unreachable...");
-        node->fillUnreachableNode();
-      }
-      unexplored_paths.clear();
-      return std::nullopt;
-    }
-    return PathFrontier{.query_result = *result, .node = result->witness};
-  }
+  std::optional<PathFrontier> pick_path() override;
 };
 
 inline void ConcolicDriver::main_exploration_loop() {
@@ -239,25 +165,6 @@ inline void ConcolicDriver::main_exploration_loop() {
     return;
 #endif
   }
-}
-
-inline std::vector<std::vector<SymVal>>
-ConcolicDriver::collect_all_unexplored_path_conds() {
-  std::vector<std::vector<SymVal>> result;
-  for (auto node : work_list) {
-    if (node->isUnexplored()) {
-      result.push_back(node->collect_path_conds());
-    }
-  }
-  return result;
-}
-
-inline void ConcolicDriver::run() {
-  main_exploration_loop();
-  auto overall = ExploreTree.read_current_overall_result();
-  overall.print();
-  Profile.print_summary();
-  dump_all_summary_json(Profile, overall);
 }
 
 static void start_concolic_execution_with(

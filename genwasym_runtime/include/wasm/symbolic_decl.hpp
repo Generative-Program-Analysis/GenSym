@@ -2,18 +2,22 @@
 #define WASM_SYMVAL_REPR_HPP
 
 #include "symval_decl.hpp"
+#include "z3++.h"
+
+#include <cassert>
 #include <optional>
 #include <set>
+#include <tuple>
 
 enum BinOperation {
-  ADD,     // Addition
-  SUB,     // Subtraction
-  MUL,     // Multiplication
-  DIV,     // Division
-  DIV_U,   // Unsigned division
-  AND,     // Logical AND
-  OR,      // Logical OR
-  EQ_BOOL, // Equal (return a boolean) TODO: remove bv version of comparison ops
+  ADD,      // Addition
+  SUB,      // Subtraction
+  MUL,      // Multiplication
+  DIV,      // Division
+  DIV_U,    // Unsigned division
+  AND,      // Logical AND
+  OR,       // Logical OR
+  EQ_BOOL,  // Equal (return a boolean) TODO: remove bv version of comparison ops
   NEQ_BOOL, // Not equal (return a boolean)
   LT_BOOL,  // Less than (return a boolean)
   LTU_BOOL, // Unsigned less than (return a boolean)
@@ -45,6 +49,7 @@ class Symbolic {
 public:
   Symbolic() {}
   virtual ~Symbolic() = default; // Make Symbolic polymorphic
+
   virtual int size() = 0;
   virtual ValueKind value_kind() = 0;
   virtual int width() = 0;
@@ -59,14 +64,13 @@ class Symbol : public Symbolic {
 public:
   // TODO: add type information to determine the size of bitvector
   // for now we just assume that only i32 will be used
-  Symbol(int id, int width, ValueKind kind)
-      : id(id), _width(width), _kind(kind) {}
-  int get_id() const { return id; }
+  Symbol(int id, int width, ValueKind kind);
 
-  int size() override { return 1; }
+  int get_id() const;
 
-  ValueKind value_kind() override { return _kind; }
-  int width() override { return _width; }
+  int size() override;
+  ValueKind value_kind() override;
+  int width() override;
 
 private:
   int id;
@@ -76,24 +80,21 @@ private:
 
 class Witness : public Symbolic {
 public:
-  int size() override { return 1; }
-
-  ValueKind value_kind() override { return KindBV; }
-
-  int width() override { return 32; }
+  int size() override;
+  ValueKind value_kind() override;
+  int width() override;
 };
 
 class SymConcrete : public Symbolic {
 public:
   Num value;
   ValueKind kind;
-  SymConcrete(Num num, ValueKind kind, int width)
-      : value(num), kind(kind), _width(width) {}
 
-  int size() override { return 1; }
+  SymConcrete(Num num, ValueKind kind, int width);
 
-  ValueKind value_kind() override { return kind; }
-  int width() override { return _width; }
+  int size() override;
+  ValueKind value_kind() override;
+  int width() override;
 
 private:
   int _width;
@@ -109,20 +110,11 @@ struct SymExtract : public Symbolic {
   int high;
   int low;
 
-  SymExtract(SymVal value, int high, int low)
-      : value(value), high(high), low(low) {}
+  SymExtract(SymVal value, int high, int low);
 
-  int size() override {
-    if (_cached_dag_size.has_value()) {
-      return _cached_dag_size.value();
-    }
-    _cached_dag_size = 1 + value->size();
-    return _cached_dag_size.value();
-  }
-
-  ValueKind value_kind() override { return KindBV; }
-
-  int width() override { return (high - low + 1) * 8; }
+  int size() override;
+  ValueKind value_kind() override;
+  int width() override;
 
 private:
   friend std::tuple<int, bool>
@@ -136,82 +128,16 @@ struct SymBinary : public Symbolic {
   SymVal lhs;
   SymVal rhs;
 
-  SymBinary(BinOperation op, SymVal lhs, SymVal rhs)
-      : op(op), lhs(lhs), rhs(rhs) {
-    auto lhs_kind = lhs->value_kind();
-    auto rhs_kind = rhs->value_kind();
-    auto lhs_width = lhs->width();
-    auto rhs_width = rhs->width();
+  SymBinary(BinOperation op, SymVal lhs, SymVal rhs);
 
-    switch (op) {
-    case ADD:
-    case SUB:
-    case MUL:
-    case DIV:
-    case DIV_U:
-    case SHL:
-    case SHR_U:
-    case SHR_S:
-    case REM_U:
-    case B_AND:
-    case B_XOR:
-    case B_OR:
-      assert(lhs_kind == KindBV && rhs_kind == KindBV);
-      assert(lhs_width == rhs_width);
-      _kind = KindBV;
-      _width = lhs_width;
-      break;
-    case CONCAT:
-      assert(lhs_kind == KindBV && rhs_kind == KindBV);
-      _kind = KindBV;
-      _width = lhs_width + rhs_width;
-      break;
-    case EQ_BOOL:
-    case NEQ_BOOL:
-    case LT_BOOL:
-    case LTU_BOOL:
-    case LEQ_BOOL:
-    case LEU_BOOL:
-    case GT_BOOL:
-    case GTU_BOOL:
-    case GEQ_BOOL:
-    case GEU_BOOL:
-      assert(lhs_kind == rhs_kind);
-      if (lhs_kind == KindBV) {
-        assert(lhs_width == rhs_width);
-      }
-      _kind = KindBool;
-      _width = 1;
-      break;
-    case AND:
-    case OR:
-      assert(lhs_kind == KindBool && rhs_kind == KindBool);
-      assert(lhs_width == 1 && rhs_width == 1);
-      _kind = KindBool;
-      _width = 1;
-      break;
-    default:
-      assert(false && "Unhandled binary operation");
-    }
-  }
-
-  int size() override {
-    if (_cached_dag_size.has_value()) {
-      return _cached_dag_size.value();
-    }
-
-    auto size = count_dag_size(*this);
-    _cached_dag_size = size;
-    return size;
-  }
-
-  int width() override { return _width; }
-
-  ValueKind value_kind() override { return _kind; }
+  int size() override;
+  int width() override;
+  ValueKind value_kind() override;
 
 private:
   friend std::tuple<int, bool>
   count_dag_size_aux(Symbolic &val, std::set<Symbolic *> &visited);
+
   std::optional<int> _cached_dag_size;
   ValueKind _kind;
   int _width;
@@ -221,44 +147,11 @@ struct SymUnary : public Symbolic {
   UnaryOperation op;
   SymVal value;
 
-  SymUnary(UnaryOperation op, SymVal value) : op(op), value(value) {
-    switch (op) {
-    case BOOL2BV:
-      assert(value->value_kind() == KindBool);
-      _width = 32; // Only 32 bit bit vector can be converted to boolean and
-                   // vice versa.
-      break;
-    case NOT:
-      _width = 1;
-      break;
-    default:
-      assert(false && "Unknown unary operation");
-    }
-  }
+  SymUnary(UnaryOperation op, SymVal value);
 
-  int width() override { return _width; }
-
-  int size() override {
-    if (_cached_dag_size.has_value()) {
-      return _cached_dag_size.value();
-    }
-    _cached_dag_size = 1 + value->size();
-    return _cached_dag_size.value();
-  }
-
-  ValueKind value_kind() override {
-    switch (op) {
-    case NOT: {
-      return ValueKind::KindBool;
-    }
-    case BOOL2BV: {
-      return ValueKind::KindBV;
-    }
-    default: {
-      assert(false && "Unknown unary operation");
-    }
-    }
-  }
+  int width() override;
+  int size() override;
+  ValueKind value_kind() override;
 
 private:
   friend std::tuple<int, bool>
@@ -297,7 +190,6 @@ inline std::tuple<int, bool> count_dag_size_aux(Symbolic &val,
       unary->_cached_dag_size = size;
     }
     return {size, value_sharing};
-
   } else if (auto extract = dynamic_cast<SymExtract *>(&val)) {
     int size = 1;
     auto [value_size, value_sharing] =

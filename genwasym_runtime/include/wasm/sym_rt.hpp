@@ -783,7 +783,7 @@ inline double NodeBox::instr_cost() const {
 
 // TODO: use this header file in multiple compilation units will cause problems
 // during linking
-int Node::current_id = 0;
+inline int Node::current_id = 0;
 
 struct IfElseNode : Node {
   SymVal cond;
@@ -1769,7 +1769,7 @@ static EvalRes eval_sym_expr(const SymVal &sym, const SymEnv_t &sym_env) {
   throw std::runtime_error("Not supported symbolic expression");
 }
 
-inline EvalRes eval_sym_expr_by_model(const SymVal &sym, z3::model &model);
+EvalRes eval_sym_expr_by_model(const SymVal &sym, z3::model &model);
 
 static void resume_conc_stack(const SymStack_t &sym_stack, Stack_t &stack,
                               SymEnv_t &sym_env) {
