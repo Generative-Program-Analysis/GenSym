@@ -1,7 +1,12 @@
 #ifndef WASM_SYMVAL_HPP
 #define WASM_SYMVAL_HPP
+
 #include "concrete_num.hpp"
+#include <cassert>
+#include <cstdlib>
+#include <iostream>
 #include <memory>
+#include <type_traits>
 #include <unordered_map>
 #include <unordered_set>
 
@@ -11,7 +16,7 @@ struct SymVal {
   std::shared_ptr<Symbolic> symptr;
 
   SymVal() = delete;
-  SymVal(std::shared_ptr<Symbolic> symptr) : symptr(symptr) {}
+  SymVal(std::shared_ptr<Symbolic> symptr);
 
   // Create a new i32 symbol value
   SymVal makeI32Symbol() const;
@@ -56,21 +61,21 @@ struct SymVal {
   SymVal bv2bool() const;
   SymVal bool2bv() const;
   SymVal rem_u(const SymVal &other) const;
-  SymVal extend_to_i64() const; // only for i32 symbolic values, extend to i64 by sign extension
-  // TODO: add bitwise operations, and use the underlying bitvector theory
 
+  // only for i32 symbolic values, extend to i64 by sign extension
+  SymVal extend_to_i64() const;
+
+  // TODO: add bitwise operations, and use the underlying bitvector theory
   bool is_concrete() const;
 
   static SymVal get_witness_symbol();
 
-  Symbolic *operator->() const { return symptr.get(); }
-  bool operator==(const SymVal &other) const { return symptr == other.symptr; }
+  Symbolic *operator->() const;
+  bool operator==(const SymVal &other) const;
 };
 
 struct SymValHash {
-  size_t operator()(const SymVal &key) const {
-    return std::hash<void *>{}(key.symptr.get());
-  }
+  size_t operator()(const SymVal &key) const;
 };
 
 using SymValSet = std::unordered_set<SymVal, SymValHash>;
@@ -84,12 +89,9 @@ template <typename... Args> inline bool allConcrete(const Args &...args) {
   return (... && args.is_concrete());
 }
 
-inline SymVal Concrete(Num num, int width);
+SymVal Concrete(Num num, int width);
+SymVal FPConcrete(Num num, int width);
 
-[[noreturn]] inline SymVal debug_unreachable(const char* msg) {
-    std::cerr << "unreachable: " << msg << '\n';
-    assert(false && "unreachable reached");
-    std::abort();
-}
+[[noreturn]] SymVal debug_unreachable(const char *msg);
 
 #endif // WASM_SYMVAL_HPP
