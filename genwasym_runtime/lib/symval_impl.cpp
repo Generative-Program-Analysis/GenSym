@@ -1,4 +1,4 @@
-#include "wasm/symval_impl.hpp"
+#include "wasm/symval_factory.hpp"
 
 #include <cassert>
 #include <stdexcept>
