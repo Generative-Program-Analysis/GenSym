@@ -1471,8 +1471,6 @@ public:
     return result;
   }
 
-  std::monostate print_overall_result() {}
-
   NodeBox *pick_unexplored() {
     // Pick an unexplored node from the tree
     // For now, we just iterate through the tree and return the first unexplored
