@@ -748,7 +748,7 @@ struct Node {
   friend struct NodeBox;
   virtual ~Node() {};
   void set_cost(double c) { instr_cost = c; }
-  double get_cost() const { return instr_cost; }
+  double cost_of_restart() const { return instr_cost; }
   virtual std::string to_string() = 0;
   void to_graphviz(std::ostream &os) {
     os << "digraph G {\n";
@@ -789,7 +789,7 @@ private:
 
 inline double NodeBox::instr_cost() const {
   if (node) {
-    return node->get_cost();
+    return node->cost_of_restart();
   } else {
     return 0.0;
   }
@@ -932,6 +932,8 @@ struct SnapshotNode : Node {
   const Snapshot_t &get_snapshot() const { return snapshot; }
   Snapshot_t move_out_snapshot() { return std::move(snapshot); }
 
+  double cost_of_snapshot_resume() const { return snapshot.cost_of_snapshot(); }
+
   bool worth_to_reuse() const {
     if (!ENABLE_COST_MODEL) {
       // If we are not using cost model, always create snapshot
@@ -939,7 +941,7 @@ struct SnapshotNode : Node {
     }
     // find out the best way to reach the current position via our cost model
     auto snapshot_cost = snapshot.cost_of_snapshot();
-    double re_execution_cost = get_cost();
+    double re_execution_cost = cost_of_restart();
     // std::cout << "Snapshot cost: " << snapshot_cost
     //           << ", re-execution cost: " << re_execution_cost << std::endl;
     if (snapshot_cost <= re_execution_cost) {

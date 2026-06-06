@@ -37,6 +37,12 @@ const bool PROFILE_PATH_CONDS = true;
 const bool PROFILE_PATH_CONDS = false;
 #endif
 
+#ifdef ENABLE_PROFILE_SNAPSHOT
+const bool PROFILE_SNAPSHOT = true;
+#else
+const bool PROFILE_SNAPSHOT = false;
+#endif
+
 // This variable define when concolic execution will stop
 enum class ExploreMode {
   EarlyExit, // Stop at the first error encountered

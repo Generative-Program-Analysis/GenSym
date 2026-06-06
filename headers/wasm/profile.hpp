@@ -11,6 +11,7 @@
 #include <iomanip>
 #include <ratio>
 #include <string>
+#include <utility>
 #include <variant>
 #include <vector>
 
@@ -220,6 +221,11 @@ public:
                        TimeProfileKind::COLLECT_PATH_CONDITIONS)]
                 << std::endl;
     }
+    if (PROFILE_SNAPSHOT) {
+      std::cout << "Snapshot Profile Summary:" << std::endl;
+      std::cout << "Total snapshot records: " << snapshot_history.size()
+                << std::endl;
+    }
     std::cout << "Number of calls to solver: " << call_solver_count
               << std::endl;
     std::cout << "Execution Kind Summary:" << std::endl;
@@ -313,6 +319,25 @@ public:
                   static_cast<double>(cache_hit_count) /
                       static_cast<double>(cache_hit_count + cache_miss_count));
     }
+    if (PROFILE_SNAPSHOT) {
+      write_field("total_snapshot_records", snapshot_history.size());
+      write_field_prefix("snapshot_history");
+      os << "[";
+      for (std::size_t i = 0; i < snapshot_history.size(); ++i) {
+        if (i != 0) {
+          os << ",";
+        }
+        os << "\n      {"
+           << "\"resume_cost\": " << std::setprecision(15)
+           << snapshot_history[i].first << ", "
+           << "\"restart_cost\": " << std::setprecision(15)
+           << snapshot_history[i].second << "}";
+      }
+      if (!snapshot_history.empty()) {
+        os << "\n    ";
+      }
+      os << "]";
+    }
     if (needs_comma) {
       os << '\n';
     }
@@ -351,6 +376,12 @@ public:
   void remove_instruction_time(TimeProfileKind kind, double time) {
     time_count[static_cast<std::size_t>(kind)] -= time;
   }
+
+  void record_snapshot_history(double resume_cost, double restart_cost) {
+    snapshot_history.emplace_back(resume_cost, restart_cost);
+  }
+
+  std::vector<std::pair<double, double>> snapshot_history;
 
   int step_count;
   std::array<int, static_cast<std::size_t>(StepProfileKind::OperationCount)>
