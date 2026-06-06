@@ -2249,7 +2249,7 @@ trait StagedWasmCppGen extends CGenBase with CppSAICodeGenBase {
   includePaths.clear()
   headers.clear()
 
-  registerHeader("headers", "\"wasm.hpp\"")
+  registerHeader("\"wasm.hpp\"")
   registerHeader("<functional>")
   registerHeader("<stdbool.h>")
   registerHeader("<stdint.h>")
