@@ -1,5 +1,5 @@
-#include "wasm/symbolic_impl.hpp"
-
+#include "wasm/symbolic_decl.hpp"
+#include "wasm/z3_env.hpp"
 #include <cassert>
 #include <stdexcept>
 #include <string>
