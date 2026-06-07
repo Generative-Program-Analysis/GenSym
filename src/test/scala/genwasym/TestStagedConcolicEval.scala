@@ -30,7 +30,7 @@ class TestStagedConcolicEval extends CppCompilationTestBase {
       // Do concolic execution with snapshot reuse
       val exe = s"$cppFile.exe"
       val exploreTreeFile = s"$filename.tree.dot"
-      compileToExe(exe, true, if (exitByCoverage) "BY_COVERAGE" else "EARLY_EXIT")
+      compileToExe(exe, true, if (exitByCoverage) "BY_COVERAGE" else "EARLY_EXIT", "USE_IMM")
       println(s"Running compiled concolic execution with snapshot reuse: $exe")
       val result = runConcolicExe(s"./$exe", "TREE_FILE" -> exploreTreeFile)
       println(result)
@@ -40,7 +40,7 @@ class TestStagedConcolicEval extends CppCompilationTestBase {
       // Do concolic execution without snapshot reuse
       val exe = s"$cppFile.noreuse.exe"
       val exploreTreeFile = s"$filename.noreuse.tree.dot"
-      compileToExe(exe, false, if (exitByCoverage) "BY_COVERAGE" else "EARLY_EXIT")
+      compileToExe(exe, false, if (exitByCoverage) "BY_COVERAGE" else "EARLY_EXIT", "USE_IMM")
       println(s"Running compiled concolic execution without snapshot reuse: $exe")
       val result = runConcolicExe(s"./$exe", "TREE_FILE" -> exploreTreeFile)
       println(result)

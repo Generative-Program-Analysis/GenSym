@@ -1,5 +1,5 @@
 CXX = g++
-CXXFLAGS = -std=c++17 -Wall -Iinclude -I../third-party/immer -I../third-party/z3/build/z3_install/usr/local/include -fPIC
+CXXFLAGS = -std=c++17 -Wall -Iinclude -I../third-party/immer -I../third-party/z3/build/z3_install/usr/local/include -fPIC -DUSE_IMM
 BUILD_DIR = build
 
 Z3_LIB_DIR = ../third-party/z3/build/z3_install/usr/local/lib
