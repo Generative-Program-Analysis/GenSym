@@ -1,7 +1,7 @@
 #ifndef WASM_SYMVAL_REPR_HPP
 #define WASM_SYMVAL_REPR_HPP
 
-#include "symval_decl.hpp"
+#include "symval.hpp"
 #include "z3++.h"
 
 #include <cassert>
