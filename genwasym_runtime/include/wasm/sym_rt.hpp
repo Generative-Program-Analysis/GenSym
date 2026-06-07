@@ -113,7 +113,7 @@ private:
 #endif
 };
 
-static SymStack_t SymStack;
+extern SymStack_t SymStack;
 
 class SymFrames_t {
 
@@ -564,7 +564,7 @@ inline void SymFrames_t::restore_frame_ptr(Frames_t &frame) const {
   frame.frame_ptrs = frame_ptrs;
 }
 
-static SymMemory_t SymMemory;
+extern SymMemory_t SymMemory;
 
 static std::monostate memoryInitialize(int32_t offset,
                                        const std::string &data) {
@@ -655,7 +655,7 @@ private:
   ImmNumMapBox imm_map_box;
 };
 
-static SymEnv_t SymEnv;
+extern SymEnv_t SymEnv;
 
 // A snapshot of the symbolic state and execution context (control)
 class Snapshot_t {
@@ -687,8 +687,8 @@ private:
   void restore_states_to_global() const;
 };
 
-static SymFrames_t SymFrames;
-static SymFrames_t SymGlobals;
+extern SymFrames_t SymFrames;
+extern SymFrames_t SymGlobals;
 
 static Control makeControl(Cont_t cont, MCont_t mcont) {
   return Control(cont, mcont);
@@ -1521,7 +1521,7 @@ private:
   std::vector<std::function<void(NodeBox *)>> new_node_collectors;
 };
 
-static ExploreTree_t ExploreTree;
+extern ExploreTree_t ExploreTree;
 
 static std::monostate reset_stacks() {
   Stack.reset();
