@@ -2,8 +2,8 @@
 #define WASM_SYMVAL_FACTORY_HPP
 
 #include "heap_mem_bookkeeper.hpp"
-#include "symbolic_decl.hpp"
-#include "symval_decl.hpp"
+#include "symbolic.hpp"
+#include "symval.hpp"
 
 #include <unordered_map>
 

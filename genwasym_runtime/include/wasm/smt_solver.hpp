@@ -6,7 +6,7 @@
 #include "union_find.hpp"
 #include "utils.hpp"
 #include "wasm/profile.hpp"
-#include "wasm/symbolic_decl.hpp"
+#include "wasm/symbolic.hpp"
 #include "z3++.h"
 #include "z3_env.hpp"
 #include <memory>
