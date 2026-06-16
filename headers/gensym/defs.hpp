@@ -30,16 +30,16 @@ struct NullDerefException {
   immer::box<SS> ss;
 };
 
-inline int vararg_id = -1;
+extern int vararg_id;
 
 // Default bitwidth when creating integers or symbolic values
-inline unsigned int default_bw = 32;
+extern unsigned int default_bw;
 // The bitwidth of addresses (64 by default)
-inline unsigned int addr_bw = 64;
-inline unsigned int addr_index_bw = addr_bw;
+extern unsigned int addr_bw;
+extern unsigned int addr_index_bw;
 
 // Used to assign a unique ID for each SymV value
-inline std::atomic<uint32_t> g_sym_id = 0;
+extern std::atomic<uint32_t> g_sym_id;
 
 /* Stat */
 
@@ -68,52 +68,52 @@ inline atomic_ulong num_check_model_pc_size = 0;
 
 /* Global options */
 
-inline bool use_thread_pool = false;
+extern bool use_thread_pool;
 // The number of total threads (including the main thread)
-inline unsigned int n_thread = 1;
+extern unsigned int n_thread;
 // The number of queues when using thread pool
-inline unsigned int n_queue = 1;
+extern unsigned int n_queue;
 // Use solver or not
-inline bool use_solver = true;
+extern bool use_solver;
 // Indicates if there is only one solver instance
-inline bool use_global_solver = false;
+extern bool use_global_solver;
 // Use hash consing or not
-inline bool use_hashcons = true;
+extern bool use_hashcons;
 // Use object caching or not
-inline bool use_objcache = true;
+extern bool use_objcache;
 // Use counterexample caching or not
-inline bool use_cexcache = true;
+extern bool use_cexcache;
 // Use branch query caching or not
-inline bool use_brcache = true;
+extern bool use_brcache;
 // Use constraint independence resolving or not
-inline bool use_cons_indep = true;
+extern bool use_cons_indep;
 // Only generate testcases for states that cover new blocks or not
-inline bool only_output_covernew = false;
+extern bool only_output_covernew;
 // Output ktest format or not
-inline bool output_ktest = false;
+extern bool output_ktest;
 // Prefer generating human-readable file test cases
-inline bool readable_file_tests = false;
+extern bool readable_file_tests;
 // Only compatible when using KLEE's POSIX model at the momemt (?)
 // Simulate possible failure in external functions (results in state forking)
 // Currently including malloc, calloc, memalign. GW: what else?
-inline bool exlib_failure_branch = false;
+extern bool exlib_failure_branch;
 // Timeout in seconds (one hour by default)
-inline unsigned int timeout = 3600;
+extern unsigned int timeout;
 // Print the number of executed instructions
-inline bool print_inst_cnt = false;
+extern bool print_inst_cnt;
 // Print block/branch coverage detail at the end of execution
-inline bool print_cov_detail = false;
+extern bool print_cov_detail;
 // Print detailed log
 // 0 - disabled
 // 1 - print every second
 // 2 - print at the end of execution
-inline uint32_t print_detailed_log = 0;
+extern uint32_t print_detailed_log;
 // The maximum size of symbolic location (used in memory read)
-inline unsigned int max_sym_array_size = 0;
+extern unsigned int max_sym_array_size;
 // The upper bound for the number of feasible symbolic size on malloc and memcpy
-inline unsigned int max_size_bound = 400;
+extern unsigned int max_size_bound;
 // Use simplification when constructing SymV values
-inline bool use_symv_simplify = false;
+extern bool use_symv_simplify;
 
 // Output directory name
 inline std::string output_dir_str = std::string("gensym-") + get_current_datetime();
@@ -124,7 +124,7 @@ inline std::string output_log_str;
 // Output log file stream
 inline std::ofstream gs_log;
 // Disable output log in stdout
-inline bool stdout_log = true;
+extern bool stdout_log;
 
 enum class SearcherKind { randomPath, randomWeight };
 // The path searcher to be used
