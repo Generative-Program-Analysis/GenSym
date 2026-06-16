@@ -5,6 +5,8 @@
 *.bc
 *.jar
 *.o
+*.exe
+*.dot
 .idea
 .metals
 .vscode
@@ -14,6 +16,7 @@ klee-out-*
 gs_gen
 output
 benchmarks/**/*.ll
+benchmarks/**/*.wat.cpp
 .bloop
 project/project
 project/metals.sbt
@@ -24,3 +27,5 @@ conc_gen/*
 ccbse_gen/*
 headers/gensym/external.hpp
 grammar/.antlr/
+*.interp
+*.tokens

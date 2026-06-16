@@ -130,8 +130,4 @@ object Benchmark extends App {
     println()
   }
 
-  override def main(args: Array[String]): Unit = {
-    benchmarkFile("./benchmarks/wasm/performance/ack.wat", Some("real_main"))
-    benchmarkFile("./benchmarks/wasm/performance/pow.wat", Some("real_main"))
-  }
 }

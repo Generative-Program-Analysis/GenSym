@@ -458,8 +458,7 @@ public:
 
   std::monostate storeSymLong(int32_t base, int32_t offset, SymVal value) {
     int32_t addr = base + offset;
-    // TODO: Can we receive a float point symbolic value here? which may produce
-    // a bug
+    // TODO: Can we receive a float point symbolic value here? which may produce a bug
     SymVal s0 = value.extract(1, 1);
     SymVal s1 = value.extract(2, 2);
     SymVal s2 = value.extract(3, 3);

@@ -1,5 +1,5 @@
-package gensym.wasm;
 // Generated from WatParser.g4 by ANTLR 4.13.0
+package gensym.wasm;
 import org.antlr.v4.runtime.atn.*;
 import org.antlr.v4.runtime.dfa.DFA;
 import org.antlr.v4.runtime.*;
