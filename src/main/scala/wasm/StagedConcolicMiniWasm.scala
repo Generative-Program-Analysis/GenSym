@@ -1567,13 +1567,16 @@ trait StagedWasmEvaluator extends SAIOps
         val newCtx2 = newCtx1.push(NumType(I32Type))
         eval(rest, kont, trail)(newCtx2)
       case Unary(op) =>
-        val (ty, newCtx1) = ctx.pop()
-        val v = Stack.popC(ty)
-        val s = Stack.popS(ty)
-        val res = evalUnaryOpC(op, v)
-        Stack.pushC(res)
-        Stack.pushS(evalUnaryOpS(op, s, res))
-        val newCtx2 = newCtx1.push(res.tipe)
+        val (newCtx1, resTy) = withBlock {
+          val (ty, newCtx1) = ctx.pop()
+          val v = Stack.popC(ty)
+          val s = Stack.popS(ty)
+          val res = evalUnaryOpC(op, v)
+          Stack.pushC(res)
+          Stack.pushS(evalUnaryOpS(op, s, res))
+          (newCtx1, res.tipe)
+        }
+        val newCtx2 = newCtx1.push(resTy)
         eval(rest, kont, trail)(newCtx2)
       case Binary(op) =>
         val (newCtx2, resTy) = withBlock {
