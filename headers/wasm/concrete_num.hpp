@@ -640,6 +640,48 @@ struct Num {
     return Num(static_cast<int32_t>(r_bits));
   }
 
+  inline Num trunc_f32_to_i32_s() const {
+    uint32_t bits = toUInt();
+    float value = f32_from_bits(bits);
+
+    if (std::isnan(value)) {
+      throw std::runtime_error("i32.trunc_f32_s: NaN");
+    }
+    if (std::isinf(value)) {
+      throw std::runtime_error("i32.trunc_f32_s: Infinity");
+    }
+    if (value < -2147483648.0f || value >= 2147483648.0f) {
+      throw std::runtime_error("i32.trunc_f32_s: Out of range");
+    }
+
+    float truncated = std::trunc(value);
+    int32_t result = static_cast<int32_t>(truncated);
+    Num res(result);
+    debug_print("i32.trunc_f32_s", *this, *this, res);
+    return res;
+  }
+
+  inline Num trunc_f32_to_i32_u() const {
+    uint32_t bits = toUInt();
+    float value = f32_from_bits(bits);
+
+    if (std::isnan(value)) {
+      throw std::runtime_error("i32.trunc_f32_u: NaN");
+    }
+    if (std::isinf(value)) {
+      throw std::runtime_error("i32.trunc_f32_u: Infinity");
+    }
+    if (value < 0.0f || value >= 4294967296.0f) {
+      throw std::runtime_error("i32.trunc_f32_u: Out of range");
+    }
+
+    float truncated = std::trunc(value);
+    uint32_t result = static_cast<uint32_t>(truncated);
+    Num res(static_cast<int32_t>(result));
+    debug_print("i32.trunc_f32_u", *this, *this, res);
+    return res;
+  }
+
   // f32.min / f32.max: follow wasm-ish semantics: if either is NaN, return NaN
   // (propagate)
   inline Num f32_min(const Num &other) const {

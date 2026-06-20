@@ -37,6 +37,7 @@ enum UnaryOperation {
   NOT,     // bool not
   BOOL2BV, // bool to bitvector,
   EXTEND,  // bitvector extension, extend i32 to i64
+  ABS,     // floating-point absolute value
 };
 
 enum ValueKind { KindBV, KindBool, KindFP };
@@ -110,7 +111,9 @@ struct SymExtract : public Symbolic {
   int low;
 
   SymExtract(SymVal value, int high, int low)
-      : value(value), high(high), low(low) {}
+      : value(value), high(high), low(low) {
+    assert(value->value_kind() == KindBV);
+  }
 
   int size() override {
     if (_cached_dag_size.has_value()) {
@@ -231,6 +234,10 @@ struct SymUnary : public Symbolic {
     case NOT:
       _width = 1;
       break;
+    case ABS:
+      assert(value->value_kind() == KindFP);
+      _width = value->width();
+      break;
     default:
       assert(false && "Unknown unary operation");
     }
@@ -253,6 +260,9 @@ struct SymUnary : public Symbolic {
     }
     case BOOL2BV: {
       return ValueKind::KindBV;
+    }
+    case ABS: {
+      return ValueKind::KindFP;
     }
     default: {
       assert(false && "Unknown unary operation");

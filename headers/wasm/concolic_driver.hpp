@@ -86,6 +86,7 @@ public:
       : PathPicker(unexplored_paths, visited) {}
 
   std::optional<PathFrontier> pick_path() override {
+    ManagedTimer timer(TimeProfileKind::SOLVER_TOTAL);
     NodeBox *node = unexplored_paths.back();
     unexplored_paths.pop_back();
 
@@ -102,7 +103,6 @@ public:
 
     std::optional<QueryResult> result;
     {
-      ManagedTimer timer(TimeProfileKind::SOLVER_TOTAL);
       auto cond = node->collect_path_conds();
       result = solver.solve_path_conds(cond, true);
     }
@@ -196,7 +196,15 @@ inline void ConcolicDriver::main_exploration_loop() {
       GENSYM_INFO("Now execute the program with symbolic environment: ");
       GENSYM_INFO(SymEnv.to_string());
       auto snapshot = dynamic_cast<SnapshotNode *>(node->node.get());
+      if (snapshot && PROFILE_SNAPSHOT) {
+        auto resume_cost = snapshot->cost_of_snapshot_resume();
+        auto restart_cost = snapshot->cost_of_restart();
+        Profile.record_snapshot_history(resume_cost, restart_cost);
+      }
       if (REUSE_SNAPSHOT && snapshot && snapshot->worth_to_reuse()) {
+        // If we enabled snapshot reuse and the current snapshot is worth to
+        // reuse, resume the execution from the snapshot with the model we got
+        // from SMT solver.
         assert(REUSE_SNAPSHOT);
         Profile.incr_fromsnapshot_count();
         auto snap = snapshot->get_snapshot();
@@ -223,6 +231,7 @@ inline void ConcolicDriver::main_exploration_loop() {
       GENSYM_INFO("Caught runtime error during execution");
       switch (EXPLORE_MODE) {
       case ExploreMode::EarlyExit:
+        GENSYM_INFO("Exiting exploration due to error...");
         return;
       case ExploreMode::ExitByCoverage:
         if (ExploreTree.all_branch_covered()) {

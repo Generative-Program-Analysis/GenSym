@@ -155,6 +155,11 @@ inline z3::expr Symbolic::build_z3_expr_aux() {
       z3::expr bool_expr = unary->value->z3_expr();
       return z3::ite(bool_expr, one_bv, zero_bv);
     }
+    case ABS: {
+      z3::expr fp_expr = unary->value->z3_expr();
+      return z3::to_expr(global_z3_ctx(),
+                         Z3_mk_fpa_abs(global_z3_ctx(), fp_expr));
+    }
     default:
       throw std::runtime_error("Unary operation not supported: " +
                                std::to_string(unary->op));

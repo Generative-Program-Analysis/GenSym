@@ -37,6 +37,12 @@ const bool PROFILE_PATH_CONDS = true;
 const bool PROFILE_PATH_CONDS = false;
 #endif
 
+#ifdef ENABLE_PROFILE_SNAPSHOT
+const bool PROFILE_SNAPSHOT = true;
+#else
+const bool PROFILE_SNAPSHOT = false;
+#endif
+
 // This variable define when concolic execution will stop
 enum class ExploreMode {
   EarlyExit, // Stop at the first error encountered
@@ -77,6 +83,12 @@ static const bool INTERACTIVE_MODE = false;
 static const bool ENABLE_COST_MODEL = true;
 #else
 static const bool ENABLE_COST_MODEL = false;
+#endif
+
+#ifdef USE_SOFT_ASSERT
+static const bool SOFT_ASSERT = true;
+#else
+static const bool SOFT_ASSERT = false;
 #endif
 
 #endif // CONFIG_HPP

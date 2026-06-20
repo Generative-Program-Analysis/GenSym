@@ -207,7 +207,11 @@ class TestStagedConcolicEval extends CppCompilationTestBase {
   }
 
   test("call-indirect-concrete") {
-    testFileConcreteCpp("./benchmarks/wasm/call_indirect_test.wat", expect=Some(List(42)))
+    testFileConcreteCpp("./benchmarks/wasm/call_indirect_test.wat", expect=Some(List(38)))
+  }
+
+  test("call-indirect-offset-concrete") {
+    testFileConcreteCpp("./benchmarks/wasm/call_indirect_test.1.wat", expect=Some(List(38)))
   }
 
   test("data-section-concrete") {

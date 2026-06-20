@@ -425,7 +425,11 @@ public:
     auto b1 = loadSymByte(base + offset + 1);
     auto b2 = loadSymByte(base + offset + 2);
     auto b3 = loadSymByte(base + offset + 3);
-    return SVFactory::make_smallbv(32, 0).concat(b3).concat(b2).concat(b1).concat(b0);
+    return SVFactory::make_smallbv(32, 0)
+        .concat(b3)
+        .concat(b2)
+        .concat(b1)
+        .concat(b0);
   }
 
   SymVal loadSymLong32S(int32_t base, int32_t offset) {
@@ -659,6 +663,15 @@ private:
 
 static SymEnv_t SymEnv;
 
+inline Num isSymbolic(int index) {
+  auto it = SVFactory::SymbolStore.find(index);
+  if (it != SVFactory::SymbolStore.end()) {
+    return Num(I32V(1));
+  } else {
+    return Num(I32V(0));
+  }
+}
+
 // A snapshot of the symbolic state and execution context (control)
 class Snapshot_t {
 public:
@@ -732,9 +745,9 @@ struct NodeBox {
 
 struct Node {
   friend struct NodeBox;
-  virtual ~Node(){};
+  virtual ~Node() {};
   void set_cost(double c) { instr_cost = c; }
-  double get_cost() const { return instr_cost; }
+  double cost_of_restart() const { return instr_cost; }
   virtual std::string to_string() = 0;
   void to_graphviz(std::ostream &os) {
     os << "digraph G {\n";
@@ -775,7 +788,7 @@ private:
 
 inline double NodeBox::instr_cost() const {
   if (node) {
-    return node->get_cost();
+    return node->cost_of_restart();
   } else {
     return 0.0;
   }
@@ -918,6 +931,8 @@ struct SnapshotNode : Node {
   const Snapshot_t &get_snapshot() const { return snapshot; }
   Snapshot_t move_out_snapshot() { return std::move(snapshot); }
 
+  double cost_of_snapshot_resume() const { return snapshot.cost_of_snapshot(); }
+
   bool worth_to_reuse() const {
     if (!ENABLE_COST_MODEL) {
       // If we are not using cost model, always create snapshot
@@ -925,7 +940,7 @@ struct SnapshotNode : Node {
     }
     // find out the best way to reach the current position via our cost model
     auto snapshot_cost = snapshot.cost_of_snapshot();
-    double re_execution_cost = get_cost();
+    double re_execution_cost = cost_of_restart();
     // std::cout << "Snapshot cost: " << snapshot_cost
     //           << ", re-execution cost: " << re_execution_cost << std::endl;
     if (snapshot_cost <= re_execution_cost) {

@@ -515,6 +515,11 @@ trait ConcreteOps extends StagedWasmValueDomains with ValueCreation {
       }
     }
 
+    def abs(): StagedConcreteNum = num.tipe match {
+      case NumType(F32Type) => StagedConcreteNum(NumType(F32Type), "f32-unary-abs".reflectCtrlWith[Num](num.i))
+      case NumType(F64Type) => StagedConcreteNum(NumType(F64Type), "f64-unary-abs".reflectCtrlWith[Num](num.i))
+    }
+
     def extendS(): StagedConcreteNum = num.tipe match {
       case NumType(I32Type) => StagedConcreteNum(NumType(I64Type), "i32-extend-to-i64-s".reflectCtrlWith[Num](num.i))
     }
@@ -559,6 +564,14 @@ trait ConcreteOps extends StagedWasmValueDomains with ValueCreation {
       case NumType(F64Type) => StagedConcreteNum(NumType(I32Type), "f64-trunc-to-i32-u".reflectCtrlWith[Num](num.i))
     }
 
+    def truncF32ToI32S(): StagedConcreteNum = num.tipe match {
+      case NumType(F32Type) => StagedConcreteNum(NumType(I32Type), "f32-trunc-to-i32-s".reflectCtrlWith[Num](num.i))
+    }
+
+    def truncF32ToI32U(): StagedConcreteNum = num.tipe match {
+      case NumType(F32Type) => StagedConcreteNum(NumType(I32Type), "f32-trunc-to-i32-u".reflectCtrlWith[Num](num.i))
+    }
+
     def assert(): Rep[Unit] = {
       "assert-true".reflectCtrlWith[Unit](num.toInt != 0)
     }
@@ -594,6 +607,11 @@ trait SymbolicOps extends StagedWasmValueDomains {
     def popcnt(): StagedSymbolicNum = num.tipe match {
       case NumType(I32Type) => StagedSymbolicNum(NumType(I32Type), "sym-popcnt".reflectCtrlWith[SymVal](num.s))
       case NumType(I64Type) => StagedSymbolicNum(NumType(I64Type), "sym-popcnt".reflectCtrlWith[SymVal](num.s))
+    }
+
+    def abs(): StagedSymbolicNum = num.tipe match {
+      case NumType(F32Type) => StagedSymbolicNum(NumType(F32Type), "sym-unary-abs".reflectCtrlWith[SymVal](num.s))
+      case NumType(F64Type) => StagedSymbolicNum(NumType(F64Type), "sym-unary-abs".reflectCtrlWith[SymVal](num.s))
     }
 
     def +(rhs: StagedSymbolicNum): StagedSymbolicNum = {
@@ -1549,13 +1567,16 @@ trait StagedWasmEvaluator extends SAIOps
         val newCtx2 = newCtx1.push(NumType(I32Type))
         eval(rest, kont, trail)(newCtx2)
       case Unary(op) =>
-        val (ty, newCtx1) = ctx.pop()
-        val v = Stack.popC(ty)
-        val s = Stack.popS(ty)
-        val res = evalUnaryOpC(op, v)
-        Stack.pushC(res)
-        Stack.pushS(evalUnaryOpS(op, s, res))
-        val newCtx2 = newCtx1.push(res.tipe)
+        val (newCtx1, resTy) = withBlock {
+          val (ty, newCtx1) = ctx.pop()
+          val v = Stack.popC(ty)
+          val s = Stack.popS(ty)
+          val res = evalUnaryOpC(op, v)
+          Stack.pushC(res)
+          Stack.pushS(evalUnaryOpS(op, s, res))
+          (newCtx1, res.tipe)
+        }
+        val newCtx2 = newCtx1.push(resTy)
         eval(rest, kont, trail)(newCtx2)
       case Binary(op) =>
         val (newCtx2, resTy) = withBlock {
@@ -1612,7 +1633,12 @@ trait StagedWasmEvaluator extends SAIOps
           val newRestCtx = restCtx.shift(offset, funcTy.out.size)
           eval(rest, kont, trail)(newRestCtx)
         })
-        eval(inner, restK _, restK _ :: trail)
+        def innerK: Rep[Cont[Unit]] = topFun((_: Rep[Unit]) => {
+          info(s"Entering the block, stackSize =", Stack.size)
+          eval(inner, restK _, restK _ :: trail)
+        })
+        tailCall(innerK, ())
+        ()
       case Loop(ty, inner) =>
         val funcTy = ty.funcType
         val exitSize = ctx.stackTypes.size - funcTy.inps.size + funcTy.out.size
@@ -1920,23 +1946,37 @@ trait StagedWasmEvaluator extends SAIOps
           v.assert()
         }
         eval(rest, kont, trail)(newCtx)
+      case Import("i32", "is_symbolic", _) =>
+        val newCtx2 = withBlock {
+          val (ty, newCtx) = ctx.pop()
+          Stack.popC(ty)
+          Stack.popS(ty)
+          val (ty1, newCtx1) = ctx.pop()
+          val idx = Stack.popC(ty1)
+          Stack.popS(ty)
+          Stack.pushC(isSymbolic(idx.toInt))
+          newCtx1.push(NumType(I32Type))
+        }
+        eval(rest, kont, trail)(newCtx2)
       case Import("mem", "alloc", _) =>
         // this semantics here is not standardized in wasp, here is wasp's impl
         // https://github.com/formalsec/wasp/blob/release/0.2.3/wasp/symbolic/concolic.ml#L449
         val (_, newCtx1) = ctx.pop()
-        val a = Stack.popC(NumType(I32Type))
+        val size = Stack.popC(NumType(I32Type))
         Stack.popS(NumType(I32Type))
         val (_, newCtx2) = newCtx1.pop()
-        val b = Stack.popC(NumType(I32Type))
+        val base = Stack.popC(NumType(I32Type))
         Stack.popS(NumType(I32Type))
-        Stack.pushC(b)
-        val s = "Concrete".reflectCtrlWith[SymVal](Values.I32V(b.toInt), 32)
+        val ptr = Values.I32V(gensymAlloc(base.toInt, size.toInt))
+        Stack.pushC(StagedConcreteNum(NumType(I32Type), ptr))
+        val s = "Concrete".reflectCtrlWith[SymVal](ptr, 32)
         Stack.pushS(StagedSymbolicNum(NumType(I32Type), s))
         eval(rest, kont, trail)(newCtx1)
       case Import("mem", "free", _) =>
         val (_, newCtx) = ctx.pop()
-        Stack.popC(NumType(I32Type))
+        val ptr = Stack.popC(NumType(I32Type))
         Stack.popS(NumType(I32Type))
+        gensymFree(ptr.toInt)
         eval(rest, kont, trail)(newCtx)
       case Import("env", "proc_exit", _) =>
         val (_, newCtx) = ctx.pop()
@@ -1961,7 +2001,8 @@ trait StagedWasmEvaluator extends SAIOps
     case Clz(_) => value.clz()
     case Ctz(_) => value.ctz()
     case Popcnt(_) => value.popcnt()
-    case _ => ???
+    case Abs(_) => value.abs()
+    case _ => throw new Exception(s"Unknown unary operation $op")
   }
 
   def evalUnaryOpS(op: UnaryOp, value: StagedSymbolicNum, c: StagedConcreteNum): StagedSymbolicNum = {
@@ -1972,6 +2013,7 @@ trait StagedWasmEvaluator extends SAIOps
         case Clz(_)   => value.clz()
         case Ctz(_)   => value.ctz()
         case Popcnt(_) => value.popcnt()
+        case Abs(_)   => value.abs()
         case _        => throw new Exception(s"Unknown unary operation $op")
       }).s
     }
@@ -2080,6 +2122,8 @@ trait StagedWasmEvaluator extends SAIOps
     case ConvertTo(NumType(I32Type), NumType(F64Type), ZX) => value.convertI32ToF64U()
     case ConvertTo(NumType(I64Type), NumType(F64Type), SX) => value.convertI64ToF64S()
     case ConvertTo(NumType(I64Type), NumType(F64Type), ZX) => value.convertI64ToF64U()
+    case TruncTo(NumType(F32Type), NumType(I32Type), SX) => value.truncF32ToI32S()
+    case TruncTo(NumType(F32Type), NumType(I32Type), ZX) => value.truncF32ToI32U()
     case TruncTo(NumType(F64Type),NumType(I32Type),ZX) => value.truncF64ToI32U()
     case _ => throw new UnsupportedOperationException(s"Unsupported concrete conversion $op")
   }
@@ -2160,6 +2204,18 @@ trait StagedWasmEvaluator extends SAIOps
     "reset-stacks".reflectCtrlWith[Unit]()
   }
 
+  def gensymAlloc(base: Rep[Int], size: Rep[Int]): Rep[Int] = {
+    "gensym-alloc".reflectCtrlWith[Int](base, size)
+  }
+
+  def gensymFree(ptr: Rep[Int]): Rep[Unit] = {
+    "gensym-free".reflectCtrlWith[Unit](ptr)
+  }
+
+  def isSymbolic(index: Rep[Int]): StagedConcreteNum = {
+    StagedConcreteNum(NumType(I32Type), "is-symbolic".reflectCtrlWith[Num](index))
+  }
+
   def evalSeq(instrs: List[Instr],
               kont: Context => Rep[Cont[Unit]],
               trail: Trail[Unit]): Rep[Unit] = {
@@ -2208,7 +2264,7 @@ trait StagedWasmEvaluator extends SAIOps
             evalSeq(offset, (_: Context) => forwardKont, ((_: Context) => forwardKont)::Nil)
             val offsetC = Stack.popC(NumType(I32Type))
             Stack.popS(NumType(I32Type))
-            Predef.println(s"funcIndices: $funcIndices")
+            // Predef.println(s"funcIndices: $funcIndices")
             for ((fidx, i) <- funcIndices.asInstanceOf[ElemListFunc].funcs.view.zipWithIndex) {
               val FuncDef(_, FuncBodyDef(ty, _, bodyLocals, body)) = module.funcs(fidx)
               val func = evalFunc(ty, body, fidx, ty.inps, bodyLocals)
@@ -2495,6 +2551,8 @@ trait StagedWasmCppGen extends CGenBase with CppSAICodeGenBase {
       emit("(0 == "); shallow(num); emit(")")
     case Node(_, "sym-is-zero", List(s_num), _) =>
       shallow(s_num); emit(".is_zero().bool2bv()")
+    case Node(_, "sym-unary-abs", List(s_num), _) =>
+      shallow(s_num); emit(".abs()")
     case Node(_, "i32-binary-add", List(lhs, rhs), _) =>
       shallow(lhs); emit(".i32_add("); shallow(rhs); emit(")")
     case Node(_, "i64-binary-add", List(lhs, rhs), _) =>
@@ -2605,8 +2663,16 @@ trait StagedWasmCppGen extends CGenBase with CppSAICodeGenBase {
       emit("("); shallow(num); emit(".convert_i64_to_f64_s())")
     case Node(_, "i64-convert-to-f64-u", List(num), _) =>
       emit("("); shallow(num); emit(".convert_i64_to_f64_u())")
+    case Node(_, "f32-trunc-to-i32-s", List(num), _) =>
+      emit("("); shallow(num); emit(".trunc_f32_to_i32_s())")
+    case Node(_, "f32-trunc-to-i32-u", List(num), _) =>
+      emit("("); shallow(num); emit(".trunc_f32_to_i32_u())")
     case Node(_, "f64-trunc-to-i32-u", List(num), _) =>
       emit("("); shallow(num); emit(".trunc_f64_to_i32_u())")
+    case Node(_, "f32-unary-abs", List(num), _) =>
+      emit("("); shallow(num); emit(".f32_abs())")
+    case Node(_, "f64-unary-abs", List(num), _) =>
+      emit("("); shallow(num); emit(".f64_abs())")
     case Node(_, "f32-binary-add", List(lhs, rhs), _) =>
       shallow(lhs); emit(".f32_add("); shallow(rhs); emit(")")
     case Node(_, "f64-binary-add", List(lhs, rhs), _) =>
@@ -2695,6 +2761,10 @@ trait StagedWasmCppGen extends CGenBase with CppSAICodeGenBase {
       shallow(lhs); emit(".rem_u("); shallow(rhs); emit(")")
     case Node(_, "sym-i32-extend-to-i64", List(num), _) =>
       shallow(num); emit(".extend_to_i64()")
+    case Node(_, "gensym-alloc", List(base, size), _) =>
+      emit("GENSYM_ALLOC("); shallow(base); emit(", "); shallow(size); emit(")")
+    case Node(_, "gensym-free", List(ptr), _) =>
+      emit("GENSYM_FREE("); shallow(ptr); emit(")")
     case Node(_, "num-to-int", List(num), _) =>
       shallow(num); emit(".toInt()")
     case Node(_, "make-i32-symbol", List(num), _) =>
@@ -2739,6 +2809,8 @@ trait StagedWasmCppGen extends CGenBase with CppSAICodeGenBase {
       emit("prependCont(");  shallow(kont); emit(", "); shallow(mkont); emit(")")
     case Node(_, "enter-current-mkont", List(), _) =>
       emit("enterCC(std::monostate())")
+    case Node(_, "is-symbolic", List(index), _) =>
+      emit("isSymbolic("); shallow(index); emit(")")
     case Node(_, "init-func-table", List(offset, i, func), _) =>
       emit("FuncTable.set("); shallow(offset); emit(", "); shallow(i); emit(", "); shallow(func); emit(")")
     case Node(_, "tree-fill-call-indirect", List(s, id), _) =>
