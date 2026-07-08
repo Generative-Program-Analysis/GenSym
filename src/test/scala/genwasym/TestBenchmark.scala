@@ -52,10 +52,10 @@ class TestBenchmark extends FunSuite {
     walk(new File(dir))
   }
 
-  test("compile-btree-benchmarks") { compileDirToCpp("./benchmarks/pldi2026/btree/tests-normalized", Some("main")) }
-  test("compile-crafted-benchmarks") { compileDirToCpp("./benchmarks/pldi2026/crafted/") }
-  test("compile-aws-aws-encryption-sdk") { compileDirToCpp("./benchmarks/pldi2026/aws-encryption-sdk/tests-original-normalized/", Some("__original_main")) }
-  test("compile-collection-c-benchmarks") { compileDirTreeToCpp("./benchmarks/pldi2026/Collection-C/tests-normalized/", Some("__original_main")) }
+  test("compile-btree-benchmarks") { compileDirToCpp("./benchmarks/oopsla2026/btree/tests-normalized", Some("main")) }
+  test("compile-crafted-benchmarks") { compileDirToCpp("./benchmarks/oopsla2026/crafted/") }
+  test("compile-aws-aws-encryption-sdk") { compileDirToCpp("./benchmarks/oopsla2026/aws-encryption-sdk/tests-original-normalized/", Some("__original_main")) }
+  test("compile-collection-c-benchmarks") { compileDirTreeToCpp("./benchmarks/oopsla2026/Collection-C/tests-normalized/", Some("__original_main")) }
   test("compile-quicksort-benchmark") { compileDirToCpp("/home/zdh/WorkSpace/cJSON", Some("main")) }
   test("compile-a-single-file") {
     sys.env.get("INPUT") match {
