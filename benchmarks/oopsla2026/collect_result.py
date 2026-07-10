@@ -40,7 +40,7 @@ def should_ignore_benchmark(prefix: Path) -> bool:
 
 def wasp_result_root(suite: str) -> Path:
     if suite == "btree":
-        return HERE / "wasp_btree"
+        return HERE / "btree" / "wasp_btree"
     if suite == "Collection-C":
         return HERE / suite / "test-original"
     return HERE / suite / "tests-denormalized"

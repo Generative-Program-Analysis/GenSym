@@ -13,7 +13,7 @@ Usage: benchmarks/oopsla2026/run_btree.sh [--quick] [--case CASE] [--tool all|ge
 
 Runs the btree benchmark:
   genwasym: generate, compile, and run tests-normalized/*.wat.cpp
-  wasp:     run wasp_btree/*.wast through wasp
+  wasp:     run btree/wasp_btree/*.wast through wasp
 
 By default, runs the whole benchmark with 5 runs per executable/testcase.
 With --quick, runs one testcase selected by --case once.
@@ -94,11 +94,11 @@ run_wasp() {
   cd "$REPO_ROOT"
   if [ "$QUICK" -eq 1 ]; then
     log "WASP quick run: case=$CASE timeout=${WASP_TIMEOUT}s"
-    python3 benchmarks/oopsla2026/run.py wasp_btree --case "$CASE" --clean
-    python3 benchmarks/oopsla2026/run.py wasp_btree --case "$CASE" --timeout "$WASP_TIMEOUT"
+    python3 benchmarks/oopsla2026/run.py btree/wasp_btree --case "$CASE" --clean
+    python3 benchmarks/oopsla2026/run.py btree/wasp_btree --case "$CASE" --timeout "$WASP_TIMEOUT"
   else
     log "WASP full run: timeout=${WASP_TIMEOUT}s runs=${FULL_RUNS}"
-    python3 benchmarks/oopsla2026/run.py wasp_btree --timeout "$WASP_TIMEOUT" --runs "$FULL_RUNS"
+    python3 benchmarks/oopsla2026/run.py btree/wasp_btree --timeout "$WASP_TIMEOUT" --runs "$FULL_RUNS"
   fi
 }
 

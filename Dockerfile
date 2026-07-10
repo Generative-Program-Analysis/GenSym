@@ -133,7 +133,7 @@ RUN mkdir -p \
     ./benchmarks/oopsla2026/btree/test-original \
     ./benchmarks/oopsla2026/btree/tests-first-normalized \
     ./benchmarks/oopsla2026/btree/tests-normalized \
-    ./benchmarks/oopsla2026/wasp_btree
+    ./benchmarks/oopsla2026/btree/wasp_btree
 
 COPY benchmarks/oopsla2026/compile.py \
      benchmarks/oopsla2026/run.py \
@@ -156,9 +156,8 @@ COPY benchmarks/oopsla2026/btree/tests-normalized/*.wat \
      benchmarks/oopsla2026/btree/tests-normalized/*.sh \
      ./benchmarks/oopsla2026/btree/tests-normalized/
 
-COPY benchmarks/oopsla2026/wasp_btree/*.wast \
-     benchmarks/oopsla2026/wasp_btree/*.py \
-     benchmarks/oopsla2026/wasp_btree/*.sh \
-     ./benchmarks/oopsla2026/wasp_btree/
+COPY benchmarks/oopsla2026/btree/wasp_btree/*.wast \
+     benchmarks/oopsla2026/btree/wasp_btree/*.py \
+     ./benchmarks/oopsla2026/btree/wasp_btree/
 
 CMD ["bash"]
