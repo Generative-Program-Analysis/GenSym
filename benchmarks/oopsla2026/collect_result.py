@@ -40,9 +40,13 @@ def should_ignore_benchmark(prefix: Path) -> bool:
 
 def wasp_result_root(suite: str) -> Path:
     if suite == "btree":
-        return HERE / "btree" / "wasp_btree"
+        return HERE / "btree" / "wasp-test-output"
+    if suite == "quicksort":
+        return HERE / "quicksort" / "wasp-test-output"
+    if suite == "crafted":
+        return HERE / "crafted" / "wasp_crafted"
     if suite == "Collection-C":
-        return HERE / suite / "test-original"
+        return HERE / suite / "wasp-test-output"
     return HERE / suite / "tests-denormalized"
 
 
@@ -68,7 +72,14 @@ def run_index(report_file: Path) -> int | None:
 
 def read_genwasym_rows(suite: str) -> list[dict[str, object]]:
     rows: list[dict[str, object]] = []
-    suite_root = HERE / suite / "tests-normalized"
+    if suite == "btree":
+        suite_root = HERE / "btree" / "genwasym-test-output"
+    elif suite == "quicksort":
+        suite_root = HERE / "quicksort" / "genwasym-test-output"
+    elif suite == "Collection-C":
+        suite_root = HERE / suite / "genwasym-test-output"
+    else:
+        suite_root = HERE / suite / "tests-normalized"
     config_names = ("NoConfig", "Snapshot", "CostModel")
 
     for config in config_names:
@@ -300,6 +311,11 @@ def main() -> int:
         description="Collect final benchmark results from raw JSON outputs."
     )
     parser.add_argument(
+        "suite",
+        nargs="?",
+        help="Benchmark suite directory under the root to collect from.",
+    )
+    parser.add_argument(
         "-o",
         "--output",
         type=Path,
@@ -319,13 +335,14 @@ def main() -> int:
     )
     parser.add_argument(
         "--suite",
+        dest="suite_option",
         type=str,
-        default="btree",
+        default=None,
         help="Benchmark suite directory under the root to collect from. Defaults to btree.",
     )
     args = parser.parse_args()
 
-    suite = args.suite
+    suite = args.suite_option or args.suite or "btree"
     output = (args.output if args.output is not None else default_output_path(suite)).resolve()
 
     rows = read_genwasym_rows(suite)

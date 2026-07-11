@@ -12,8 +12,8 @@ usage() {
 Usage: benchmarks/oopsla2026/run_btree.sh [--quick] [--case CASE] [--tool all|genwasym|wasp] [--timeout SECONDS]
 
 Runs the btree benchmark:
-  genwasym: generate, compile, and run tests-normalized/*.wat.cpp
-  wasp:     run btree/wasp_btree/*.wast through wasp
+  genwasym: generate C++ from genwasym-test-input/*.wat, compile/run genwasym-test-artifacts/*.wat.cpp, and store reports in genwasym-test-output
+  wasp:     run btree/wasp-test-input/*.wast through wasp, storing outputs in btree/wasp-test-output
 
 By default, runs the whole benchmark with 5 runs per executable/testcase.
 With --quick, runs one testcase selected by --case once.
@@ -52,15 +52,16 @@ done
 
 SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 REPO_ROOT=$(CDPATH= cd -- "$SCRIPT_DIR/../.." && pwd)
-BTREE_DIR="$REPO_ROOT/benchmarks/oopsla2026/btree/tests-normalized"
+BTREE_WAT_DIR="$REPO_ROOT/benchmarks/oopsla2026/btree/genwasym-test-input"
+BTREE_CPP_DIR="$REPO_ROOT/benchmarks/oopsla2026/btree/genwasym-test-artifacts"
 
 log() {
   printf '[%s] %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$*"
 }
 
 run_genwasym() {
-  local wat="$BTREE_DIR/$CASE.wat"
-  local cpp="$wat.cpp"
+  local wat="$BTREE_WAT_DIR/$CASE.wat"
+  local cpp="$BTREE_CPP_DIR/$CASE.wat.cpp"
 
   cd "$REPO_ROOT"
   if [ "$QUICK" -eq 1 ]; then
@@ -74,19 +75,19 @@ run_genwasym() {
       log "Skipping C++ generation; already exists: $cpp"
     else
       log "Generating C++ from $wat"
-      INPUT="$wat" MAIN=main sbt "testOnly genwasym.TestBenchmark -- -z compile-a-single-file"
+      INPUT="$wat" OUTPUT_DIR="$BTREE_CPP_DIR" MAIN=main sbt "testOnly genwasym.TestBenchmark -- -z compile-a-single-file"
     fi
     log "Compiling generated C++: $cpp"
     python3 benchmarks/oopsla2026/compile.py --skip-newer "$cpp"
     log "Cleaning previous executable outputs for $CASE"
-    python3 benchmarks/oopsla2026/run_exe.py btree/tests-normalized --run-all --case "$CASE.wat" --clean
+    python3 benchmarks/oopsla2026/run_exe.py btree/genwasym-test-artifacts --run-all --case "$CASE.wat" --clean
     log "Running generated executables for $CASE"
-    python3 benchmarks/oopsla2026/run_exe.py btree/tests-normalized --run-all --case "$CASE.wat"
+    python3 benchmarks/oopsla2026/run_exe.py btree/genwasym-test-artifacts --run-all --case "$CASE.wat"
   else
     log "Compiling all generated btree C++ files"
-    python3 benchmarks/oopsla2026/compile.py --skip-newer benchmarks/oopsla2026/btree/tests-normalized
+    python3 benchmarks/oopsla2026/compile.py --skip-newer benchmarks/oopsla2026/btree/genwasym-test-artifacts
     log "Running all generated btree executables ${FULL_RUNS} times"
-    python3 benchmarks/oopsla2026/run_exe.py btree/tests-normalized --run-all --runs "$FULL_RUNS"
+    python3 benchmarks/oopsla2026/run_exe.py btree/genwasym-test-artifacts --run-all --runs "$FULL_RUNS"
   fi
 }
 
@@ -94,11 +95,11 @@ run_wasp() {
   cd "$REPO_ROOT"
   if [ "$QUICK" -eq 1 ]; then
     log "WASP quick run: case=$CASE timeout=${WASP_TIMEOUT}s"
-    python3 benchmarks/oopsla2026/run.py btree/wasp_btree --case "$CASE" --clean
-    python3 benchmarks/oopsla2026/run.py btree/wasp_btree --case "$CASE" --timeout "$WASP_TIMEOUT"
+    python3 benchmarks/oopsla2026/run.py btree/wasp-test-input --workspace-dir btree/wasp-test-output --case "$CASE" --clean
+    python3 benchmarks/oopsla2026/run.py btree/wasp-test-input --workspace-dir btree/wasp-test-output --case "$CASE" --timeout "$WASP_TIMEOUT"
   else
     log "WASP full run: timeout=${WASP_TIMEOUT}s runs=${FULL_RUNS}"
-    python3 benchmarks/oopsla2026/run.py btree/wasp_btree --timeout "$WASP_TIMEOUT" --runs "$FULL_RUNS"
+    python3 benchmarks/oopsla2026/run.py btree/wasp-test-input --workspace-dir btree/wasp-test-output --timeout "$WASP_TIMEOUT" --runs "$FULL_RUNS"
   fi
 }
 

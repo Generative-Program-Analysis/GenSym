@@ -130,10 +130,11 @@ RUN sbt compile
 ## 6.1 copy btree benchmark
 
 RUN mkdir -p \
-    ./benchmarks/oopsla2026/btree/test-original \
-    ./benchmarks/oopsla2026/btree/tests-first-normalized \
-    ./benchmarks/oopsla2026/btree/tests-normalized \
-    ./benchmarks/oopsla2026/btree/wasp_btree
+    ./benchmarks/oopsla2026/btree/wasp-test-input \
+    ./benchmarks/oopsla2026/btree/genwasym-test-input \
+    ./benchmarks/oopsla2026/btree/genwasym-test-artifacts \
+    ./benchmarks/oopsla2026/btree/genwasym-test-output \
+    ./benchmarks/oopsla2026/btree/wasp-test-output
 
 COPY benchmarks/oopsla2026/compile.py \
      benchmarks/oopsla2026/run.py \
@@ -145,19 +146,16 @@ COPY benchmarks/oopsla2026/compile.py \
 
 COPY benchmarks/oopsla2026/btree/normalize_all_wat.sh benchmarks/oopsla2026/btree/run_exe.py \
      ./benchmarks/oopsla2026/btree/
-COPY benchmarks/oopsla2026/btree/test-original/ \
-     ./benchmarks/oopsla2026/btree/test-original/
-COPY benchmarks/oopsla2026/btree/tests-first-normalized/ \
-     ./benchmarks/oopsla2026/btree/tests-first-normalized/
-COPY benchmarks/oopsla2026/btree/tests-normalized/*.wat \
-     benchmarks/oopsla2026/btree/tests-normalized/*.wasm \
-     benchmarks/oopsla2026/btree/tests-normalized/*.py \
-     benchmarks/oopsla2026/btree/tests-normalized/*.wat.cpp \
-     benchmarks/oopsla2026/btree/tests-normalized/*.sh \
-     ./benchmarks/oopsla2026/btree/tests-normalized/
+COPY benchmarks/oopsla2026/btree/wasp-test-input/ \
+     ./benchmarks/oopsla2026/btree/wasp-test-input/
+COPY benchmarks/oopsla2026/btree/genwasym-test-input/*.wat \
+     ./benchmarks/oopsla2026/btree/genwasym-test-input/
+COPY benchmarks/oopsla2026/btree/genwasym-test-artifacts/*.py \
+     benchmarks/oopsla2026/btree/genwasym-test-artifacts/*.wat.cpp \
+     benchmarks/oopsla2026/btree/genwasym-test-artifacts/*.sh \
+     ./benchmarks/oopsla2026/btree/genwasym-test-artifacts/
 
-COPY benchmarks/oopsla2026/btree/wasp_btree/*.wast \
-     benchmarks/oopsla2026/btree/wasp_btree/*.py \
-     ./benchmarks/oopsla2026/btree/wasp_btree/
+COPY benchmarks/oopsla2026/btree/wasp-test-output/*.py \
+     ./benchmarks/oopsla2026/btree/wasp-test-output/
 
 CMD ["bash"]

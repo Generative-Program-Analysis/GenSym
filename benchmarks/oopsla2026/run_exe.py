@@ -11,6 +11,7 @@ from typing import Optional
 
 
 HERE = Path(__file__).resolve().parent
+REPO_ROOT = HERE.parents[1]
 
 
 def is_executable(path: Path) -> bool:
@@ -115,12 +116,22 @@ def discover_targets(target_dir: Path) -> list[Path]:
 
 
 def output_path_for(target_dir: Path, file_path: Path) -> Path:
+    output_root = output_root_for(target_dir)
     file_name = file_path.name.removesuffix(".exe")
     if is_snapshot_executable(file_path):
-        return target_dir / "Snapshot" / f"{file_name}.output"
+        return output_root / "Snapshot" / f"{file_name}.output"
     if is_cost_model_executable(file_path):
-        return target_dir / "CostModel" / f"{file_name}.output"
-    return target_dir / "NoConfig" / f"{file_name}.output"
+        return output_root / "CostModel" / f"{file_name}.output"
+    return output_root / "NoConfig" / f"{file_name}.output"
+
+
+def output_root_for(target_dir: Path) -> Path:
+    parts = list(target_dir.parts)
+    if "genwasym-test-artifacts" not in parts:
+        return target_dir
+    index = parts.index("genwasym-test-artifacts")
+    parts[index] = "genwasym-test-output"
+    return Path(*parts)
 
 
 def count_reports(output_path: Path) -> int:
@@ -135,23 +146,48 @@ def run_all(
     action: str,
     skip_existing: bool = False,
     runs: int = 1,
-) -> None:
+) -> dict[str, int]:
+    stats = {
+        "selected": 0,
+        "executed": 0,
+        "already_complete": 0,
+        "failed": 0,
+        "skipped_existing": 0,
+        "complete_after": 0,
+    }
+
     for file_path in targets:
         if not is_executable(file_path):
             continue
 
+        stats["selected"] += 1
         file_name = file_path.name.removesuffix(".exe")
         output_path = output_path_for(target_dir, file_path)
 
         if action == "run":
             if skip_existing and output_path.exists():
-                print(f"Skip {file_name} since {output_path} already exists.")
+                stats["skipped_existing"] += 1
+                print(
+                    f"Skip {file_name}: output already exists and --skip-existing is set."
+                )
                 continue
 
+            target_executions = 0
             while True:
                 num = count_reports(output_path)
                 if num >= runs:
-                    print(f"Skip {file_name} since it already has {num} reports.")
+                    stats["complete_after"] += 1
+                    if target_executions == 0:
+                        stats["already_complete"] += 1
+                        print(
+                            f"Complete {file_name}: already has {num}/{runs} reports; "
+                            "no execution needed."
+                        )
+                    else:
+                        print(
+                            f"Complete {file_name}: now has {num}/{runs} reports "
+                            f"after {target_executions} execution(s) in this command."
+                        )
                     break
 
                 env = z3_runtime_env()
@@ -167,6 +203,8 @@ def run_all(
                 print(f"  Output JSON: {env['OUTPUT_FILE']}")
                 print(f"  Log: {log_path}")
                 start = time.monotonic()
+                stats["executed"] += 1
+                target_executions += 1
                 with log_path.open("w", encoding="utf-8") as log_file:
                     log_file.write(f"$ {' '.join(cmd)}\n")
                     log_file.write(f"cwd: {target_dir}\n")
@@ -187,6 +225,7 @@ def run_all(
                     )
                 print(f"  Finished in {elapsed:.3f}s with exit code {rc}")
                 if rc != 0:
+                    stats["failed"] += 1
                     print(f"{file_name} exited with return code {rc}", file=sys.stderr)
                     break
         elif action == "clean":
@@ -196,6 +235,8 @@ def run_all(
                         shutil.rmtree(output_path)
                 except Exception as e:
                     print(f"Failed to remove {output_path}: {e}", file=sys.stderr)
+
+    return stats
 
 
 def main() -> int:
@@ -265,13 +306,24 @@ def main() -> int:
     if args.clean:
         run_all(target_dir, targets, action="clean")
     elif args.run_all:
-        run_all(
+        stats = run_all(
             target_dir,
             targets,
             action="run",
             skip_existing=args.skip_existing,
             runs=args.runs,
         )
+        print()
+        print("Run summary:")
+        print(f"  Selected executable tests: {stats['selected']}")
+        print(f"  Target reports per test: {args.runs}")
+        print(f"  Executions launched this command: {stats['executed']}")
+        print(f"  Already complete before this command: {stats['already_complete']}")
+        print(f"  Complete after this command: {stats['complete_after']}/{stats['selected']}")
+        if stats["skipped_existing"]:
+            print(f"  Skipped by --skip-existing: {stats['skipped_existing']}")
+        if stats["failed"]:
+            print(f"  Failed executions: {stats['failed']}")
 
     return 0
 

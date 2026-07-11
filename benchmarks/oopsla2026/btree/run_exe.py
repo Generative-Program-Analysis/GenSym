@@ -10,5 +10,5 @@ HERE = Path(__file__).resolve().parent
 if __name__ == "__main__":
     target = HERE.parent / "run_exe.py"
     raise SystemExit(
-        subprocess.call([sys.executable, str(target), "btree/tests-normalized", *sys.argv[1:]])
+        subprocess.call([sys.executable, str(target), "btree/genwasym-test-artifacts", *sys.argv[1:]])
     )

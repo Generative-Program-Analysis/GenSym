@@ -67,6 +67,10 @@ SYM_INT32_PATTERN = re.compile(
     r'(^[ \t]*)\(sym_int32\s+"((?:[^"\\]|\\.)*)"\)\s*$',
     re.MULTILINE,
 )
+SYMBOLIC_IMPORT_PATTERN = re.compile(
+    r'(^[ \t]*)\(import\s+"i32"\s+"symbolic"\s+\(func\s+(?:\(;(?P<idx>\d+);\)|\$\S+)\s+\(type\s+(?P<type>\d+)\)\)\)\s*$',
+    re.MULTILINE,
+)
 
 
 def _decode_wat_string_bytes(encoded: str) -> bytes:
@@ -199,6 +203,25 @@ def remove_trailing_invoke(text: str) -> str:
     return TRAILING_INVOKE_PATTERN.sub("", text).rstrip("\n") + "\n"
 
 
+def wat_to_wasp_wast(text: str) -> str:
+    symbolic_func_idx: str | None = None
+
+    def replace_symbolic_import(match: re.Match[str]) -> str:
+        nonlocal symbolic_func_idx
+        symbolic_func_idx = match.group("idx")
+        indent = match.group(1)
+        type_idx = match.group("type")
+        if symbolic_func_idx is None:
+            return f"{indent}(func (type {type_idx}) unreachable)"
+        return f"{indent}(func (;{symbolic_func_idx};) (type {type_idx}) unreachable)"
+
+    text = SYMBOLIC_IMPORT_PATTERN.sub(replace_symbolic_import, text, count=1)
+    if symbolic_func_idx is not None:
+        call_pattern = re.compile(rf"^([ \t]*)call\s+{re.escape(symbolic_func_idx)}[ \t]*$", re.MULTILINE)
+        text = call_pattern.sub(rf"\1{SYMBOLIC_INSTR}", text)
+    return text
+
+
 def default_output_path(input_path: pathlib.Path) -> pathlib.Path:
     if input_path.suffix:
         return input_path.with_name(f"{input_path.stem}.norm{input_path.suffix}")
@@ -215,13 +238,23 @@ def main() -> int:
         action="store_true",
         help="Convert alloc/dealloc/free instructions to call $alloc/$dealloc/$free",
     )
+    parser.add_argument(
+        "--wat-to-wast",
+        action="store_true",
+        help="Convert normalized generated .wat into WASP-runnable .wast.",
+    )
     args = parser.parse_args()
 
     if args.in_place and args.output is not None:
         parser.error("Cannot use --in-place and output path together.")
 
     original = args.input.read_text(encoding="utf-8", errors="replace")
-    if args.denormalize:
+    if args.denormalize and args.wat_to_wast:
+        parser.error("Cannot use --denormalize and --wat-to-wast together.")
+
+    if args.wat_to_wast:
+        replaced = wat_to_wasp_wast(original)
+    elif args.denormalize:
         replaced = denormalize_allocator_calls(original)
     else:
         replaced = replace_initial_prelude(original)

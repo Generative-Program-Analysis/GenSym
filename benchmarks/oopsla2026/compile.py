@@ -95,7 +95,6 @@ def run_compile(cmd: list[str], log_path: Path) -> subprocess.CompletedProcess[s
             [
                 f"$ {' '.join(cmd)}",
                 f"exit-code: {proc.returncode}",
-                f"elapsed-seconds: {elapsed:.3f}",
                 "",
                 "=== STDOUT ===",
                 proc.stdout or "",

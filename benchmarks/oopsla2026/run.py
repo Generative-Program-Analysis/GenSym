@@ -14,6 +14,24 @@ HERE = Path(__file__).resolve().parent
 SKIP_RC = 10
 
 
+def result(
+    name: str,
+    rc: int,
+    executed: int = 0,
+    already_complete: bool = False,
+    complete: bool = False,
+    skipped_existing: bool = False,
+) -> dict[str, object]:
+    return {
+        "name": name,
+        "rc": rc,
+        "executed": executed,
+        "already_complete": already_complete,
+        "complete": complete,
+        "skipped_existing": skipped_existing,
+    }
+
+
 def split_env_paths(name: str) -> list[Path]:
     value = os.getenv(name)
     if not value:
@@ -68,23 +86,57 @@ def count_wasp_reports(workspace: Path) -> int:
     return 1 if (workspace / "report.json").is_file() else 0
 
 
-def run_one(path: Path, timeout: int, skip_existing: bool, runs: int) -> tuple[str, int]:
+def workspace_for(path: Path, workspace_dir: Path | None) -> Path:
+    if workspace_dir is None:
+        return path.with_suffix("").with_suffix(".out")
+    return workspace_dir / f"{path.with_suffix('').name}.out"
+
+
+def log_path_for(path: Path, workspace_dir: Path | None, run_index: int) -> Path:
+    if workspace_dir is None:
+        return path.with_suffix(path.suffix + f".run_{run_index}.log")
+    return workspace_dir / f"{path.name}.run_{run_index}.log"
+
+
+def run_one(
+    path: Path,
+    timeout: int,
+    skip_existing: bool,
+    runs: int,
+    workspace_dir: Path | None,
+) -> dict[str, object]:
     base = path.name
-    workspace = path.with_suffix("").with_suffix(".out")
+    workspace = workspace_for(path, workspace_dir)
     report_path = workspace / "report.json"
 
     if skip_existing and count_wasp_reports(workspace) > 0:
-        print(f"[SKIP] {base} -> {report_path}")
-        return base, SKIP_RC
+        print(f"[SKIP] {base}: output already exists and --skip-existing is set.")
+        return result(base, SKIP_RC, skipped_existing=True)
 
     last_rc = 0
+    executions = 0
     while True:
         run_index = count_wasp_reports(workspace)
         if run_index >= runs:
-            print(f"[SKIP] {base} already has {run_index} report(s)")
-            return base, last_rc
+            if executions == 0:
+                print(
+                    f"[COMPLETE] {base}: already has {run_index}/{runs} reports; "
+                    "no execution needed."
+                )
+            else:
+                print(
+                    f"[COMPLETE] {base}: now has {run_index}/{runs} reports "
+                    f"after {executions} execution(s) in this command."
+                )
+            return result(
+                base,
+                last_rc,
+                executed=executions,
+                already_complete=executions == 0,
+                complete=True,
+            )
 
-        log_path = path.with_suffix(path.suffix + f".run_{run_index}.log")
+        log_path = log_path_for(path, workspace_dir, run_index)
         cmd = ["wasp", str(path)]
         if path.suffix != ".wast":
             cmd.extend(["-e", '(invoke "__original_main")'])
@@ -100,6 +152,7 @@ def run_one(path: Path, timeout: int, skip_existing: bool, runs: int) -> tuple[s
 
         print(f"[RUN] {base} run {run_index + 1}/{runs} -> {workspace}")
         print("      " + " ".join(cmd))
+        executions += 1
 
         try:
             proc = subprocess.run(
@@ -124,19 +177,20 @@ def run_one(path: Path, timeout: int, skip_existing: bool, runs: int) -> tuple[s
             shutil.copyfile(report_path, workspace / f"report_{run_index}.json")
         last_rc = rc
         if rc != 0:
-            return base, rc
+            return result(base, rc, executed=executions)
 
 
-def clean_one(path: Path) -> tuple[str, int]:
+def clean_one(path: Path, workspace_dir: Path | None) -> dict[str, object]:
     base = path.name
-    workspace = path.with_suffix("").with_suffix(".out")
-    log_paths = list(path.parent.glob(f"{path.name}.run_*.log"))
+    workspace = workspace_for(path, workspace_dir)
+    log_parent = workspace_dir if workspace_dir is not None else path.parent
+    log_paths = list(log_parent.glob(f"{path.name}.run_*.log"))
     if workspace.exists():
         shutil.rmtree(workspace)
         print(f"[CLEAN] {base} -> {workspace}")
     for log_path in log_paths:
         log_path.unlink()
-    return base, 0
+    return result(base, 0)
 
 
 def main() -> int:
@@ -157,6 +211,10 @@ def main() -> int:
         "--skip-existing",
         action="store_true",
         help="skip a test if <stem>.out/report.json already exists",
+    )
+    parser.add_argument(
+        "--workspace-dir",
+        help="Directory for WASP workspaces/logs. Defaults to the input directory.",
     )
     parser.add_argument(
         "--runs",
@@ -187,6 +245,9 @@ def main() -> int:
     if not target_dir.is_dir():
         print(f"Target directory does not exist: {target_dir}", file=sys.stderr)
         return 2
+    workspace_dir = (HERE / args.workspace_dir).resolve() if args.workspace_dir else None
+    if workspace_dir is not None:
+        workspace_dir.mkdir(parents=True, exist_ok=True)
 
     input_files = sorted(
         p for p in target_dir.iterdir() if p.is_file() and p.suffix in {".wast", ".wat"}
@@ -200,24 +261,35 @@ def main() -> int:
         print("No .wast or .wat files found in this directory after filtering.")
         return 1 if args.case else 0
 
-    results: list[tuple[str, int]] = []
+    results: list[dict[str, object]] = []
     if args.clean:
         for path in input_files:
-            results.append(clean_one(path))
+            results.append(clean_one(path, workspace_dir))
     elif args.jobs == 1:
         for path in input_files:
-            results.append(run_one(path, args.timeout, args.skip_existing, args.runs))
+            results.append(
+                run_one(path, args.timeout, args.skip_existing, args.runs, workspace_dir)
+            )
     else:
         with ThreadPoolExecutor(max_workers=args.jobs) as executor:
             futures = {
-                executor.submit(run_one, path, args.timeout, args.skip_existing, args.runs): path
+                executor.submit(
+                    run_one,
+                    path,
+                    args.timeout,
+                    args.skip_existing,
+                    args.runs,
+                    workspace_dir,
+                ): path
                 for path in input_files
             }
             for future in as_completed(futures):
                 results.append(future.result())
 
     failed = False
-    for name, rc in sorted(results):
+    for item in sorted(results, key=lambda row: str(row["name"])):
+        name = item["name"]
+        rc = item["rc"]
         if rc == 0:
             print(f"{name}: OK")
         elif rc == SKIP_RC:
@@ -225,6 +297,22 @@ def main() -> int:
         else:
             print(f"{name}: FAIL(rc={rc})")
             failed = True
+
+    if not args.clean:
+        selected = len(input_files)
+        executed = sum(int(item["executed"]) for item in results)
+        already_complete = sum(1 for item in results if item["already_complete"])
+        complete = sum(1 for item in results if item["complete"])
+        skipped_existing = sum(1 for item in results if item["skipped_existing"])
+        print()
+        print("Run summary:")
+        print(f"  Selected WASP tests: {selected}")
+        print(f"  Target reports per test: {args.runs}")
+        print(f"  Executions launched this command: {executed}")
+        print(f"  Already complete before this command: {already_complete}")
+        print(f"  Complete after this command: {complete}/{selected}")
+        if skipped_existing:
+            print(f"  Skipped by --skip-existing: {skipped_existing}")
 
     if failed:
         print("\nOne or more runs failed. See corresponding .log files for details.")
