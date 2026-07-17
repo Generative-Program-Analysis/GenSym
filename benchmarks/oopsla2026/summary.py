@@ -62,6 +62,18 @@ def fmt(value: float | None, digits: int = 2) -> str:
     return f"{value:.{digits}f}"
 
 
+def fmt_time(value: float | None) -> str:
+    if value is None:
+        return "-"
+    if abs(value) < 1.0:
+        return f"{value:.4f}"
+    return f"{value:.2f}"
+
+
+def fmt_metric(row: dict[str, str], prefix: str, suffix: str = "median") -> str:
+    return fmt_time(parse_float(row, f"{prefix}_{suffix}"))
+
+
 def print_table(headers: list[str], rows: list[list[str]]) -> None:
     widths = [len(header) for header in headers]
     for row in rows:
@@ -84,6 +96,7 @@ def write_summary_csv(headers: list[str], rows: list[list[str]], output_path: Pa
 
 def summarize_compilation(rows: list[dict[str, str]]) -> tuple[list[str], list[list[str]]]:
     complete_rows = []
+    configs = ("NoConfig", "Snapshot", "CostModel")
     speedups = []
     path_matches = 0
     headers = [
@@ -91,49 +104,75 @@ def summarize_compilation(rows: list[dict[str, str]]) -> tuple[list[str], list[l
         "Benchmark",
         "npaths",
         "T_WASP_instr_exec(s)",
+        "SD_WASP_instr_exec(s)",
         "T_WASP_total(s)",
-        "T_GenWasym_instr_exec(s)",
-        "T_GenWasym_total(s)",
-        "Speedup",
+        "T_GenWasym_NoConfig_instr_exec(s)",
+        "SD_GenWasym_NoConfig_instr_exec(s)",
+        "T_GenWasym_NoConfig_total(s)",
+        "Speedup_NoConfig",
+        "T_GenWasym_Snapshot_instr_exec(s)",
+        "SD_GenWasym_Snapshot_instr_exec(s)",
+        "T_GenWasym_Snapshot_total(s)",
+        "T_GenWasym_CostModel_instr_exec(s)",
+        "SD_GenWasym_CostModel_instr_exec(s)",
+        "T_GenWasym_CostModel_total(s)",
+        "SpeedupSnapshot",
+        "SpeedupHeuristic",
     ]
 
     for row in rows:
-        genwasym_instr_time = parse_float(row, "GenWasym_NoConfig_InstrTime(s)_mean")
-        genwasym_total_time = parse_float(row, "GenWasym_NoConfig_LoopTime(s)_mean")
-        wasp_instr_time = parse_float(row, "WASP_InstrTime(s)_mean")
-        wasp_total_time = parse_float(row, "WASP_LoopTime(s)_mean")
-        genwasym_paths = parse_float(row, "GenWasym_NoConfig_PathsExplored_mean")
-        wasp_paths = parse_float(row, "WASP_PathsExplored_mean")
+        wasp_instr_time = parse_float(row, "WASP_InstrTime(s)_median")
+        wasp_total_time = parse_float(row, "WASP_LoopTime(s)_median")
+        genwasym_paths = parse_float(row, "GenWasym_NoConfig_PathsExplored_median")
+        wasp_paths = parse_float(row, "WASP_PathsExplored_median")
+        genwasym = {
+            config: (
+                parse_float(row, f"GenWasym_{config}_InstrTime(s)_median"),
+                parse_float(row, f"GenWasym_{config}_LoopTime(s)_median"),
+            )
+            for config in configs
+        }
         if (
-            genwasym_instr_time is None
-            or genwasym_total_time is None
-            or wasp_instr_time is None
+            wasp_instr_time is None
             or wasp_total_time is None
-            or genwasym_instr_time <= 0
+            or any(
+                instr_time is None or total_time is None or instr_time <= 0
+                for instr_time, total_time in genwasym.values()
+            )
         ):
             continue
 
-        speedup = wasp_instr_time / genwasym_instr_time
-        speedups.append(speedup)
+        no_config_speedup = wasp_instr_time / genwasym["NoConfig"][0]
+        snapshot_speedup = genwasym["NoConfig"][0] / genwasym["Snapshot"][0]
+        heuristic_speedup = genwasym["Snapshot"][0] / genwasym["CostModel"][0]
+        speedups.append(no_config_speedup)
         if genwasym_paths is not None and wasp_paths is not None and genwasym_paths == wasp_paths:
             path_matches += 1
         npaths = genwasym_paths if genwasym_paths is not None else wasp_paths
-        complete_rows.append(
-            [
-                row.get("Suite", ""),
-                row.get("Benchmark", ""),
-                fmt(npaths, 0),
-                fmt(wasp_instr_time),
-                fmt(wasp_total_time),
-                fmt(genwasym_instr_time),
-                fmt(genwasym_total_time),
-                fmt(speedup),
-            ]
-        )
+        result = [
+            row.get("Suite", ""),
+            row.get("Benchmark", ""),
+            fmt(npaths, 0),
+            fmt_metric(row, "WASP_InstrTime(s)"),
+            fmt_metric(row, "WASP_InstrTime(s)", "stdev"),
+            fmt_time(wasp_total_time),
+        ]
+        for config in configs:
+            result.extend(
+                [
+                    fmt_metric(row, f"GenWasym_{config}_InstrTime(s)"),
+                    fmt_metric(row, f"GenWasym_{config}_InstrTime(s)", "stdev"),
+                    fmt_time(genwasym[config][1]),
+                ]
+            )
+            if config == "NoConfig":
+                result.append(fmt(no_config_speedup))
+        result.extend([fmt(snapshot_speedup), fmt(heuristic_speedup)])
+        complete_rows.append(result)
 
     print("RQ: compilation")
     print(f"Benchmarks with both GenWasym and WASP results: {len(complete_rows)}")
-    print(f"Mean WASP/GenWasym instruction-time ratio: {fmt(mean(speedups))}x")
+    print(f"Mean WASP/GenWasym NoConfig instruction-time ratio: {fmt(mean(speedups))}x")
     print(f"Path-count matches: {path_matches}/{len(complete_rows)}")
     print()
     print_table(headers, complete_rows)
@@ -152,17 +191,20 @@ def summarize_heuristic(rows: list[dict[str, str]]) -> tuple[list[str], list[lis
         "Suite",
         "Benchmark",
         "NoConfigInstr(s)",
+        "SD_NoConfigInstr(s)",
         "SnapshotInstr(s)",
+        "SD_SnapshotInstr(s)",
         "CostModelInstr(s)",
+        "SD_CostModelInstr(s)",
         "SpeedupSnapshot",
         "SpeedupHeuristic",
         "SpeedupAll",
     ]
 
     for row in rows:
-        no_config = parse_float(row, "GenWasym_NoConfig_InstrTime(s)_mean")
-        snapshot = parse_float(row, "GenWasym_Snapshot_InstrTime(s)_mean")
-        cost_model = parse_float(row, "GenWasym_CostModel_InstrTime(s)_mean")
+        no_config = parse_float(row, "GenWasym_NoConfig_InstrTime(s)_median")
+        snapshot = parse_float(row, "GenWasym_Snapshot_InstrTime(s)_median")
+        cost_model = parse_float(row, "GenWasym_CostModel_InstrTime(s)_median")
         if (
             no_config is None
             or snapshot is None
@@ -190,9 +232,12 @@ def summarize_heuristic(rows: list[dict[str, str]]) -> tuple[list[str], list[lis
             [
                 row.get("Suite", ""),
                 row.get("Benchmark", ""),
-                fmt(no_config),
-                fmt(snapshot),
-                fmt(cost_model),
+                fmt_metric(row, "GenWasym_NoConfig_InstrTime(s)"),
+                fmt_metric(row, "GenWasym_NoConfig_InstrTime(s)", "stdev"),
+                fmt_metric(row, "GenWasym_Snapshot_InstrTime(s)"),
+                fmt_metric(row, "GenWasym_Snapshot_InstrTime(s)", "stdev"),
+                fmt_metric(row, "GenWasym_CostModel_InstrTime(s)"),
+                fmt_metric(row, "GenWasym_CostModel_InstrTime(s)", "stdev"),
                 fmt(snapshot_speedup),
                 fmt(heuristic_speedup),
                 fmt(all_speedup),
@@ -213,6 +258,124 @@ def summarize_heuristic(rows: list[dict[str, str]]) -> tuple[list[str], list[lis
         f"Combined wins: {all_wins}/{len(all_speedups)}; "
         f"mean combined speedup: {fmt(mean(all_speedups))}x"
     )
+    print()
+    print_table(headers, table_rows)
+    return headers, table_rows
+
+
+def summarize_collection(rows: list[dict[str, str]]) -> tuple[list[str], list[list[str]]]:
+    module_order = (
+        "array",
+        "list",
+        "slist",
+        "ring_buffer",
+        "queue",
+        "treeset",
+        "treetable",
+        "deque",
+    )
+    configs = {
+        "WASP": "WASP",
+        "noreuse": "GenWasym_NoConfig",
+        "snapshot": "GenWasym_Snapshot",
+        "heuristic": "GenWasym_CostModel",
+    }
+    required = [
+        f"{prefix}_InstrTime(s)_median"
+        for prefix in configs.values()
+    ]
+    grouped: dict[str, list[dict[str, str]]] = {module: [] for module in module_order}
+
+    for row in rows:
+        benchmark_parts = row.get("Benchmark", "").split("/")
+        if len(benchmark_parts) < 2 or benchmark_parts[0] != "normal":
+            continue
+        module = benchmark_parts[1]
+        if module not in grouped or any(parse_float(row, key) is None for key in required):
+            continue
+        grouped[module].append(row)
+
+    headers = [
+        "Module",
+        "n_i",
+        "n_paths",
+        "T_WASP_exec(s)",
+        "SD_WASP_exec(s)",
+        "T_WASP_total(s)",
+        "T_GenWasym_noreuse_exec(s)",
+        "SD_GenWasym_noreuse_exec(s)",
+        "T_GenWasym_noreuse_total(s)",
+        "T_GenWasym_snapshot_exec(s)",
+        "SD_GenWasym_snapshot_exec(s)",
+        "T_GenWasym_snapshot_total(s)",
+        "T_GenWasym_heuristic_exec(s)",
+        "SD_GenWasym_heuristic_exec(s)",
+        "T_GenWasym_heuristic_total(s)",
+        "RQ1",
+        "RQ2",
+        "RQ3",
+    ]
+
+    table_rows = []
+    for module in module_order:
+        module_rows = grouped[module]
+        if not module_rows:
+            continue
+
+        metrics: dict[str, tuple[float, float, float]] = {}
+        for name, prefix in configs.items():
+            exec_values = [
+                parse_float(row, f"{prefix}_InstrTime(s)_median") or 0.0
+                for row in module_rows
+            ]
+            exec_stdevs = [
+                parse_float(row, f"{prefix}_InstrTime(s)_stdev") or 0.0
+                for row in module_rows
+            ]
+            total_values = [
+                parse_float(row, f"{prefix}_LoopTime(s)_median") or 0.0
+                for row in module_rows
+            ]
+            metrics[name] = (
+                sum(exec_values),
+                sum(value * value for value in exec_stdevs) ** 0.5,
+                sum(total_values),
+            )
+
+        noreuse_exec = metrics["noreuse"][0]
+        snapshot_exec = metrics["snapshot"][0]
+        heuristic_exec = metrics["heuristic"][0]
+        baseline_exec = metrics["WASP"][0]
+        npaths = sum(
+            parse_float(row, "GenWasym_NoConfig_PathsExplored_median") or 0.0
+            for row in module_rows
+        )
+        module_name = "".join(part.capitalize() for part in module.split("_"))
+        table_rows.append(
+            [
+                module_name,
+                fmt(len(module_rows), 0),
+                fmt(npaths, 0),
+                fmt_time(metrics["WASP"][0]),
+                fmt_time(metrics["WASP"][1]),
+                fmt_time(metrics["WASP"][2]),
+                fmt_time(metrics["noreuse"][0]),
+                fmt_time(metrics["noreuse"][1]),
+                fmt_time(metrics["noreuse"][2]),
+                fmt_time(metrics["snapshot"][0]),
+                fmt_time(metrics["snapshot"][1]),
+                fmt_time(metrics["snapshot"][2]),
+                fmt_time(metrics["heuristic"][0]),
+                fmt_time(metrics["heuristic"][1]),
+                fmt_time(metrics["heuristic"][2]),
+                fmt(baseline_exec / noreuse_exec),
+                fmt(noreuse_exec / snapshot_exec),
+                fmt(snapshot_exec / heuristic_exec),
+            ]
+        )
+
+    print("RQ: Collection-C")
+    print(f"Modules reported: {len(table_rows)}")
     print()
     print_table(headers, table_rows)
     return headers, table_rows
@@ -251,7 +414,9 @@ def main() -> int:
         raise SystemExit(f"No final_results_*.csv files found in {HERE}")
 
     rows = read_rows(suites)
-    if args.rq == "compilation":
+    if suites == ["Collection-C"]:
+        headers, summary_rows = summarize_collection(rows)
+    elif args.rq == "compilation":
         headers, summary_rows = summarize_compilation(rows)
     elif args.rq == "heuristic":
         headers, summary_rows = summarize_heuristic(rows)

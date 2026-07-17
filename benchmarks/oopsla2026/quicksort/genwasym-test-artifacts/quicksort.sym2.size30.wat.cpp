@@ -8,7 +8,7 @@
 /*****************************************
 Emitting Generated Code
 *******************************************/
-
+    
 
 /************* Function Declarations **************/
 std::monostate x1(std::monostate);
@@ -30,49 +30,44 @@ std::monostate x66(std::monostate);
 std::monostate x193(std::monostate);
 std::monostate x195(std::monostate);
 std::monostate x216(std::monostate);
-std::monostate x218(std::monostate);
 std::monostate x233(std::monostate);
-std::monostate x250(std::monostate);
-std::monostate x372(std::monostate);
-std::monostate x374(std::monostate);
+std::monostate x355(std::monostate);
+std::monostate x357(std::monostate);
+std::monostate x408(std::monostate);
+std::monostate x410(std::monostate);
+std::monostate x412(std::monostate);
+std::monostate x423(std::monostate);
 std::monostate x425(std::monostate);
-std::monostate x427(std::monostate);
-std::monostate x429(std::monostate);
-std::monostate x440(std::monostate);
-std::monostate x442(std::monostate);
-std::monostate x462(std::monostate);
-std::monostate x481(std::monostate);
-std::monostate x249(std::monostate);
-std::monostate x509(std::monostate);
-std::monostate x511(std::monostate);
-std::monostate x565(std::monostate);
-std::monostate x567(std::monostate);
-std::monostate x461(std::monostate);
-std::monostate x614(std::monostate);
-std::monostate x616(std::monostate);
-std::monostate x618(std::monostate);
-std::monostate x624(std::monostate);
-std::monostate x628(std::monostate);
-std::monostate x634(std::monostate);
-std::monostate x638(std::monostate);
-std::monostate x642(std::monostate);
-std::monostate x644(std::monostate);
-std::monostate x657(std::monostate);
-std::monostate x674(std::monostate);
-std::monostate x676(std::monostate);
+std::monostate x445(std::monostate);
+std::monostate x464(std::monostate);
+std::monostate x232(std::monostate);
+std::monostate x492(std::monostate);
+std::monostate x494(std::monostate);
+std::monostate x548(std::monostate);
+std::monostate x550(std::monostate);
+std::monostate x444(std::monostate);
+std::monostate x597(std::monostate);
+std::monostate x599(std::monostate);
+std::monostate x601(std::monostate);
+std::monostate x607(std::monostate);
+std::monostate x611(std::monostate);
+std::monostate x613(std::monostate);
+std::monostate x626(std::monostate);
+std::monostate x643(std::monostate);
+std::monostate x645(std::monostate);
 
 /************* Functions **************/
-std::monostate x676(std::monostate x677) {
-infoWhen("CALL", "Returning from the function at 6, stackSize =", Stack.size());
+std::monostate x645(std::monostate x646) {
+infoWhen("CALL", "Returning from the function at 5, stackSize =", Stack.size());
 Frames.popFrameCaller(0);
 SymFrames.popFrameCaller(0);
-return x674(std::monostate{});
+return x643(std::monostate{});
 }
-std::monostate x674(std::monostate x675) {
+std::monostate x643(std::monostate x644) {
 return enterCC(std::monostate());
 }
-std::monostate x657(std::monostate x658) {
-infoWhen("CALL", "Entered the function at 6, stackSize =", Stack.size());
+std::monostate x626(std::monostate x627) {
+infoWhen("CALL", "Entered the function at 5, stackSize =", Stack.size());
 Frames.pushFrameCallee(2);
 SymFrames.pushFrameSlot(32);
 SymFrames.pushFrameSlot(32);
@@ -81,179 +76,112 @@ SymStack.push(SymGlobals.get(0));
 Stack.push(I32V(16));
 SymStack.push(Concrete(I32V(16), 32));
 {
-Num x659 = Stack.pop();
-SymVal x660 = SymStack.pop();
-Num x661 = Stack.pop();
-SymVal x662 = SymStack.pop();
-Num x663 = x661.i32_sub(x659);
-Stack.push(x663);
-bool x664 = allConcrete(x662, x660);
-SymVal x665 = x664 ? Concrete(x663, 32) : x662.minus(x660);
-SymStack.push(x665);
+Num x628 = Stack.pop();
+SymVal x629 = SymStack.pop();
+Num x630 = Stack.pop();
+SymVal x631 = SymStack.pop();
+Num x632 = x630.i32_sub(x628);
+Stack.push(x632);
+bool x633 = allConcrete(x631, x629);
+SymVal x634 = x633 ? Concrete(x632, 32) : x631.minus(x629);
+SymStack.push(x634);
 }
 {
-Num x666 = Stack.pop();
-SymVal x667 = SymStack.pop();
-Frames.set(0, x666);
-SymFrames.set(0, x667);
+Num x635 = Stack.pop();
+SymVal x636 = SymStack.pop();
+Frames.set(0, x635);
+SymFrames.set(0, x636);
 }
 Stack.push(Frames.get(0));
 SymStack.push(SymFrames.get(0));
 {
-Num x668 = Stack.pop();
-SymVal x669 = SymStack.pop();
-Globals.set(0, x668);
-SymGlobals.set(0, x669);
+Num x637 = Stack.pop();
+SymVal x638 = SymStack.pop();
+Globals.set(0, x637);
+SymGlobals.set(0, x638);
 }
 Stack.push(Frames.get(0));
 SymStack.push(SymFrames.get(0));
 Stack.push(I32V(0));
 SymStack.push(Concrete(I32V(0), 32));
 {
-Num x670 = Stack.pop();
-SymVal x671 = SymStack.pop();
-Num x672 = Stack.pop();
+Num x639 = Stack.pop();
+SymVal x640 = SymStack.pop();
+Num x641 = Stack.pop();
 SymStack.pop();
-int x673 = x672.toInt();
-Memory.storeInt(x673, 12, x670.toInt());
-SymMemory.storeSym(x673, 12, x671);
+int x642 = x641.toInt();
+Memory.storeInt(x642, 12, x639.toInt());
+SymMemory.storeSym(x642, 12, x640);
 }
 {
 infoWhen("CALL", "Taking arguments from stack to call function at ", 2);
 Frames.pushFrameCaller(0);
 SymFrames.pushFramePtr();
-updateCurrentMCont(prependCont(x644, CURRENT_MCONT));
+updateCurrentMCont(prependCont(x613, CURRENT_MCONT));
 }
-__attribute__((musttail)) return x638(std::monostate{});
+__attribute__((musttail)) return x607(std::monostate{});
 return std::monostate{};
 }
-std::monostate x644(std::monostate x645) {
+std::monostate x613(std::monostate x614) {
 infoWhen("CALL", "Returning from the function at 2, stackSize =", Stack.size());
 Frames.popFrameCaller(0);
 SymFrames.popFrameCaller(0);
 {
-Num x646 = Stack.pop();
-SymVal x647 = SymStack.pop();
-Frames.set(1, x646);
-SymFrames.set(1, x647);
+Num x615 = Stack.pop();
+SymVal x616 = SymStack.pop();
+Frames.set(1, x615);
+SymFrames.set(1, x616);
 }
 Stack.push(Frames.get(0));
 SymStack.push(SymFrames.get(0));
 Stack.push(I32V(16));
 SymStack.push(Concrete(I32V(16), 32));
 {
-Num x648 = Stack.pop();
-SymVal x649 = SymStack.pop();
-Num x650 = Stack.pop();
-SymVal x651 = SymStack.pop();
-Num x652 = x650.i32_add(x648);
-Stack.push(x652);
-bool x653 = allConcrete(x651, x649);
-SymVal x654 = x653 ? Concrete(x652, 32) : x651.add(x649);
-SymStack.push(x654);
+Num x617 = Stack.pop();
+SymVal x618 = SymStack.pop();
+Num x619 = Stack.pop();
+SymVal x620 = SymStack.pop();
+Num x621 = x619.i32_add(x617);
+Stack.push(x621);
+bool x622 = allConcrete(x620, x618);
+SymVal x623 = x622 ? Concrete(x621, 32) : x620.add(x618);
+SymStack.push(x623);
 }
 {
-Num x655 = Stack.pop();
-SymVal x656 = SymStack.pop();
-Globals.set(0, x655);
-SymGlobals.set(0, x656);
+Num x624 = Stack.pop();
+SymVal x625 = SymStack.pop();
+Globals.set(0, x624);
+SymGlobals.set(0, x625);
 }
 Stack.push(Frames.get(1));
 SymStack.push(SymFrames.get(1));
-return x642(std::monostate{});
+return x611(std::monostate{});
 }
-std::monostate x642(std::monostate x643) {
-infoWhen("CALL", "Exiting the function at 6, stackSize =", Stack.size());
+std::monostate x611(std::monostate x612) {
+infoWhen("CALL", "Exiting the function at 5, stackSize =", Stack.size());
 Frames.popFrameCallee(2);
 SymFrames.popFrameCallee(2);
 return enterCC(std::monostate());
 }
-std::monostate x638(std::monostate x639) {
+std::monostate x607(std::monostate x608) {
 infoWhen("CALL", "Entered the function at 2, stackSize =", Stack.size());
 Stack.push(I32V(2));
 SymStack.push(Concrete(I32V(2), 32));
 {
 infoWhen("CALL", "Taking arguments from stack to call function at ", 3);
-Num x640 = Stack.pop();
-SymVal x641 = SymStack.pop();
+Num x609 = Stack.pop();
+SymVal x610 = SymStack.pop();
 Frames.pushFrameCaller(1);
 SymFrames.pushFramePtr();
 SymFrames.pushFrameSlot(32);
-Frames.set(0, x640);
-SymFrames.set(0, x641);
-updateCurrentMCont(prependCont(x634, CURRENT_MCONT));
+Frames.set(0, x609);
+SymFrames.set(0, x610);
+updateCurrentMCont(prependCont(x601, CURRENT_MCONT));
 }
 __attribute__((musttail)) return x195(std::monostate{});
 return std::monostate{};
 }
-std::monostate x634(std::monostate x635) {
-infoWhen("CALL", "Returning from the function at 3, stackSize =", Stack.size());
-Frames.popFrameCaller(1);
-SymFrames.popFrameCaller(1);
-Stack.push(I32V(2));
-SymStack.push(Concrete(I32V(2), 32));
-{
-infoWhen("CALL", "Taking arguments from stack to call function at ", 4);
-Num x636 = Stack.pop();
-SymVal x637 = SymStack.pop();
-Frames.pushFrameCaller(1);
-SymFrames.pushFramePtr();
-SymFrames.pushFrameSlot(32);
-Frames.set(0, x636);
-SymFrames.set(0, x637);
-updateCurrentMCont(prependCont(x628, CURRENT_MCONT));
-}
-__attribute__((musttail)) return x218(std::monostate{});
-return std::monostate{};
-}
-std::monostate x628(std::monostate x629) {
-infoWhen("CALL", "Returning from the function at 4, stackSize =", Stack.size());
-Frames.popFrameCaller(1);
-SymFrames.popFrameCaller(1);
-Stack.push(I32V(0));
-SymStack.push(Concrete(I32V(0), 32));
-Stack.push(I32V(3));
-SymStack.push(Concrete(I32V(3), 32));
-{
-infoWhen("CALL", "Taking arguments from stack to call function at ", 5);
-Num x630 = Stack.pop();
-Num x631 = Stack.pop();
-SymVal x632 = SymStack.pop();
-SymVal x633 = SymStack.pop();
-Frames.pushFrameCaller(2);
-SymFrames.pushFramePtr();
-SymFrames.pushFrameSlot(32);
-SymFrames.pushFrameSlot(32);
-Frames.set(0, x631);
-Frames.set(1, x630);
-SymFrames.set(0, x633);
-SymFrames.set(1, x632);
-updateCurrentMCont(prependCont(x624, CURRENT_MCONT));
-}
-__attribute__((musttail)) return x461(std::monostate{});
-return std::monostate{};
-}
-std::monostate x624(std::monostate x625) {
-infoWhen("CALL", "Returning from the function at 5, stackSize =", Stack.size());
-Frames.popFrameCaller(2);
-SymFrames.popFrameCaller(2);
-Stack.push(I32V(2));
-SymStack.push(Concrete(I32V(2), 32));
-{
-infoWhen("CALL", "Taking arguments from stack to call function at ", 3);
-Num x626 = Stack.pop();
-SymVal x627 = SymStack.pop();
-Frames.pushFrameCaller(1);
-SymFrames.pushFramePtr();
-SymFrames.pushFrameSlot(32);
-Frames.set(0, x626);
-SymFrames.set(0, x627);
-updateCurrentMCont(prependCont(x618, CURRENT_MCONT));
-}
-__attribute__((musttail)) return x195(std::monostate{});
-return std::monostate{};
-}
-std::monostate x618(std::monostate x619) {
+std::monostate x601(std::monostate x602) {
 infoWhen("CALL", "Returning from the function at 3, stackSize =", Stack.size());
 Frames.popFrameCaller(1);
 SymFrames.popFrameCaller(1);
@@ -262,40 +190,40 @@ SymStack.push(Concrete(I32V(0), 32));
 Stack.push(I32V(29));
 SymStack.push(Concrete(I32V(29), 32));
 {
-infoWhen("CALL", "Taking arguments from stack to call function at ", 5);
-Num x620 = Stack.pop();
-Num x621 = Stack.pop();
-SymVal x622 = SymStack.pop();
-SymVal x623 = SymStack.pop();
+infoWhen("CALL", "Taking arguments from stack to call function at ", 4);
+Num x603 = Stack.pop();
+Num x604 = Stack.pop();
+SymVal x605 = SymStack.pop();
+SymVal x606 = SymStack.pop();
 Frames.pushFrameCaller(2);
 SymFrames.pushFramePtr();
 SymFrames.pushFrameSlot(32);
 SymFrames.pushFrameSlot(32);
-Frames.set(0, x621);
-Frames.set(1, x620);
-SymFrames.set(0, x623);
-SymFrames.set(1, x622);
-updateCurrentMCont(prependCont(x616, CURRENT_MCONT));
+Frames.set(0, x604);
+Frames.set(1, x603);
+SymFrames.set(0, x606);
+SymFrames.set(1, x605);
+updateCurrentMCont(prependCont(x599, CURRENT_MCONT));
 }
-__attribute__((musttail)) return x461(std::monostate{});
+__attribute__((musttail)) return x444(std::monostate{});
 return std::monostate{};
 }
-std::monostate x616(std::monostate x617) {
-infoWhen("CALL", "Returning from the function at 5, stackSize =", Stack.size());
+std::monostate x599(std::monostate x600) {
+infoWhen("CALL", "Returning from the function at 4, stackSize =", Stack.size());
 Frames.popFrameCaller(2);
 SymFrames.popFrameCaller(2);
 Stack.push(I32V(0));
 SymStack.push(Concrete(I32V(0), 32));
-return x614(std::monostate{});
+return x597(std::monostate{});
 }
-std::monostate x614(std::monostate x615) {
+std::monostate x597(std::monostate x598) {
 infoWhen("CALL", "Exiting the function at 2, stackSize =", Stack.size());
 Frames.popFrameCallee(0);
 SymFrames.popFrameCallee(0);
 return enterCC(std::monostate());
 }
-std::monostate x461(std::monostate x594) {
-infoWhen("CALL", "Entered the function at 5, stackSize =", Stack.size());
+std::monostate x444(std::monostate x577) {
+infoWhen("CALL", "Entered the function at 4, stackSize =", Stack.size());
 Frames.pushFrameCallee(6);
 SymFrames.pushFrameSlot(32);
 SymFrames.pushFrameSlot(32);
@@ -308,916 +236,625 @@ SymStack.push(SymGlobals.get(0));
 Stack.push(I32V(32));
 SymStack.push(Concrete(I32V(32), 32));
 {
-Num x595 = Stack.pop();
-SymVal x596 = SymStack.pop();
-Num x597 = Stack.pop();
-SymVal x598 = SymStack.pop();
-Num x599 = x597.i32_sub(x595);
-Stack.push(x599);
-bool x600 = allConcrete(x598, x596);
-SymVal x601 = x600 ? Concrete(x599, 32) : x598.minus(x596);
-SymStack.push(x601);
+Num x578 = Stack.pop();
+SymVal x579 = SymStack.pop();
+Num x580 = Stack.pop();
+SymVal x581 = SymStack.pop();
+Num x582 = x580.i32_sub(x578);
+Stack.push(x582);
+bool x583 = allConcrete(x581, x579);
+SymVal x584 = x583 ? Concrete(x582, 32) : x581.minus(x579);
+SymStack.push(x584);
 }
 {
-Num x602 = Stack.pop();
-SymVal x603 = SymStack.pop();
-Frames.set(2, x602);
-SymFrames.set(2, x603);
+Num x585 = Stack.pop();
+SymVal x586 = SymStack.pop();
+Frames.set(2, x585);
+SymFrames.set(2, x586);
 }
 Stack.push(Frames.get(2));
 SymStack.push(SymFrames.get(2));
 {
-Num x604 = Stack.pop();
-SymVal x605 = SymStack.pop();
-Globals.set(0, x604);
-SymGlobals.set(0, x605);
+Num x587 = Stack.pop();
+SymVal x588 = SymStack.pop();
+Globals.set(0, x587);
+SymGlobals.set(0, x588);
 }
 Stack.push(Frames.get(2));
 SymStack.push(SymFrames.get(2));
 Stack.push(Frames.get(0));
 SymStack.push(SymFrames.get(0));
 {
-Num x606 = Stack.pop();
-SymVal x607 = SymStack.pop();
-Num x608 = Stack.pop();
+Num x589 = Stack.pop();
+SymVal x590 = SymStack.pop();
+Num x591 = Stack.pop();
 SymStack.pop();
-int x609 = x608.toInt();
-Memory.storeInt(x609, 28, x606.toInt());
-SymMemory.storeSym(x609, 28, x607);
+int x592 = x591.toInt();
+Memory.storeInt(x592, 28, x589.toInt());
+SymMemory.storeSym(x592, 28, x590);
 }
 Stack.push(Frames.get(2));
 SymStack.push(SymFrames.get(2));
 Stack.push(Frames.get(1));
 SymStack.push(SymFrames.get(1));
 {
-Num x610 = Stack.pop();
-SymVal x611 = SymStack.pop();
-Num x612 = Stack.pop();
+Num x593 = Stack.pop();
+SymVal x594 = SymStack.pop();
+Num x595 = Stack.pop();
 SymStack.pop();
-int x613 = x612.toInt();
-Memory.storeInt(x613, 24, x610.toInt());
-SymMemory.storeSym(x613, 24, x611);
+int x596 = x595.toInt();
+Memory.storeInt(x596, 24, x593.toInt());
+SymMemory.storeSym(x596, 24, x594);
 }
-__attribute__((musttail)) return x567(std::monostate{});
+__attribute__((musttail)) return x550(std::monostate{});
 return std::monostate{};
 }
-std::monostate x567(std::monostate x568) {
+std::monostate x550(std::monostate x551) {
 info("Entering the block, stackSize =", Stack.size());
 Stack.push(Frames.get(2));
 SymStack.push(SymFrames.get(2));
 {
-Num x569 = Stack.pop();
+Num x552 = Stack.pop();
 SymStack.pop();
-Num x570 = I32V(Memory.loadInt(x569.toInt(), 28));
-SymVal x571 = SymMemory.loadSym(x569.toInt(), 28);
-Stack.push(x570);
-SymStack.push(x571);
+Num x553 = I32V(Memory.loadInt(x552.toInt(), 28));
+SymVal x554 = SymMemory.loadSym(x552.toInt(), 28);
+Stack.push(x553);
+SymStack.push(x554);
 }
 Stack.push(Frames.get(2));
 SymStack.push(SymFrames.get(2));
 {
-Num x572 = Stack.pop();
+Num x555 = Stack.pop();
 SymStack.pop();
-Num x573 = I32V(Memory.loadInt(x572.toInt(), 24));
-SymVal x574 = SymMemory.loadSym(x572.toInt(), 24);
-Stack.push(x573);
-SymStack.push(x574);
+Num x556 = I32V(Memory.loadInt(x555.toInt(), 24));
+SymVal x557 = SymMemory.loadSym(x555.toInt(), 24);
+Stack.push(x556);
+SymStack.push(x557);
 }
 {
-Num x575 = Stack.pop();
-SymVal x576 = SymStack.pop();
-Num x577 = Stack.pop();
-SymVal x578 = SymStack.pop();
-Num x579 = x577.i32_lt_s(x575);
-Stack.push(x579);
-bool x580 = allConcrete(x578, x576);
-SymVal x581 = x580 ? Concrete(x579, 32) : x578.lt(x576).bool2bv();
-SymStack.push(x581);
+Num x558 = Stack.pop();
+SymVal x559 = SymStack.pop();
+Num x560 = Stack.pop();
+SymVal x561 = SymStack.pop();
+Num x562 = x560.i32_lt_s(x558);
+Stack.push(x562);
+bool x563 = allConcrete(x561, x559);
+SymVal x564 = x563 ? Concrete(x562, 32) : x561.lt(x559).bool2bv();
+SymStack.push(x564);
 }
 Stack.push(I32V(1));
 SymStack.push(Concrete(I32V(1), 32));
 {
-Num x582 = Stack.pop();
-SymVal x583 = SymStack.pop();
-Num x584 = Stack.pop();
-SymVal x585 = SymStack.pop();
-Num x586 = x584.i32_and(x582);
-Stack.push(x586);
-bool x587 = allConcrete(x585, x583);
-SymVal x588 = x587 ? Concrete(x586, 32) : x585.bitwise_and(x583);
-SymStack.push(x588);
+Num x565 = Stack.pop();
+SymVal x566 = SymStack.pop();
+Num x567 = Stack.pop();
+SymVal x568 = SymStack.pop();
+Num x569 = x567.i32_and(x565);
+Stack.push(x569);
+bool x570 = allConcrete(x568, x566);
+SymVal x571 = x570 ? Concrete(x569, 32) : x568.bitwise_and(x566);
+SymStack.push(x571);
 }
 {
-Num x589 = Stack.pop();
-SymVal x590 = SymStack.pop();
-Stack.push(I32V((0 == x589.toInt())));
-SymStack.push(x590.is_zero().bool2bv());
+Num x572 = Stack.pop();
+SymVal x573 = SymStack.pop();
+Stack.push(I32V((0 == x572.toInt())));
+SymStack.push(x573.is_zero().bool2bv());
 }
-Num x591 = Stack.pop();
-info("The br_if(0)'s condition is ", x591.toInt());
+Num x574 = Stack.pop();
+info("The br_if(0)'s condition is ", x574.toInt());
 {
-SymVal x592 = SymStack.pop();
-ExploreTree.fillIfElseNode(x592, 1);
+SymVal x575 = SymStack.pop();
+ExploreTree.fillIfElseNode(x575, 1);
 }
-int x593 = x591.toInt();
-if (x593 != 0) {
+int x576 = x574.toInt();
+if (x576 != 0) {
 info("Jump to 0");
 {
-ExploreTree.moveCursor(true, makeControl(x511, CURRENT_MCONT));
+ExploreTree.moveCursor(true, makeControl(x494, CURRENT_MCONT));
 }
-__attribute__((musttail)) return x565(std::monostate{});
+__attribute__((musttail)) return x548(std::monostate{});
 } else {
 info("Continue rest of the block");
 {
-ExploreTree.moveCursor(false, makeControl(x565, CURRENT_MCONT));
+ExploreTree.moveCursor(false, makeControl(x548, CURRENT_MCONT));
 }
-__attribute__((musttail)) return x511(std::monostate{});
+__attribute__((musttail)) return x494(std::monostate{});
 }
 return std::monostate{};
 }
-std::monostate x565(std::monostate x566) {
-__attribute__((musttail)) return x429(std::monostate{});
+std::monostate x548(std::monostate x549) {
+__attribute__((musttail)) return x412(std::monostate{});
 return std::monostate{};
 }
-std::monostate x511(std::monostate x512) {
+std::monostate x494(std::monostate x495) {
 Stack.push(Frames.get(2));
 SymStack.push(SymFrames.get(2));
 Stack.push(Frames.get(2));
 SymStack.push(SymFrames.get(2));
 {
-Num x513 = Stack.pop();
+Num x496 = Stack.pop();
 SymStack.pop();
-Num x514 = I32V(Memory.loadInt(x513.toInt(), 24));
-SymVal x515 = SymMemory.loadSym(x513.toInt(), 24);
-Stack.push(x514);
-SymStack.push(x515);
+Num x497 = I32V(Memory.loadInt(x496.toInt(), 24));
+SymVal x498 = SymMemory.loadSym(x496.toInt(), 24);
+Stack.push(x497);
+SymStack.push(x498);
 }
 Stack.push(I32V(2));
 SymStack.push(Concrete(I32V(2), 32));
 {
-Num x516 = Stack.pop();
-SymVal x517 = SymStack.pop();
-Num x518 = Stack.pop();
-SymVal x519 = SymStack.pop();
-Num x520 = x518.i32_shl(x516);
-Stack.push(x520);
-bool x521 = allConcrete(x519, x517);
-SymVal x522 = x521 ? Concrete(x520, 32) : x519.shl(x517);
-SymStack.push(x522);
+Num x499 = Stack.pop();
+SymVal x500 = SymStack.pop();
+Num x501 = Stack.pop();
+SymVal x502 = SymStack.pop();
+Num x503 = x501.i32_shl(x499);
+Stack.push(x503);
+bool x504 = allConcrete(x502, x500);
+SymVal x505 = x504 ? Concrete(x503, 32) : x502.shl(x500);
+SymStack.push(x505);
 }
 Stack.push(I32V(1024));
 SymStack.push(Concrete(I32V(1024), 32));
 Stack.push(Globals.get(1));
 SymStack.push(SymGlobals.get(1));
 {
+Num x506 = Stack.pop();
+SymVal x507 = SymStack.pop();
+Num x508 = Stack.pop();
+SymVal x509 = SymStack.pop();
+Num x510 = x508.i32_add(x506);
+Stack.push(x510);
+bool x511 = allConcrete(x509, x507);
+SymVal x512 = x511 ? Concrete(x510, 32) : x509.add(x507);
+SymStack.push(x512);
+}
+{
+Num x513 = Stack.pop();
+SymVal x514 = SymStack.pop();
+Num x515 = Stack.pop();
+SymVal x516 = SymStack.pop();
+Num x517 = x515.i32_add(x513);
+Stack.push(x517);
+bool x518 = allConcrete(x516, x514);
+SymVal x519 = x518 ? Concrete(x517, 32) : x516.add(x514);
+SymStack.push(x519);
+}
+{
+Num x520 = Stack.pop();
+SymStack.pop();
+Num x521 = I32V(Memory.loadInt(x520.toInt(), 0));
+SymVal x522 = SymMemory.loadSym(x520.toInt(), 0);
+Stack.push(x521);
+SymStack.push(x522);
+}
+{
 Num x523 = Stack.pop();
 SymVal x524 = SymStack.pop();
 Num x525 = Stack.pop();
-SymVal x526 = SymStack.pop();
-Num x527 = x525.i32_add(x523);
-Stack.push(x527);
-bool x528 = allConcrete(x526, x524);
-SymVal x529 = x528 ? Concrete(x527, 32) : x526.add(x524);
+SymStack.pop();
+int x526 = x525.toInt();
+Memory.storeInt(x526, 20, x523.toInt());
+SymMemory.storeSym(x526, 20, x524);
+}
+Stack.push(Frames.get(2));
+SymStack.push(SymFrames.get(2));
+Stack.push(Frames.get(2));
+SymStack.push(SymFrames.get(2));
+{
+Num x527 = Stack.pop();
+SymStack.pop();
+Num x528 = I32V(Memory.loadInt(x527.toInt(), 28));
+SymVal x529 = SymMemory.loadSym(x527.toInt(), 28);
+Stack.push(x528);
 SymStack.push(x529);
 }
+Stack.push(I32V(1));
+SymStack.push(Concrete(I32V(1), 32));
 {
 Num x530 = Stack.pop();
 SymVal x531 = SymStack.pop();
 Num x532 = Stack.pop();
 SymVal x533 = SymStack.pop();
-Num x534 = x532.i32_add(x530);
+Num x534 = x532.i32_sub(x530);
 Stack.push(x534);
 bool x535 = allConcrete(x533, x531);
-SymVal x536 = x535 ? Concrete(x534, 32) : x533.add(x531);
+SymVal x536 = x535 ? Concrete(x534, 32) : x533.minus(x531);
 SymStack.push(x536);
 }
 {
 Num x537 = Stack.pop();
+SymVal x538 = SymStack.pop();
+Num x539 = Stack.pop();
 SymStack.pop();
-Num x538 = I32V(Memory.loadInt(x537.toInt(), 0));
-SymVal x539 = SymMemory.loadSym(x537.toInt(), 0);
-Stack.push(x538);
-SymStack.push(x539);
+int x540 = x539.toInt();
+Memory.storeInt(x540, 16, x537.toInt());
+SymMemory.storeSym(x540, 16, x538);
 }
+Stack.push(Frames.get(2));
+SymStack.push(SymFrames.get(2));
+Stack.push(Frames.get(2));
+SymStack.push(SymFrames.get(2));
 {
-Num x540 = Stack.pop();
-SymVal x541 = SymStack.pop();
-Num x542 = Stack.pop();
+Num x541 = Stack.pop();
 SymStack.pop();
-int x543 = x542.toInt();
-Memory.storeInt(x543, 20, x540.toInt());
-SymMemory.storeSym(x543, 20, x541);
+Num x542 = I32V(Memory.loadInt(x541.toInt(), 28));
+SymVal x543 = SymMemory.loadSym(x541.toInt(), 28);
+Stack.push(x542);
+SymStack.push(x543);
 }
-Stack.push(Frames.get(2));
-SymStack.push(SymFrames.get(2));
-Stack.push(Frames.get(2));
-SymStack.push(SymFrames.get(2));
 {
 Num x544 = Stack.pop();
+SymVal x545 = SymStack.pop();
+Num x546 = Stack.pop();
 SymStack.pop();
-Num x545 = I32V(Memory.loadInt(x544.toInt(), 28));
-SymVal x546 = SymMemory.loadSym(x544.toInt(), 28);
-Stack.push(x545);
-SymStack.push(x546);
+int x547 = x546.toInt();
+Memory.storeInt(x547, 12, x544.toInt());
+SymMemory.storeSym(x547, 12, x545);
 }
-Stack.push(I32V(1));
-SymStack.push(Concrete(I32V(1), 32));
-{
-Num x547 = Stack.pop();
-SymVal x548 = SymStack.pop();
-Num x549 = Stack.pop();
-SymVal x550 = SymStack.pop();
-Num x551 = x549.i32_sub(x547);
-Stack.push(x551);
-bool x552 = allConcrete(x550, x548);
-SymVal x553 = x552 ? Concrete(x551, 32) : x550.minus(x548);
-SymStack.push(x553);
-}
-{
-Num x554 = Stack.pop();
-SymVal x555 = SymStack.pop();
-Num x556 = Stack.pop();
-SymStack.pop();
-int x557 = x556.toInt();
-Memory.storeInt(x557, 16, x554.toInt());
-SymMemory.storeSym(x557, 16, x555);
-}
-Stack.push(Frames.get(2));
-SymStack.push(SymFrames.get(2));
-Stack.push(Frames.get(2));
-SymStack.push(SymFrames.get(2));
-{
-Num x558 = Stack.pop();
-SymStack.pop();
-Num x559 = I32V(Memory.loadInt(x558.toInt(), 28));
-SymVal x560 = SymMemory.loadSym(x558.toInt(), 28);
-Stack.push(x559);
-SymStack.push(x560);
-}
-{
-Num x561 = Stack.pop();
-SymVal x562 = SymStack.pop();
-Num x563 = Stack.pop();
-SymStack.pop();
-int x564 = x563.toInt();
-Memory.storeInt(x564, 12, x561.toInt());
-SymMemory.storeSym(x564, 12, x562);
-}
-__attribute__((musttail)) return x509(std::monostate{});
+__attribute__((musttail)) return x492(std::monostate{});
 return std::monostate{};
 }
-std::monostate x509(std::monostate x510) {
+std::monostate x492(std::monostate x493) {
 info("Entering the block, stackSize =", Stack.size());
-__attribute__((musttail)) return x249(std::monostate{});
+__attribute__((musttail)) return x232(std::monostate{});
 return std::monostate{};
 }
-std::monostate x249(std::monostate x483) {
+std::monostate x232(std::monostate x466) {
 info("Entered the loop, stackSize =", Stack.size());
-Stack.push(Frames.get(2));
-SymStack.push(SymFrames.get(2));
-{
-Num x484 = Stack.pop();
-SymStack.pop();
-Num x485 = I32V(Memory.loadInt(x484.toInt(), 12));
-SymVal x486 = SymMemory.loadSym(x484.toInt(), 12);
-Stack.push(x485);
-SymStack.push(x486);
-}
-Stack.push(Frames.get(2));
-SymStack.push(SymFrames.get(2));
-{
-Num x487 = Stack.pop();
-SymStack.pop();
-Num x488 = I32V(Memory.loadInt(x487.toInt(), 24));
-SymVal x489 = SymMemory.loadSym(x487.toInt(), 24);
-Stack.push(x488);
-SymStack.push(x489);
-}
-{
-Num x490 = Stack.pop();
-SymVal x491 = SymStack.pop();
-Num x492 = Stack.pop();
-SymVal x493 = SymStack.pop();
-Num x494 = x492.i32_le_s(x490);
-Stack.push(x494);
-bool x495 = allConcrete(x493, x491);
-SymVal x496 = x495 ? Concrete(x494, 32) : x493.le(x491).bool2bv();
-SymStack.push(x496);
-}
-Stack.push(I32V(1));
-SymStack.push(Concrete(I32V(1), 32));
-{
-Num x497 = Stack.pop();
-SymVal x498 = SymStack.pop();
-Num x499 = Stack.pop();
-SymVal x500 = SymStack.pop();
-Num x501 = x499.i32_and(x497);
-Stack.push(x501);
-bool x502 = allConcrete(x500, x498);
-SymVal x503 = x502 ? Concrete(x501, 32) : x500.bitwise_and(x498);
-SymStack.push(x503);
-}
-{
-Num x504 = Stack.pop();
-SymVal x505 = SymStack.pop();
-Stack.push(I32V((0 == x504.toInt())));
-SymStack.push(x505.is_zero().bool2bv());
-}
-Num x506 = Stack.pop();
-info("The br_if(1)'s condition is ", x506.toInt());
-{
-SymVal x507 = SymStack.pop();
-ExploreTree.fillIfElseNode(x507, 0);
-}
-int x508 = x506.toInt();
-if (x508 != 0) {
-info("Jump to 1");
-{
-ExploreTree.moveCursor(true, makeControl(x425, CURRENT_MCONT));
-}
-__attribute__((musttail)) return x481(std::monostate{});
-} else {
-info("Continue rest of the block");
-{
-ExploreTree.moveCursor(false, makeControl(x481, CURRENT_MCONT));
-}
-__attribute__((musttail)) return x425(std::monostate{});
-}
-return std::monostate{};
-}
-std::monostate x481(std::monostate x482) {
-__attribute__((musttail)) return x462(std::monostate{});
-return std::monostate{};
-}
-std::monostate x462(std::monostate x463) {
-info("Exiting the block, stackSize =", Stack.size());
-Stack.push(Frames.get(2));
-SymStack.push(SymFrames.get(2));
-{
-Num x464 = Stack.pop();
-SymStack.pop();
-Num x465 = I32V(Memory.loadInt(x464.toInt(), 28));
-SymVal x466 = SymMemory.loadSym(x464.toInt(), 28);
-Stack.push(x465);
-SymStack.push(x466);
-}
 Stack.push(Frames.get(2));
 SymStack.push(SymFrames.get(2));
 {
 Num x467 = Stack.pop();
 SymStack.pop();
-Num x468 = I32V(Memory.loadInt(x467.toInt(), 16));
-SymVal x469 = SymMemory.loadSym(x467.toInt(), 16);
+Num x468 = I32V(Memory.loadInt(x467.toInt(), 12));
+SymVal x469 = SymMemory.loadSym(x467.toInt(), 12);
 Stack.push(x468);
 SymStack.push(x469);
 }
-Stack.push(I32V(1));
-SymStack.push(Concrete(I32V(1), 32));
+Stack.push(Frames.get(2));
+SymStack.push(SymFrames.get(2));
 {
 Num x470 = Stack.pop();
-SymVal x471 = SymStack.pop();
-Num x472 = Stack.pop();
-SymVal x473 = SymStack.pop();
-Num x474 = x472.i32_sub(x470);
-Stack.push(x474);
-bool x475 = allConcrete(x473, x471);
-SymVal x476 = x475 ? Concrete(x474, 32) : x473.minus(x471);
-SymStack.push(x476);
-}
-{
-infoWhen("CALL", "Taking arguments from stack to call function at ", 5);
-Num x477 = Stack.pop();
-Num x478 = Stack.pop();
-SymVal x479 = SymStack.pop();
-SymVal x480 = SymStack.pop();
-Frames.pushFrameCaller(2);
-SymFrames.pushFramePtr();
-SymFrames.pushFrameSlot(32);
-SymFrames.pushFrameSlot(32);
-Frames.set(0, x478);
-Frames.set(1, x477);
-SymFrames.set(0, x480);
-SymFrames.set(1, x479);
-updateCurrentMCont(prependCont(x442, CURRENT_MCONT));
-}
-__attribute__((musttail)) return x461(std::monostate{});
-return std::monostate{};
-}
-std::monostate x442(std::monostate x443) {
-infoWhen("CALL", "Returning from the function at 5, stackSize =", Stack.size());
-Frames.popFrameCaller(2);
-SymFrames.popFrameCaller(2);
-Stack.push(Frames.get(2));
-SymStack.push(SymFrames.get(2));
-{
-Num x444 = Stack.pop();
 SymStack.pop();
-Num x445 = I32V(Memory.loadInt(x444.toInt(), 16));
-SymVal x446 = SymMemory.loadSym(x444.toInt(), 16);
-Stack.push(x445);
-SymStack.push(x446);
+Num x471 = I32V(Memory.loadInt(x470.toInt(), 24));
+SymVal x472 = SymMemory.loadSym(x470.toInt(), 24);
+Stack.push(x471);
+SymStack.push(x472);
+}
+{
+Num x473 = Stack.pop();
+SymVal x474 = SymStack.pop();
+Num x475 = Stack.pop();
+SymVal x476 = SymStack.pop();
+Num x477 = x475.i32_le_s(x473);
+Stack.push(x477);
+bool x478 = allConcrete(x476, x474);
+SymVal x479 = x478 ? Concrete(x477, 32) : x476.le(x474).bool2bv();
+SymStack.push(x479);
 }
 Stack.push(I32V(1));
 SymStack.push(Concrete(I32V(1), 32));
 {
+Num x480 = Stack.pop();
+SymVal x481 = SymStack.pop();
+Num x482 = Stack.pop();
+SymVal x483 = SymStack.pop();
+Num x484 = x482.i32_and(x480);
+Stack.push(x484);
+bool x485 = allConcrete(x483, x481);
+SymVal x486 = x485 ? Concrete(x484, 32) : x483.bitwise_and(x481);
+SymStack.push(x486);
+}
+{
+Num x487 = Stack.pop();
+SymVal x488 = SymStack.pop();
+Stack.push(I32V((0 == x487.toInt())));
+SymStack.push(x488.is_zero().bool2bv());
+}
+Num x489 = Stack.pop();
+info("The br_if(1)'s condition is ", x489.toInt());
+{
+SymVal x490 = SymStack.pop();
+ExploreTree.fillIfElseNode(x490, 0);
+}
+int x491 = x489.toInt();
+if (x491 != 0) {
+info("Jump to 1");
+{
+ExploreTree.moveCursor(true, makeControl(x408, CURRENT_MCONT));
+}
+__attribute__((musttail)) return x464(std::monostate{});
+} else {
+info("Continue rest of the block");
+{
+ExploreTree.moveCursor(false, makeControl(x464, CURRENT_MCONT));
+}
+__attribute__((musttail)) return x408(std::monostate{});
+}
+return std::monostate{};
+}
+std::monostate x464(std::monostate x465) {
+__attribute__((musttail)) return x445(std::monostate{});
+return std::monostate{};
+}
+std::monostate x445(std::monostate x446) {
+info("Exiting the block, stackSize =", Stack.size());
+Stack.push(Frames.get(2));
+SymStack.push(SymFrames.get(2));
+{
 Num x447 = Stack.pop();
-SymVal x448 = SymStack.pop();
-Num x449 = Stack.pop();
-SymVal x450 = SymStack.pop();
-Num x451 = x449.i32_add(x447);
-Stack.push(x451);
-bool x452 = allConcrete(x450, x448);
-SymVal x453 = x452 ? Concrete(x451, 32) : x450.add(x448);
-SymStack.push(x453);
+SymStack.pop();
+Num x448 = I32V(Memory.loadInt(x447.toInt(), 28));
+SymVal x449 = SymMemory.loadSym(x447.toInt(), 28);
+Stack.push(x448);
+SymStack.push(x449);
 }
 Stack.push(Frames.get(2));
 SymStack.push(SymFrames.get(2));
 {
-Num x454 = Stack.pop();
+Num x450 = Stack.pop();
 SymStack.pop();
-Num x455 = I32V(Memory.loadInt(x454.toInt(), 24));
-SymVal x456 = SymMemory.loadSym(x454.toInt(), 24);
-Stack.push(x455);
-SymStack.push(x456);
+Num x451 = I32V(Memory.loadInt(x450.toInt(), 16));
+SymVal x452 = SymMemory.loadSym(x450.toInt(), 16);
+Stack.push(x451);
+SymStack.push(x452);
+}
+Stack.push(I32V(1));
+SymStack.push(Concrete(I32V(1), 32));
+{
+Num x453 = Stack.pop();
+SymVal x454 = SymStack.pop();
+Num x455 = Stack.pop();
+SymVal x456 = SymStack.pop();
+Num x457 = x455.i32_sub(x453);
+Stack.push(x457);
+bool x458 = allConcrete(x456, x454);
+SymVal x459 = x458 ? Concrete(x457, 32) : x456.minus(x454);
+SymStack.push(x459);
 }
 {
-infoWhen("CALL", "Taking arguments from stack to call function at ", 5);
-Num x457 = Stack.pop();
-Num x458 = Stack.pop();
-SymVal x459 = SymStack.pop();
-SymVal x460 = SymStack.pop();
+infoWhen("CALL", "Taking arguments from stack to call function at ", 4);
+Num x460 = Stack.pop();
+Num x461 = Stack.pop();
+SymVal x462 = SymStack.pop();
+SymVal x463 = SymStack.pop();
 Frames.pushFrameCaller(2);
 SymFrames.pushFramePtr();
 SymFrames.pushFrameSlot(32);
 SymFrames.pushFrameSlot(32);
-Frames.set(0, x458);
-Frames.set(1, x457);
-SymFrames.set(0, x460);
-SymFrames.set(1, x459);
-updateCurrentMCont(prependCont(x440, CURRENT_MCONT));
+Frames.set(0, x461);
+Frames.set(1, x460);
+SymFrames.set(0, x463);
+SymFrames.set(1, x462);
+updateCurrentMCont(prependCont(x425, CURRENT_MCONT));
 }
-__attribute__((musttail)) return x461(std::monostate{});
+__attribute__((musttail)) return x444(std::monostate{});
 return std::monostate{};
 }
-std::monostate x440(std::monostate x441) {
-infoWhen("CALL", "Returning from the function at 5, stackSize =", Stack.size());
+std::monostate x425(std::monostate x426) {
+infoWhen("CALL", "Returning from the function at 4, stackSize =", Stack.size());
 Frames.popFrameCaller(2);
 SymFrames.popFrameCaller(2);
-__attribute__((musttail)) return x429(std::monostate{});
+Stack.push(Frames.get(2));
+SymStack.push(SymFrames.get(2));
+{
+Num x427 = Stack.pop();
+SymStack.pop();
+Num x428 = I32V(Memory.loadInt(x427.toInt(), 16));
+SymVal x429 = SymMemory.loadSym(x427.toInt(), 16);
+Stack.push(x428);
+SymStack.push(x429);
+}
+Stack.push(I32V(1));
+SymStack.push(Concrete(I32V(1), 32));
+{
+Num x430 = Stack.pop();
+SymVal x431 = SymStack.pop();
+Num x432 = Stack.pop();
+SymVal x433 = SymStack.pop();
+Num x434 = x432.i32_add(x430);
+Stack.push(x434);
+bool x435 = allConcrete(x433, x431);
+SymVal x436 = x435 ? Concrete(x434, 32) : x433.add(x431);
+SymStack.push(x436);
+}
+Stack.push(Frames.get(2));
+SymStack.push(SymFrames.get(2));
+{
+Num x437 = Stack.pop();
+SymStack.pop();
+Num x438 = I32V(Memory.loadInt(x437.toInt(), 24));
+SymVal x439 = SymMemory.loadSym(x437.toInt(), 24);
+Stack.push(x438);
+SymStack.push(x439);
+}
+{
+infoWhen("CALL", "Taking arguments from stack to call function at ", 4);
+Num x440 = Stack.pop();
+Num x441 = Stack.pop();
+SymVal x442 = SymStack.pop();
+SymVal x443 = SymStack.pop();
+Frames.pushFrameCaller(2);
+SymFrames.pushFramePtr();
+SymFrames.pushFrameSlot(32);
+SymFrames.pushFrameSlot(32);
+Frames.set(0, x441);
+Frames.set(1, x440);
+SymFrames.set(0, x443);
+SymFrames.set(1, x442);
+updateCurrentMCont(prependCont(x423, CURRENT_MCONT));
+}
+__attribute__((musttail)) return x444(std::monostate{});
 return std::monostate{};
 }
-std::monostate x429(std::monostate x430) {
+std::monostate x423(std::monostate x424) {
+infoWhen("CALL", "Returning from the function at 4, stackSize =", Stack.size());
+Frames.popFrameCaller(2);
+SymFrames.popFrameCaller(2);
+__attribute__((musttail)) return x412(std::monostate{});
+return std::monostate{};
+}
+std::monostate x412(std::monostate x413) {
 info("Exiting the block, stackSize =", Stack.size());
 Stack.push(Frames.get(2));
 SymStack.push(SymFrames.get(2));
 Stack.push(I32V(32));
 SymStack.push(Concrete(I32V(32), 32));
 {
-Num x431 = Stack.pop();
-SymVal x432 = SymStack.pop();
-Num x433 = Stack.pop();
-SymVal x434 = SymStack.pop();
-Num x435 = x433.i32_add(x431);
-Stack.push(x435);
-bool x436 = allConcrete(x434, x432);
-SymVal x437 = x436 ? Concrete(x435, 32) : x434.add(x432);
-SymStack.push(x437);
+Num x414 = Stack.pop();
+SymVal x415 = SymStack.pop();
+Num x416 = Stack.pop();
+SymVal x417 = SymStack.pop();
+Num x418 = x416.i32_add(x414);
+Stack.push(x418);
+bool x419 = allConcrete(x417, x415);
+SymVal x420 = x419 ? Concrete(x418, 32) : x417.add(x415);
+SymStack.push(x420);
 }
 {
-Num x438 = Stack.pop();
-SymVal x439 = SymStack.pop();
-Globals.set(0, x438);
-SymGlobals.set(0, x439);
+Num x421 = Stack.pop();
+SymVal x422 = SymStack.pop();
+Globals.set(0, x421);
+SymGlobals.set(0, x422);
 }
-return x427(std::monostate{});
+return x410(std::monostate{});
 }
-std::monostate x427(std::monostate x428) {
-infoWhen("CALL", "Exiting the function at 5, stackSize =", Stack.size());
+std::monostate x410(std::monostate x411) {
+infoWhen("CALL", "Exiting the function at 4, stackSize =", Stack.size());
 Frames.popFrameCallee(6);
 SymFrames.popFrameCallee(6);
 return enterCC(std::monostate());
 }
-std::monostate x425(std::monostate x426) {
-__attribute__((musttail)) return x374(std::monostate{});
+std::monostate x408(std::monostate x409) {
+__attribute__((musttail)) return x357(std::monostate{});
 return std::monostate{};
 }
-std::monostate x374(std::monostate x375) {
+std::monostate x357(std::monostate x358) {
 info("Entering the block, stackSize =", Stack.size());
 Stack.push(Frames.get(2));
 SymStack.push(SymFrames.get(2));
 {
-Num x376 = Stack.pop();
+Num x359 = Stack.pop();
 SymStack.pop();
-Num x377 = I32V(Memory.loadInt(x376.toInt(), 12));
-SymVal x378 = SymMemory.loadSym(x376.toInt(), 12);
-Stack.push(x377);
-SymStack.push(x378);
+Num x360 = I32V(Memory.loadInt(x359.toInt(), 12));
+SymVal x361 = SymMemory.loadSym(x359.toInt(), 12);
+Stack.push(x360);
+SymStack.push(x361);
 }
 Stack.push(I32V(2));
 SymStack.push(Concrete(I32V(2), 32));
 {
-Num x379 = Stack.pop();
-SymVal x380 = SymStack.pop();
-Num x381 = Stack.pop();
-SymVal x382 = SymStack.pop();
-Num x383 = x381.i32_shl(x379);
-Stack.push(x383);
-bool x384 = allConcrete(x382, x380);
-SymVal x385 = x384 ? Concrete(x383, 32) : x382.shl(x380);
-SymStack.push(x385);
+Num x362 = Stack.pop();
+SymVal x363 = SymStack.pop();
+Num x364 = Stack.pop();
+SymVal x365 = SymStack.pop();
+Num x366 = x364.i32_shl(x362);
+Stack.push(x366);
+bool x367 = allConcrete(x365, x363);
+SymVal x368 = x367 ? Concrete(x366, 32) : x365.shl(x363);
+SymStack.push(x368);
 }
 Stack.push(I32V(1024));
 SymStack.push(Concrete(I32V(1024), 32));
 Stack.push(Globals.get(1));
 SymStack.push(SymGlobals.get(1));
 {
-Num x386 = Stack.pop();
-SymVal x387 = SymStack.pop();
-Num x388 = Stack.pop();
-SymVal x389 = SymStack.pop();
-Num x390 = x388.i32_add(x386);
-Stack.push(x390);
-bool x391 = allConcrete(x389, x387);
-SymVal x392 = x391 ? Concrete(x390, 32) : x389.add(x387);
-SymStack.push(x392);
+Num x369 = Stack.pop();
+SymVal x370 = SymStack.pop();
+Num x371 = Stack.pop();
+SymVal x372 = SymStack.pop();
+Num x373 = x371.i32_add(x369);
+Stack.push(x373);
+bool x374 = allConcrete(x372, x370);
+SymVal x375 = x374 ? Concrete(x373, 32) : x372.add(x370);
+SymStack.push(x375);
 }
 {
-Num x393 = Stack.pop();
-SymVal x394 = SymStack.pop();
-Num x395 = Stack.pop();
-SymVal x396 = SymStack.pop();
-Num x397 = x395.i32_add(x393);
-Stack.push(x397);
-bool x398 = allConcrete(x396, x394);
-SymVal x399 = x398 ? Concrete(x397, 32) : x396.add(x394);
-SymStack.push(x399);
+Num x376 = Stack.pop();
+SymVal x377 = SymStack.pop();
+Num x378 = Stack.pop();
+SymVal x379 = SymStack.pop();
+Num x380 = x378.i32_add(x376);
+Stack.push(x380);
+bool x381 = allConcrete(x379, x377);
+SymVal x382 = x381 ? Concrete(x380, 32) : x379.add(x377);
+SymStack.push(x382);
 }
 {
-Num x400 = Stack.pop();
+Num x383 = Stack.pop();
 SymStack.pop();
-Num x401 = I32V(Memory.loadInt(x400.toInt(), 0));
-SymVal x402 = SymMemory.loadSym(x400.toInt(), 0);
-Stack.push(x401);
-SymStack.push(x402);
+Num x384 = I32V(Memory.loadInt(x383.toInt(), 0));
+SymVal x385 = SymMemory.loadSym(x383.toInt(), 0);
+Stack.push(x384);
+SymStack.push(x385);
 }
 Stack.push(Frames.get(2));
 SymStack.push(SymFrames.get(2));
 {
-Num x403 = Stack.pop();
+Num x386 = Stack.pop();
 SymStack.pop();
-Num x404 = I32V(Memory.loadInt(x403.toInt(), 20));
-SymVal x405 = SymMemory.loadSym(x403.toInt(), 20);
-Stack.push(x404);
-SymStack.push(x405);
+Num x387 = I32V(Memory.loadInt(x386.toInt(), 20));
+SymVal x388 = SymMemory.loadSym(x386.toInt(), 20);
+Stack.push(x387);
+SymStack.push(x388);
 }
 {
-Num x406 = Stack.pop();
-SymVal x407 = SymStack.pop();
-Num x408 = Stack.pop();
-SymVal x409 = SymStack.pop();
-Num x410 = x408.i32_le_s(x406);
-Stack.push(x410);
-bool x411 = allConcrete(x409, x407);
-SymVal x412 = x411 ? Concrete(x410, 32) : x409.le(x407).bool2bv();
-SymStack.push(x412);
+Num x389 = Stack.pop();
+SymVal x390 = SymStack.pop();
+Num x391 = Stack.pop();
+SymVal x392 = SymStack.pop();
+Num x393 = x391.i32_le_s(x389);
+Stack.push(x393);
+bool x394 = allConcrete(x392, x390);
+SymVal x395 = x394 ? Concrete(x393, 32) : x392.le(x390).bool2bv();
+SymStack.push(x395);
 }
 Stack.push(I32V(1));
 SymStack.push(Concrete(I32V(1), 32));
 {
-Num x413 = Stack.pop();
-SymVal x414 = SymStack.pop();
-Num x415 = Stack.pop();
-SymVal x416 = SymStack.pop();
-Num x417 = x415.i32_and(x413);
-Stack.push(x417);
-bool x418 = allConcrete(x416, x414);
-SymVal x419 = x418 ? Concrete(x417, 32) : x416.bitwise_and(x414);
-SymStack.push(x419);
+Num x396 = Stack.pop();
+SymVal x397 = SymStack.pop();
+Num x398 = Stack.pop();
+SymVal x399 = SymStack.pop();
+Num x400 = x398.i32_and(x396);
+Stack.push(x400);
+bool x401 = allConcrete(x399, x397);
+SymVal x402 = x401 ? Concrete(x400, 32) : x399.bitwise_and(x397);
+SymStack.push(x402);
 }
 {
-Num x420 = Stack.pop();
-SymVal x421 = SymStack.pop();
-Stack.push(I32V((0 == x420.toInt())));
-SymStack.push(x421.is_zero().bool2bv());
+Num x403 = Stack.pop();
+SymVal x404 = SymStack.pop();
+Stack.push(I32V((0 == x403.toInt())));
+SymStack.push(x404.is_zero().bool2bv());
 }
-Num x422 = Stack.pop();
-info("The br_if(0)'s condition is ", x422.toInt());
+Num x405 = Stack.pop();
+info("The br_if(0)'s condition is ", x405.toInt());
 {
-SymVal x423 = SymStack.pop();
-ExploreTree.fillIfElseNode(x423, 1);
+SymVal x406 = SymStack.pop();
+ExploreTree.fillIfElseNode(x406, 1);
 }
-int x424 = x422.toInt();
-if (x424 != 0) {
+int x407 = x405.toInt();
+if (x407 != 0) {
 info("Jump to 0");
 {
-ExploreTree.moveCursor(true, makeControl(x250, CURRENT_MCONT));
+ExploreTree.moveCursor(true, makeControl(x233, CURRENT_MCONT));
 }
-__attribute__((musttail)) return x372(std::monostate{});
+__attribute__((musttail)) return x355(std::monostate{});
 } else {
 info("Continue rest of the block");
 {
-ExploreTree.moveCursor(false, makeControl(x372, CURRENT_MCONT));
+ExploreTree.moveCursor(false, makeControl(x355, CURRENT_MCONT));
 }
-__attribute__((musttail)) return x250(std::monostate{});
+__attribute__((musttail)) return x233(std::monostate{});
 }
 return std::monostate{};
 }
-std::monostate x372(std::monostate x373) {
-__attribute__((musttail)) return x233(std::monostate{});
-return std::monostate{};
-}
-std::monostate x250(std::monostate x251) {
-Stack.push(Frames.get(2));
-SymStack.push(SymFrames.get(2));
-Stack.push(Frames.get(2));
-SymStack.push(SymFrames.get(2));
-{
-Num x252 = Stack.pop();
-SymStack.pop();
-Num x253 = I32V(Memory.loadInt(x252.toInt(), 16));
-SymVal x254 = SymMemory.loadSym(x252.toInt(), 16);
-Stack.push(x253);
-SymStack.push(x254);
-}
-Stack.push(I32V(1));
-SymStack.push(Concrete(I32V(1), 32));
-{
-Num x255 = Stack.pop();
-SymVal x256 = SymStack.pop();
-Num x257 = Stack.pop();
-SymVal x258 = SymStack.pop();
-Num x259 = x257.i32_add(x255);
-Stack.push(x259);
-bool x260 = allConcrete(x258, x256);
-SymVal x261 = x260 ? Concrete(x259, 32) : x258.add(x256);
-SymStack.push(x261);
-}
-{
-Num x262 = Stack.pop();
-SymVal x263 = SymStack.pop();
-Num x264 = Stack.pop();
-SymStack.pop();
-int x265 = x264.toInt();
-Memory.storeInt(x265, 16, x262.toInt());
-SymMemory.storeSym(x265, 16, x263);
-}
-Stack.push(Frames.get(2));
-SymStack.push(SymFrames.get(2));
-{
-Num x266 = Stack.pop();
-SymStack.pop();
-Num x267 = I32V(Memory.loadInt(x266.toInt(), 12));
-SymVal x268 = SymMemory.loadSym(x266.toInt(), 12);
-Stack.push(x267);
-SymStack.push(x268);
-}
-{
-Num x269 = Stack.pop();
-SymVal x270 = SymStack.pop();
-Frames.set(3, x269);
-SymFrames.set(3, x270);
-}
-Stack.push(I32V(1024));
-SymStack.push(Concrete(I32V(1024), 32));
-Stack.push(Globals.get(1));
-SymStack.push(SymGlobals.get(1));
-{
-Num x271 = Stack.pop();
-SymVal x272 = SymStack.pop();
-Num x273 = Stack.pop();
-SymVal x274 = SymStack.pop();
-Num x275 = x273.i32_add(x271);
-Stack.push(x275);
-bool x276 = allConcrete(x274, x272);
-SymVal x277 = x276 ? Concrete(x275, 32) : x274.add(x272);
-SymStack.push(x277);
-}
-{
-Num x278 = Stack.pop();
-SymVal x279 = SymStack.pop();
-Frames.set(4, x278);
-SymFrames.set(4, x279);
-}
-Stack.push(I32V(2));
-SymStack.push(Concrete(I32V(2), 32));
-{
-Num x280 = Stack.pop();
-SymVal x281 = SymStack.pop();
-Frames.set(5, x280);
-SymFrames.set(5, x281);
-}
-Stack.push(Frames.get(2));
-SymStack.push(SymFrames.get(2));
-Stack.push(Frames.get(4));
-SymStack.push(SymFrames.get(4));
-Stack.push(Frames.get(3));
-SymStack.push(SymFrames.get(3));
-Stack.push(Frames.get(5));
-SymStack.push(SymFrames.get(5));
-{
-Num x282 = Stack.pop();
-SymVal x283 = SymStack.pop();
-Num x284 = Stack.pop();
-SymVal x285 = SymStack.pop();
-Num x286 = x284.i32_shl(x282);
-Stack.push(x286);
-bool x287 = allConcrete(x285, x283);
-SymVal x288 = x287 ? Concrete(x286, 32) : x285.shl(x283);
-SymStack.push(x288);
-}
-{
-Num x289 = Stack.pop();
-SymVal x290 = SymStack.pop();
-Num x291 = Stack.pop();
-SymVal x292 = SymStack.pop();
-Num x293 = x291.i32_add(x289);
-Stack.push(x293);
-bool x294 = allConcrete(x292, x290);
-SymVal x295 = x294 ? Concrete(x293, 32) : x292.add(x290);
-SymStack.push(x295);
-}
-{
-Num x296 = Stack.pop();
-SymStack.pop();
-Num x297 = I32V(Memory.loadInt(x296.toInt(), 0));
-SymVal x298 = SymMemory.loadSym(x296.toInt(), 0);
-Stack.push(x297);
-SymStack.push(x298);
-}
-{
-Num x299 = Stack.pop();
-SymVal x300 = SymStack.pop();
-Num x301 = Stack.pop();
-SymStack.pop();
-int x302 = x301.toInt();
-Memory.storeInt(x302, 8, x299.toInt());
-SymMemory.storeSym(x302, 8, x300);
-}
-Stack.push(Frames.get(4));
-SymStack.push(SymFrames.get(4));
-Stack.push(Frames.get(2));
-SymStack.push(SymFrames.get(2));
-{
-Num x303 = Stack.pop();
-SymStack.pop();
-Num x304 = I32V(Memory.loadInt(x303.toInt(), 16));
-SymVal x305 = SymMemory.loadSym(x303.toInt(), 16);
-Stack.push(x304);
-SymStack.push(x305);
-}
-Stack.push(Frames.get(5));
-SymStack.push(SymFrames.get(5));
-{
-Num x306 = Stack.pop();
-SymVal x307 = SymStack.pop();
-Num x308 = Stack.pop();
-SymVal x309 = SymStack.pop();
-Num x310 = x308.i32_shl(x306);
-Stack.push(x310);
-bool x311 = allConcrete(x309, x307);
-SymVal x312 = x311 ? Concrete(x310, 32) : x309.shl(x307);
-SymStack.push(x312);
-}
-{
-Num x313 = Stack.pop();
-SymVal x314 = SymStack.pop();
-Num x315 = Stack.pop();
-SymVal x316 = SymStack.pop();
-Num x317 = x315.i32_add(x313);
-Stack.push(x317);
-bool x318 = allConcrete(x316, x314);
-SymVal x319 = x318 ? Concrete(x317, 32) : x316.add(x314);
-SymStack.push(x319);
-}
-{
-Num x320 = Stack.pop();
-SymStack.pop();
-Num x321 = I32V(Memory.loadInt(x320.toInt(), 0));
-SymVal x322 = SymMemory.loadSym(x320.toInt(), 0);
-Stack.push(x321);
-SymStack.push(x322);
-}
-{
-Num x323 = Stack.pop();
-SymVal x324 = SymStack.pop();
-Frames.set(6, x323);
-SymFrames.set(6, x324);
-}
-Stack.push(Frames.get(4));
-SymStack.push(SymFrames.get(4));
-Stack.push(Frames.get(2));
-SymStack.push(SymFrames.get(2));
-{
-Num x325 = Stack.pop();
-SymStack.pop();
-Num x326 = I32V(Memory.loadInt(x325.toInt(), 12));
-SymVal x327 = SymMemory.loadSym(x325.toInt(), 12);
-Stack.push(x326);
-SymStack.push(x327);
-}
-Stack.push(Frames.get(5));
-SymStack.push(SymFrames.get(5));
-{
-Num x328 = Stack.pop();
-SymVal x329 = SymStack.pop();
-Num x330 = Stack.pop();
-SymVal x331 = SymStack.pop();
-Num x332 = x330.i32_shl(x328);
-Stack.push(x332);
-bool x333 = allConcrete(x331, x329);
-SymVal x334 = x333 ? Concrete(x332, 32) : x331.shl(x329);
-SymStack.push(x334);
-}
-{
-Num x335 = Stack.pop();
-SymVal x336 = SymStack.pop();
-Num x337 = Stack.pop();
-SymVal x338 = SymStack.pop();
-Num x339 = x337.i32_add(x335);
-Stack.push(x339);
-bool x340 = allConcrete(x338, x336);
-SymVal x341 = x340 ? Concrete(x339, 32) : x338.add(x336);
-SymStack.push(x341);
-}
-Stack.push(Frames.get(6));
-SymStack.push(SymFrames.get(6));
-{
-Num x342 = Stack.pop();
-SymVal x343 = SymStack.pop();
-Num x344 = Stack.pop();
-SymStack.pop();
-int x345 = x344.toInt();
-Memory.storeInt(x345, 0, x342.toInt());
-SymMemory.storeSym(x345, 0, x343);
-}
-Stack.push(Frames.get(2));
-SymStack.push(SymFrames.get(2));
-{
-Num x346 = Stack.pop();
-SymStack.pop();
-Num x347 = I32V(Memory.loadInt(x346.toInt(), 8));
-SymVal x348 = SymMemory.loadSym(x346.toInt(), 8);
-Stack.push(x347);
-SymStack.push(x348);
-}
-{
-Num x349 = Stack.pop();
-SymVal x350 = SymStack.pop();
-Frames.set(7, x349);
-SymFrames.set(7, x350);
-}
-Stack.push(Frames.get(4));
-SymStack.push(SymFrames.get(4));
-Stack.push(Frames.get(2));
-SymStack.push(SymFrames.get(2));
-{
-Num x351 = Stack.pop();
-SymStack.pop();
-Num x352 = I32V(Memory.loadInt(x351.toInt(), 16));
-SymVal x353 = SymMemory.loadSym(x351.toInt(), 16);
-Stack.push(x352);
-SymStack.push(x353);
-}
-Stack.push(Frames.get(5));
-SymStack.push(SymFrames.get(5));
-{
-Num x354 = Stack.pop();
-SymVal x355 = SymStack.pop();
-Num x356 = Stack.pop();
-SymVal x357 = SymStack.pop();
-Num x358 = x356.i32_shl(x354);
-Stack.push(x358);
-bool x359 = allConcrete(x357, x355);
-SymVal x360 = x359 ? Concrete(x358, 32) : x357.shl(x355);
-SymStack.push(x360);
-}
-{
-Num x361 = Stack.pop();
-SymVal x362 = SymStack.pop();
-Num x363 = Stack.pop();
-SymVal x364 = SymStack.pop();
-Num x365 = x363.i32_add(x361);
-Stack.push(x365);
-bool x366 = allConcrete(x364, x362);
-SymVal x367 = x366 ? Concrete(x365, 32) : x364.add(x362);
-SymStack.push(x367);
-}
-Stack.push(Frames.get(7));
-SymStack.push(SymFrames.get(7));
-{
-Num x368 = Stack.pop();
-SymVal x369 = SymStack.pop();
-Num x370 = Stack.pop();
-SymStack.pop();
-int x371 = x370.toInt();
-Memory.storeInt(x371, 0, x368.toInt());
-SymMemory.storeSym(x371, 0, x369);
-}
-__attribute__((musttail)) return x233(std::monostate{});
+std::monostate x355(std::monostate x356) {
+__attribute__((musttail)) return x216(std::monostate{});
 return std::monostate{};
 }
 std::monostate x233(std::monostate x234) {
-info("Exiting the block, stackSize =", Stack.size());
 Stack.push(Frames.get(2));
 SymStack.push(SymFrames.get(2));
 Stack.push(Frames.get(2));
@@ -1225,8 +862,8 @@ SymStack.push(SymFrames.get(2));
 {
 Num x235 = Stack.pop();
 SymStack.pop();
-Num x236 = I32V(Memory.loadInt(x235.toInt(), 12));
-SymVal x237 = SymMemory.loadSym(x235.toInt(), 12);
+Num x236 = I32V(Memory.loadInt(x235.toInt(), 16));
+SymVal x237 = SymMemory.loadSym(x235.toInt(), 16);
 Stack.push(x236);
 SymStack.push(x237);
 }
@@ -1249,58 +886,303 @@ SymVal x246 = SymStack.pop();
 Num x247 = Stack.pop();
 SymStack.pop();
 int x248 = x247.toInt();
-Memory.storeInt(x248, 12, x245.toInt());
-SymMemory.storeSym(x248, 12, x246);
+Memory.storeInt(x248, 16, x245.toInt());
+SymMemory.storeSym(x248, 16, x246);
 }
-info("Jump to 0");
-__attribute__((musttail)) return x249(std::monostate{});
+Stack.push(Frames.get(2));
+SymStack.push(SymFrames.get(2));
+{
+Num x249 = Stack.pop();
+SymStack.pop();
+Num x250 = I32V(Memory.loadInt(x249.toInt(), 12));
+SymVal x251 = SymMemory.loadSym(x249.toInt(), 12);
+Stack.push(x250);
+SymStack.push(x251);
+}
+{
+Num x252 = Stack.pop();
+SymVal x253 = SymStack.pop();
+Frames.set(3, x252);
+SymFrames.set(3, x253);
+}
+Stack.push(I32V(1024));
+SymStack.push(Concrete(I32V(1024), 32));
+Stack.push(Globals.get(1));
+SymStack.push(SymGlobals.get(1));
+{
+Num x254 = Stack.pop();
+SymVal x255 = SymStack.pop();
+Num x256 = Stack.pop();
+SymVal x257 = SymStack.pop();
+Num x258 = x256.i32_add(x254);
+Stack.push(x258);
+bool x259 = allConcrete(x257, x255);
+SymVal x260 = x259 ? Concrete(x258, 32) : x257.add(x255);
+SymStack.push(x260);
+}
+{
+Num x261 = Stack.pop();
+SymVal x262 = SymStack.pop();
+Frames.set(4, x261);
+SymFrames.set(4, x262);
+}
+Stack.push(I32V(2));
+SymStack.push(Concrete(I32V(2), 32));
+{
+Num x263 = Stack.pop();
+SymVal x264 = SymStack.pop();
+Frames.set(5, x263);
+SymFrames.set(5, x264);
+}
+Stack.push(Frames.get(2));
+SymStack.push(SymFrames.get(2));
+Stack.push(Frames.get(4));
+SymStack.push(SymFrames.get(4));
+Stack.push(Frames.get(3));
+SymStack.push(SymFrames.get(3));
+Stack.push(Frames.get(5));
+SymStack.push(SymFrames.get(5));
+{
+Num x265 = Stack.pop();
+SymVal x266 = SymStack.pop();
+Num x267 = Stack.pop();
+SymVal x268 = SymStack.pop();
+Num x269 = x267.i32_shl(x265);
+Stack.push(x269);
+bool x270 = allConcrete(x268, x266);
+SymVal x271 = x270 ? Concrete(x269, 32) : x268.shl(x266);
+SymStack.push(x271);
+}
+{
+Num x272 = Stack.pop();
+SymVal x273 = SymStack.pop();
+Num x274 = Stack.pop();
+SymVal x275 = SymStack.pop();
+Num x276 = x274.i32_add(x272);
+Stack.push(x276);
+bool x277 = allConcrete(x275, x273);
+SymVal x278 = x277 ? Concrete(x276, 32) : x275.add(x273);
+SymStack.push(x278);
+}
+{
+Num x279 = Stack.pop();
+SymStack.pop();
+Num x280 = I32V(Memory.loadInt(x279.toInt(), 0));
+SymVal x281 = SymMemory.loadSym(x279.toInt(), 0);
+Stack.push(x280);
+SymStack.push(x281);
+}
+{
+Num x282 = Stack.pop();
+SymVal x283 = SymStack.pop();
+Num x284 = Stack.pop();
+SymStack.pop();
+int x285 = x284.toInt();
+Memory.storeInt(x285, 8, x282.toInt());
+SymMemory.storeSym(x285, 8, x283);
+}
+Stack.push(Frames.get(4));
+SymStack.push(SymFrames.get(4));
+Stack.push(Frames.get(2));
+SymStack.push(SymFrames.get(2));
+{
+Num x286 = Stack.pop();
+SymStack.pop();
+Num x287 = I32V(Memory.loadInt(x286.toInt(), 16));
+SymVal x288 = SymMemory.loadSym(x286.toInt(), 16);
+Stack.push(x287);
+SymStack.push(x288);
+}
+Stack.push(Frames.get(5));
+SymStack.push(SymFrames.get(5));
+{
+Num x289 = Stack.pop();
+SymVal x290 = SymStack.pop();
+Num x291 = Stack.pop();
+SymVal x292 = SymStack.pop();
+Num x293 = x291.i32_shl(x289);
+Stack.push(x293);
+bool x294 = allConcrete(x292, x290);
+SymVal x295 = x294 ? Concrete(x293, 32) : x292.shl(x290);
+SymStack.push(x295);
+}
+{
+Num x296 = Stack.pop();
+SymVal x297 = SymStack.pop();
+Num x298 = Stack.pop();
+SymVal x299 = SymStack.pop();
+Num x300 = x298.i32_add(x296);
+Stack.push(x300);
+bool x301 = allConcrete(x299, x297);
+SymVal x302 = x301 ? Concrete(x300, 32) : x299.add(x297);
+SymStack.push(x302);
+}
+{
+Num x303 = Stack.pop();
+SymStack.pop();
+Num x304 = I32V(Memory.loadInt(x303.toInt(), 0));
+SymVal x305 = SymMemory.loadSym(x303.toInt(), 0);
+Stack.push(x304);
+SymStack.push(x305);
+}
+{
+Num x306 = Stack.pop();
+SymVal x307 = SymStack.pop();
+Frames.set(6, x306);
+SymFrames.set(6, x307);
+}
+Stack.push(Frames.get(4));
+SymStack.push(SymFrames.get(4));
+Stack.push(Frames.get(2));
+SymStack.push(SymFrames.get(2));
+{
+Num x308 = Stack.pop();
+SymStack.pop();
+Num x309 = I32V(Memory.loadInt(x308.toInt(), 12));
+SymVal x310 = SymMemory.loadSym(x308.toInt(), 12);
+Stack.push(x309);
+SymStack.push(x310);
+}
+Stack.push(Frames.get(5));
+SymStack.push(SymFrames.get(5));
+{
+Num x311 = Stack.pop();
+SymVal x312 = SymStack.pop();
+Num x313 = Stack.pop();
+SymVal x314 = SymStack.pop();
+Num x315 = x313.i32_shl(x311);
+Stack.push(x315);
+bool x316 = allConcrete(x314, x312);
+SymVal x317 = x316 ? Concrete(x315, 32) : x314.shl(x312);
+SymStack.push(x317);
+}
+{
+Num x318 = Stack.pop();
+SymVal x319 = SymStack.pop();
+Num x320 = Stack.pop();
+SymVal x321 = SymStack.pop();
+Num x322 = x320.i32_add(x318);
+Stack.push(x322);
+bool x323 = allConcrete(x321, x319);
+SymVal x324 = x323 ? Concrete(x322, 32) : x321.add(x319);
+SymStack.push(x324);
+}
+Stack.push(Frames.get(6));
+SymStack.push(SymFrames.get(6));
+{
+Num x325 = Stack.pop();
+SymVal x326 = SymStack.pop();
+Num x327 = Stack.pop();
+SymStack.pop();
+int x328 = x327.toInt();
+Memory.storeInt(x328, 0, x325.toInt());
+SymMemory.storeSym(x328, 0, x326);
+}
+Stack.push(Frames.get(2));
+SymStack.push(SymFrames.get(2));
+{
+Num x329 = Stack.pop();
+SymStack.pop();
+Num x330 = I32V(Memory.loadInt(x329.toInt(), 8));
+SymVal x331 = SymMemory.loadSym(x329.toInt(), 8);
+Stack.push(x330);
+SymStack.push(x331);
+}
+{
+Num x332 = Stack.pop();
+SymVal x333 = SymStack.pop();
+Frames.set(7, x332);
+SymFrames.set(7, x333);
+}
+Stack.push(Frames.get(4));
+SymStack.push(SymFrames.get(4));
+Stack.push(Frames.get(2));
+SymStack.push(SymFrames.get(2));
+{
+Num x334 = Stack.pop();
+SymStack.pop();
+Num x335 = I32V(Memory.loadInt(x334.toInt(), 16));
+SymVal x336 = SymMemory.loadSym(x334.toInt(), 16);
+Stack.push(x335);
+SymStack.push(x336);
+}
+Stack.push(Frames.get(5));
+SymStack.push(SymFrames.get(5));
+{
+Num x337 = Stack.pop();
+SymVal x338 = SymStack.pop();
+Num x339 = Stack.pop();
+SymVal x340 = SymStack.pop();
+Num x341 = x339.i32_shl(x337);
+Stack.push(x341);
+bool x342 = allConcrete(x340, x338);
+SymVal x343 = x342 ? Concrete(x341, 32) : x340.shl(x338);
+SymStack.push(x343);
+}
+{
+Num x344 = Stack.pop();
+SymVal x345 = SymStack.pop();
+Num x346 = Stack.pop();
+SymVal x347 = SymStack.pop();
+Num x348 = x346.i32_add(x344);
+Stack.push(x348);
+bool x349 = allConcrete(x347, x345);
+SymVal x350 = x349 ? Concrete(x348, 32) : x347.add(x345);
+SymStack.push(x350);
+}
+Stack.push(Frames.get(7));
+SymStack.push(SymFrames.get(7));
+{
+Num x351 = Stack.pop();
+SymVal x352 = SymStack.pop();
+Num x353 = Stack.pop();
+SymStack.pop();
+int x354 = x353.toInt();
+Memory.storeInt(x354, 0, x351.toInt());
+SymMemory.storeSym(x354, 0, x352);
+}
+__attribute__((musttail)) return x216(std::monostate{});
 return std::monostate{};
 }
-std::monostate x218(std::monostate x219) {
-infoWhen("CALL", "Entered the function at 4, stackSize =", Stack.size());
-Frames.pushFrameCallee(1);
-SymFrames.pushFrameSlot(32);
-Stack.push(Globals.get(0));
-SymStack.push(SymGlobals.get(0));
-Stack.push(I32V(16));
-SymStack.push(Concrete(I32V(16), 32));
-{
-Num x220 = Stack.pop();
-SymVal x221 = SymStack.pop();
-Num x222 = Stack.pop();
-SymVal x223 = SymStack.pop();
-Num x224 = x222.i32_sub(x220);
-Stack.push(x224);
-bool x225 = allConcrete(x223, x221);
-SymVal x226 = x225 ? Concrete(x224, 32) : x223.minus(x221);
-SymStack.push(x226);
-}
-{
-Num x227 = Stack.pop();
-SymVal x228 = SymStack.pop();
-Frames.set(1, x227);
-SymFrames.set(1, x228);
-}
-Stack.push(Frames.get(1));
-SymStack.push(SymFrames.get(1));
-Stack.push(Frames.get(0));
-SymStack.push(SymFrames.get(0));
-{
-Num x229 = Stack.pop();
-SymVal x230 = SymStack.pop();
-Num x231 = Stack.pop();
-SymStack.pop();
-int x232 = x231.toInt();
-Memory.storeInt(x232, 12, x229.toInt());
-SymMemory.storeSym(x232, 12, x230);
-}
-return x216(std::monostate{});
-}
 std::monostate x216(std::monostate x217) {
-infoWhen("CALL", "Exiting the function at 4, stackSize =", Stack.size());
-Frames.popFrameCallee(1);
-SymFrames.popFrameCallee(1);
-return enterCC(std::monostate());
+info("Exiting the block, stackSize =", Stack.size());
+Stack.push(Frames.get(2));
+SymStack.push(SymFrames.get(2));
+Stack.push(Frames.get(2));
+SymStack.push(SymFrames.get(2));
+{
+Num x218 = Stack.pop();
+SymStack.pop();
+Num x219 = I32V(Memory.loadInt(x218.toInt(), 12));
+SymVal x220 = SymMemory.loadSym(x218.toInt(), 12);
+Stack.push(x219);
+SymStack.push(x220);
+}
+Stack.push(I32V(1));
+SymStack.push(Concrete(I32V(1), 32));
+{
+Num x221 = Stack.pop();
+SymVal x222 = SymStack.pop();
+Num x223 = Stack.pop();
+SymVal x224 = SymStack.pop();
+Num x225 = x223.i32_add(x221);
+Stack.push(x225);
+bool x226 = allConcrete(x224, x222);
+SymVal x227 = x226 ? Concrete(x225, 32) : x224.add(x222);
+SymStack.push(x227);
+}
+{
+Num x228 = Stack.pop();
+SymVal x229 = SymStack.pop();
+Num x230 = Stack.pop();
+SymStack.pop();
+int x231 = x230.toInt();
+Memory.storeInt(x231, 12, x228.toInt());
+SymMemory.storeSym(x231, 12, x229);
+}
+info("Jump to 0");
+__attribute__((musttail)) return x232(std::monostate{});
+return std::monostate{};
 }
 std::monostate x195(std::monostate x196) {
 infoWhen("CALL", "Entered the function at 3, stackSize =", Stack.size());
@@ -1865,12 +1747,12 @@ SymFrames.pushFramePtr();
 updateCurrentMCont(prependCont(x11, MCont_t(x1)));
 }
 {
-infoWhen("CALL", "Taking arguments from stack to call function at ", 6);
+infoWhen("CALL", "Taking arguments from stack to call function at ", 5);
 Frames.pushFrameCaller(0);
 SymFrames.pushFramePtr();
-updateCurrentMCont(prependCont(x676, CURRENT_MCONT));
+updateCurrentMCont(prependCont(x645, CURRENT_MCONT));
 }
-__attribute__((musttail)) return x657(std::monostate{});
+__attribute__((musttail)) return x626(std::monostate{});
 return std::monostate{};
 }
 

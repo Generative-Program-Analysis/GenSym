@@ -13,16 +13,9 @@
   (func (;2;) (type 2) (result i32)
     i32.const 2
     call 3
-    i32.const 2
-    call 4
-    i32.const 0
-    i32.const 3
-    call 5
-    i32.const 2
-    call 3
     i32.const 0
     i32.const 29
-    call 5
+    call 4
     i32.const 0
     return)
   (func (;3;) (type 3) (param i32)
@@ -115,17 +108,7 @@
     i32.add
     global.set 0
     return)
-  (func (;4;) (type 3) (param i32)
-    (local i32)
-    global.get 0
-    i32.const 16
-    i32.sub
-    local.set 1
-    local.get 1
-    local.get 0
-    i32.store offset=12
-    return)
-  (func (;5;) (type 4) (param i32 i32)
+  (func (;4;) (type 4) (param i32 i32)
     (local i32 i32 i32 i32 i32 i32)
     global.get 0
     i32.const 32
@@ -264,21 +247,21 @@
       i32.load offset=16
       i32.const 1
       i32.sub
-      call 5
+      call 4
       local.get 2
       i32.load offset=16
       i32.const 1
       i32.add
       local.get 2
       i32.load offset=24
-      call 5
+      call 4
     end
     local.get 2
     i32.const 32
     i32.add
     global.set 0
     return)
-  (func (;6;) (type 2) (result i32)
+  (func (;5;) (type 2) (result i32)
     (local i32 i32)
     global.get 0
     i32.const 16
@@ -297,8 +280,8 @@
     global.set 0
     local.get 1
     return)
-  (func (;7;) (type 5) (param i32 i32) (result i32)
-    call 6
+  (func (;6;) (type 5) (param i32 i32) (result i32)
+    call 5
     return)
   (table (;0;) 1 1 funcref)
   (memory (;0;) 2)
@@ -306,5 +289,5 @@
   (global (;1;) i32 (i32.const 0))
   (export "memory" (memory 0))
   (export "_start" (func 1))
-  (export "main" (func 7))
+  (export "main" (func 6))
   (start 1))

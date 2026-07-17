@@ -3,7 +3,7 @@ set -euo pipefail
 
 CASE="2o1u"
 TOOL="all"
-WASP_TIMEOUT="900"
+WASP_TIMEOUT="7200"
 QUICK=0
 FULL_RUNS=5
 

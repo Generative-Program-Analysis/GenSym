@@ -2,6 +2,7 @@
 import argparse
 import fnmatch
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -77,6 +78,13 @@ def matches_case(path: Path, case: str) -> bool:
     return case in {path.name, path.stem}
 
 
+def case_sort_key(path: Path) -> tuple[object, ...]:
+    match = re.match(r"^(\d+)o(\d+)u", path.stem)
+    if match:
+        return (0, int(match.group(1)), int(match.group(2)), path.name)
+    return (1, path.name)
+
+
 def count_wasp_reports(workspace: Path) -> int:
     if not workspace.exists():
         return 0
@@ -84,6 +92,26 @@ def count_wasp_reports(workspace: Path) -> int:
     if reports:
         return len(reports)
     return 1 if (workspace / "report.json").is_file() else 0
+
+
+def prepare_wasp_reports(workspace: Path) -> None:
+    """Preserve a pre-existing live report as the first collected report."""
+    if (workspace / "report.json").is_file() and not list(
+        workspace.glob("report_*.json")
+    ):
+        shutil.copyfile(workspace / "report.json", workspace / "report_0.json")
+
+
+def next_wasp_report_index(workspace: Path) -> int:
+    used: set[int] = set()
+    for report in workspace.glob("report_*.json"):
+        match = re.fullmatch(r"report_(\d+)\.json", report.name)
+        if match:
+            used.add(int(match.group(1)))
+    index = 0
+    while index in used:
+        index += 1
+    return index
 
 
 def workspace_for(path: Path, workspace_dir: Path | None) -> Path:
@@ -115,17 +143,18 @@ def run_one(
 
     last_rc = 0
     executions = 0
+    prepare_wasp_reports(workspace)
     while True:
-        run_index = count_wasp_reports(workspace)
-        if run_index >= runs:
+        completed_runs = count_wasp_reports(workspace)
+        if completed_runs >= runs:
             if executions == 0:
                 print(
-                    f"[COMPLETE] {base}: already has {run_index}/{runs} reports; "
+                    f"[COMPLETE] {base}: already has {completed_runs}/{runs} reports; "
                     "no execution needed."
                 )
             else:
                 print(
-                    f"[COMPLETE] {base}: now has {run_index}/{runs} reports "
+                    f"[COMPLETE] {base}: now has {completed_runs}/{runs} reports "
                     f"after {executions} execution(s) in this command."
                 )
             return result(
@@ -136,6 +165,7 @@ def run_one(
                 complete=True,
             )
 
+        run_index = next_wasp_report_index(workspace)
         log_path = log_path_for(path, workspace_dir, run_index)
         cmd = ["wasp", str(path)]
         if path.suffix != ".wast":
@@ -150,7 +180,7 @@ def run_one(
             ]
         )
 
-        print(f"[RUN] {base} run {run_index + 1}/{runs} -> {workspace}")
+        print(f"[RUN] {base} run {completed_runs + 1}/{runs} -> {workspace}")
         print("      " + " ".join(cmd))
         executions += 1
 
@@ -202,7 +232,7 @@ def main() -> int:
         "-j", "--jobs", type=int, default=1, help="number of parallel jobs"
     )
     parser.add_argument(
-        "--timeout", type=int, default=900, help="per-file timeout in seconds"
+        "--timeout", type=int, default=7200, help="per-file timeout in seconds"
     )
     parser.add_argument("--case", help="run one testcase by filename or stem")
     parser.add_argument("--quick", action="store_true", help="run only the first testcase")
@@ -250,7 +280,8 @@ def main() -> int:
         workspace_dir.mkdir(parents=True, exist_ok=True)
 
     input_files = sorted(
-        p for p in target_dir.iterdir() if p.is_file() and p.suffix in {".wast", ".wat"}
+        (p for p in target_dir.iterdir() if p.is_file() and p.suffix in {".wast", ".wat"}),
+        key=case_sort_key,
     )
     if args.case:
         input_files = [p for p in input_files if matches_case(p, args.case)]

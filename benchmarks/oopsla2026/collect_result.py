@@ -193,7 +193,7 @@ def aggregate_rows(rows: list[dict[str, object]], suite: str) -> list[dict[str, 
             [],
         ).append(row)
 
-    averaged_rows: list[dict[str, object]] = []
+    aggregated_rows: list[dict[str, object]] = []
     numeric_keys = [
         "InstrTime(s)",
         "SolverTime(s)",
@@ -222,13 +222,13 @@ def aggregate_rows(rows: list[dict[str, object]], suite: str) -> list[dict[str, 
             ]
             if not values:
                 continue
-            out[f"{key}_mean"] = statistics.fmean(values)
+            out[f"{key}_median"] = statistics.median(values)
             out[f"{key}_stdev"] = statistics.stdev(values) if len(values) > 1 else 0.0
         for key in ("Specification", "Incomplete"):
             values = [row.get(key) for row in group if row.get(key) is not None]
             if values:
                 out[key] = values[-1]
-        averaged_rows.append(out)
+        aggregated_rows.append(out)
 
     aggregated: dict[str, dict[str, object]] = {}
 
@@ -236,7 +236,7 @@ def aggregate_rows(rows: list[dict[str, object]], suite: str) -> list[dict[str, 
         for key in keys:
             row_out[f"{prefix}_{key}"] = src.get(key)
 
-    for row in averaged_rows:
+    for row in aggregated_rows:
         benchmark = str(row["Benchmark"])
         out = aggregated.setdefault(
             benchmark,
@@ -254,18 +254,18 @@ def aggregate_rows(rows: list[dict[str, object]], suite: str) -> list[dict[str, 
                 row,
                 [
                     "Runs",
-                    "InstrTime(s)_mean",
+                    "InstrTime(s)_median",
                     "InstrTime(s)_stdev",
-                    "SolverTime(s)_mean",
+                    "SolverTime(s)_median",
                     "SolverTime(s)_stdev",
-                    "ResumingTime(s)_mean",
+                    "ResumingTime(s)_median",
                     "ResumingTime(s)_stdev",
-                    "CostModelTime(s)_mean",
+                    "CostModelTime(s)_median",
                     "CostModelTime(s)_stdev",
-                    "LoopTime(s)_mean",
+                    "LoopTime(s)_median",
                     "LoopTime(s)_stdev",
-                    "PathsExplored_mean",
-                    "FailedCount_mean",
+                    "PathsExplored_median",
+                    "FailedCount_median",
                 ],
             )
         elif row["Engine"] == "WASP":
@@ -275,15 +275,15 @@ def aggregate_rows(rows: list[dict[str, object]], suite: str) -> list[dict[str, 
                 row,
                 [
                     "Runs",
-                    "InstrTime(s)_mean",
+                    "InstrTime(s)_median",
                     "InstrTime(s)_stdev",
-                    "SolverTime(s)_mean",
+                    "SolverTime(s)_median",
                     "SolverTime(s)_stdev",
-                    "LoopTime(s)_mean",
+                    "LoopTime(s)_median",
                     "LoopTime(s)_stdev",
-                    "PathsExplored_mean",
-                    "SolverCounter_mean",
-                    "InstructionCounter_mean",
+                    "PathsExplored_median",
+                    "SolverCounter_median",
+                    "InstructionCounter_median",
                     "Specification",
                     "Incomplete",
                 ],
