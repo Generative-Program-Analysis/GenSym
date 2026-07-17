@@ -239,8 +239,8 @@ Frames.popFrameCaller(1);
 SymFrames.popFrameCaller(1);
 Stack.push(I32V(3));
 SymStack.push(Concrete(I32V(3), 32));
-Stack.push(I32V(10));
-SymStack.push(Concrete(I32V(10), 32));
+Stack.push(I32V(5));
+SymStack.push(Concrete(I32V(5), 32));
 {
 infoWhen("CALL", "Taking arguments from stack to call function at ", 5);
 Num x944 = Stack.pop();
@@ -301,8 +301,8 @@ Frames.popFrameCaller(2);
 SymFrames.popFrameCaller(2);
 Stack.push(I32V(3));
 SymStack.push(Concrete(I32V(3), 32));
-Stack.push(I32V(12));
-SymStack.push(Concrete(I32V(12), 32));
+Stack.push(I32V(7));
+SymStack.push(Concrete(I32V(7), 32));
 {
 infoWhen("CALL", "Taking arguments from stack to call function at ", 6);
 Num x930 = Stack.pop();
@@ -328,8 +328,8 @@ Frames.popFrameCaller(2);
 SymFrames.popFrameCaller(2);
 Stack.push(I32V(0));
 SymStack.push(Concrete(I32V(0), 32));
-Stack.push(I32V(12));
-SymStack.push(Concrete(I32V(12), 32));
+Stack.push(I32V(5));
+SymStack.push(Concrete(I32V(5), 32));
 {
 infoWhen("CALL", "Taking arguments from stack to call function at ", 5);
 Num x924 = Stack.pop();
@@ -382,8 +382,8 @@ Frames.popFrameCaller(2);
 SymFrames.popFrameCaller(2);
 Stack.push(I32V(0));
 SymStack.push(Concrete(I32V(0), 32));
-Stack.push(I32V(9));
-SymStack.push(Concrete(I32V(9), 32));
+Stack.push(I32V(4));
+SymStack.push(Concrete(I32V(4), 32));
 {
 infoWhen("CALL", "Taking arguments from stack to call function at ", 6);
 Num x912 = Stack.pop();
@@ -1831,8 +1831,8 @@ SymVal x342 = SymMemory.loadSym(x340.toInt(), 8);
 Stack.push(x341);
 SymStack.push(x342);
 }
-Stack.push(I32V(100));
-SymStack.push(Concrete(I32V(100), 32));
+Stack.push(I32V(400));
+SymStack.push(Concrete(I32V(400), 32));
 {
 Num x343 = Stack.pop();
 SymVal x344 = SymStack.pop();
@@ -2703,8 +2703,8 @@ Globals.pushFrameCaller(2);
 SymGlobals.pushFramePtr();
 SymGlobals.pushFrameSlot(32);
 SymGlobals.pushFrameSlot(32);
-Globals.set(0, I32V(66624));
-SymGlobals.set(0, Concrete(I32V(66624), 32));
+Globals.set(0, I32V(66960));
+SymGlobals.set(0, Concrete(I32V(66960), 32));
 Globals.set(1, I32V(0));
 SymGlobals.set(1, Concrete(I32V(0), 32));
 return std::monostate{};
