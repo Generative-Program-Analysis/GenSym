@@ -75,7 +75,13 @@ class TestBenchmark extends FunSuite {
       Some("./benchmarks/oopsla2026/btree/genwasym-test-artifacts")
     )
   }
-  test("compile-crafted-benchmarks") { compileDirToCpp("./benchmarks/oopsla2026/crafted/tests-normalized") }
+  test("compile-crafted-benchmarks") {
+    compileDirToCpp(
+      "./benchmarks/oopsla2026/crafted/genwasym-test-input",
+      None,
+      Some("./benchmarks/oopsla2026/crafted/genwasym-test-artifacts")
+    )
+  }
   test("compile-aws-aws-encryption-sdk") { compileDirToCpp("./benchmarks/oopsla2026/aws-encryption-sdk/tests-original-normalized/", Some("__original_main")) }
   test("compile-collection-c-benchmarks") {
     compileDirTreeToCpp(

@@ -12,6 +12,7 @@ from typing import Optional
 
 
 HERE = Path(__file__).resolve().parent
+REPO_ROOT = HERE.parents[1]
 SKIP_RC = 10
 
 
@@ -51,6 +52,11 @@ def wasp_env() -> dict[str, str]:
     env = os.environ.copy()
     opam_prefix = os.getenv("OPAM_SWITCH_PREFIX")
     candidates = []
+    # The repository's WASP binary is built with the 4.08 Z3 ABI.  Prefer
+    # that runtime even when the shell currently selects another OPAM switch.
+    home = os.getenv("HOME")
+    if home:
+        candidates += [Path(home) / ".opam" / "4.08.1" / "lib" / "z3"]
     if opam_prefix:
         opam_root = Path(opam_prefix)
         candidates += [opam_root / "lib" / "z3", opam_root / "lib"]
@@ -61,6 +67,14 @@ def wasp_env() -> dict[str, str]:
             str(z3_lib_dir) if not old else f"{z3_lib_dir}{os.pathsep}{old}"
         )
     return env
+
+
+def wasp_binary() -> str:
+    configured = os.getenv("WASP_BIN")
+    if configured:
+        return configured
+    bundled = REPO_ROOT / "third-party" / "wasp" / "wasp" / "wasp"
+    return str(bundled) if bundled.exists() else "wasp"
 
 
 def should_skip_case(path: Path, patterns: list[str]) -> bool:
@@ -143,6 +157,7 @@ def run_one(
 
     last_rc = 0
     executions = 0
+    workspace.mkdir(parents=True, exist_ok=True)
     prepare_wasp_reports(workspace)
     while True:
         completed_runs = count_wasp_reports(workspace)
@@ -167,7 +182,7 @@ def run_one(
 
         run_index = next_wasp_report_index(workspace)
         log_path = log_path_for(path, workspace_dir, run_index)
-        cmd = ["wasp", str(path)]
+        cmd = [wasp_binary(), str(path)]
         if path.suffix != ".wast":
             cmd.extend(["-e", '(invoke "__original_main")'])
         cmd.extend(

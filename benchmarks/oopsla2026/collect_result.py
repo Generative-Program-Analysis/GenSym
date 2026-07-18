@@ -44,7 +44,7 @@ def wasp_result_root(suite: str) -> Path:
     if suite == "quicksort":
         return HERE / "quicksort" / "wasp-test-output"
     if suite == "crafted":
-        return HERE / "crafted" / "wasp_crafted"
+        return HERE / "crafted" / "wasp-test-output"
     if suite == "Collection-C":
         return HERE / suite / "wasp-test-output"
     return HERE / suite / "tests-denormalized"
@@ -77,6 +77,8 @@ def read_genwasym_rows(suite: str) -> list[dict[str, object]]:
     elif suite == "quicksort":
         suite_root = HERE / "quicksort" / "genwasym-test-output"
     elif suite == "Collection-C":
+        suite_root = HERE / suite / "genwasym-test-output"
+    elif suite == "crafted":
         suite_root = HERE / suite / "genwasym-test-output"
     else:
         suite_root = HERE / suite / "tests-normalized"

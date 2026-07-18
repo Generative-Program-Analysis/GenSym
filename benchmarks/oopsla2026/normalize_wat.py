@@ -204,6 +204,26 @@ def remove_trailing_invoke(text: str) -> str:
 
 
 def wat_to_wasp_wast(text: str) -> str:
+    # Older crafted modules contain an unused console.assert declaration after
+    # the function definitions.  That ordering is accepted by GenWasym's
+    # parser but rejected by WASP's WebAssembly parser; dropping the unused
+    # declaration preserves the executable module and makes the conversion
+    # valid WAST.
+    text = re.sub(
+        r'^\s*\(import\s+"console"\s+"assert"\s+\(func\s+\(param\s+i32\)\)\)\s*\n?',
+        '',
+        text,
+        flags=re.MULTILINE,
+    )
+    # The crafted generator emits a result-valued start function.  WebAssembly
+    # requires a start function with no result, so wrap it and retain startup
+    # execution for WASP.
+    text = re.sub(
+        r'\(start\s+7\)',
+        '(func (;8;)\n    call 7\n    drop)\n  (start 8)',
+        text,
+        count=1,
+    )
     symbolic_func_idx: str | None = None
 
     def replace_symbolic_import(match: re.Match[str]) -> str:

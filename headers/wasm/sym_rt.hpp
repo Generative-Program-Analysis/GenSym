@@ -938,9 +938,13 @@ struct SnapshotNode : Node {
       // If we are not using cost model, always create snapshot
       return REUSE_SNAPSHOT;
     }
+    double re_execution_cost = cost_of_restart();
+    if (re_execution_cost < 100) {
+      // If the re-execution cost is too small, we don't need to create snapshot
+      return false;
+    }
     // find out the best way to reach the current position via our cost model
     auto snapshot_cost = snapshot.cost_of_snapshot();
-    double re_execution_cost = cost_of_restart();
     // std::cout << "Snapshot cost: " << snapshot_cost
     //           << ", re-execution cost: " << re_execution_cost << std::endl;
     if (snapshot_cost <= re_execution_cost) {
