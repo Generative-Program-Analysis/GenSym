@@ -7,6 +7,7 @@ TARGET_PATH=
 
 compile_target() {
   target=$1
+  shift
   case "$target" in
     "$SCRIPT_DIR"/bugs/*)
       GENSYM_USE_SOFT_ASSERT=0 python3 "$COMPILER" "$target" "$@"
