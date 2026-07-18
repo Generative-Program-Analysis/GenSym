@@ -14,6 +14,7 @@ extern int i32_symbolic(int value)
     __attribute__((import_module("i32"), import_name("symbolic")));
 
 int d[100];
+int s[SYM_SIZE];
 
 void _start(void);
 
@@ -36,37 +37,7 @@ static void qsort(int l, int r) {
   }
 }
 
-static void init_5_of_5_symbol_then_sort(void) {
-  for (int i = 0; i < 5; i++) {
-    d[i] = i32_symbolic(i);
-  }
-  qsort(0, 4);
-}
-
-static void init_5_of_7_symbol_then_sort(void) {
-  for (int i = 0; i < 5; i++) {
-    d[i] = i32_symbolic(i);
-  }
-  for (int i = 5; i < 7; i++) {
-    d[i] = 7 - i;
-  }
-  qsort(0, 6);
-}
-
-static void init_7_of_7_symbol_then_sort(void) {
-  for (int i = 0; i < 7; i++) {
-    d[i] = i32_symbolic(i);
-  }
-  qsort(0, 6);
-}
-
 // This will cause error
-static void init_10_of_10_symbol_then_sort(void) {
-  for (int i = 0; i < 10; i++) {
-    d[i] = i32_symbolic(i);
-  }
-  qsort(0, 9);
-}
 
 static void init_then_sort(int first, int second, int third, int size) {
   d[0] = first;
@@ -78,15 +49,12 @@ static void init_then_sort(int first, int second, int third, int size) {
   qsort(0, size - 1);
 }
 
-static void init_3_symbol_of_5_then_sort(void) {
-  init_then_sort(i32_symbolic(0), i32_symbolic(1), i32_symbolic(2), 5);
-}
 
 static void init_symbol(int start, int size) {
   int i = start;
   int j = 0;
   while (i < start + size) {
-    d[start + i] = i32_symbolic(j);
+    d[start + i] = s[j];
     i++;
     j++;
   }
@@ -112,7 +80,14 @@ static void prelude(int size) {
   prelude_aux(size);
 }
 
+static void create_symbol_table(void) {
+  for (int i = 0; i < SYM_SIZE; i++) {
+    s[i] = i32_symbolic(i);
+  }
+}
+
 static int quicksort_entry(void) {
+  create_symbol_table();
   init_symbol(0, SYM_SIZE);
   prelude(SYM_SIZE);
 
