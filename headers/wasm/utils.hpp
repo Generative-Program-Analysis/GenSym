@@ -84,6 +84,8 @@ inline bool GENSYM_SHOULD_CHECK_ALLOCATION(int32_t addr) {
 }
 
 inline void GENSYM_ASSERT_ADDR_ALLOCATED(int32_t addr, size_t width) {
+  if (!ENABLE_BUG_FINDING)
+    return;
   if (!GENSYM_SHOULD_CHECK_ALLOCATION(addr)) {
     return;
   }
@@ -91,7 +93,8 @@ inline void GENSYM_ASSERT_ADDR_ALLOCATED(int32_t addr, size_t width) {
 }
 
 inline int32_t GENSYM_ALLOC(int32_t base, int32_t size) {
-  // std::cout << "Allocating memory at address " << base << " with size " << size
+  // std::cout << "Allocating memory at address " << base << " with size " <<
+  // size
   //           << std::endl;
   GENSYM_ASSERT(base >= 0);
   GENSYM_ASSERT(size >= 0);

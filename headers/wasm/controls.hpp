@@ -8,6 +8,7 @@
 #include <iostream>
 #include <memory>
 #include <variant>
+#include "wasm/profile.hpp"
 
 class MContRepr;
 struct MCont_t {
@@ -28,6 +29,7 @@ using Cont_t = std::function<std::monostate(std::monostate)>;
 static MCont_t CURRENT_MCONT;
 
 inline std::monostate updateCurrentMCont(MCont_t newMCont) {
+  ManagedInterfaceTimer interface_timer("updateCurrentMCont");
   CURRENT_MCONT = newMCont;
   return std::monostate{};
 }
@@ -68,13 +70,21 @@ private:
 };
 
 inline MCont_t prependCont(Cont_t k, MCont_t mcont) {
+  ManagedInterfaceTimer interface_timer("prependCont");
   return std::make_shared<MContRepr>(k, mcont);
 }
 
-inline std::monostate MCont_t::enter() { return ptr->enter(); }
+inline std::monostate MCont_t::enter() {
+  ManagedInterfaceTimer interface_timer("MCont_t::enter");
+  return ptr->enter();
+}
 
 // Enter the current global MCont (CURRENT_MCONT)
 inline std::monostate enterCC(std::monostate) {
+#ifdef ENABLE_PROFILE_INTERFACE
+  const auto interface_start = std::chrono::high_resolution_clock::now();
+  Profile.interface_begin("enterCC");
+#endif
   // std::cout << "Entering MCont\n";
   // std::cout << "Cont cont: " << (cont ? "valid" : "null") << "\n";
   // std::cout << "MCont mcont: " << (mcont ? "valid" : "null") << "\n";
@@ -89,6 +99,13 @@ inline std::monostate enterCC(std::monostate) {
   }
 
   CURRENT_MCONT = CURRENT_MCONT.ptr->mcont;
+
+#ifdef ENABLE_PROFILE_INTERFACE
+  const auto interface_end = std::chrono::high_resolution_clock::now();
+  std::chrono::duration<double> interface_elapsed =
+      interface_end - interface_start;
+  Profile.interface_end("enterCC", interface_elapsed.count());
+#endif
 
   __attribute__((musttail)) return func_ptr(std::monostate{});
 }

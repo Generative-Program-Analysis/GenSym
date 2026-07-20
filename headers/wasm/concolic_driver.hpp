@@ -16,6 +16,7 @@
 #include <ostream>
 #include <stdexcept>
 #include <string>
+#include <unordered_set>
 #include <vector>
 
 class ConcolicDriver {
@@ -37,6 +38,7 @@ private:
   std::function<void()> entrypoint;
   std::optional<std::string> tree_file;
   std::vector<NodeBox *> work_list;
+  std::unordered_set<NodeBox *> queued_nodes;
   std::set<NodeBox *> visited;
 };
 
@@ -92,11 +94,11 @@ public:
 
     if (visited.find(node) != visited.end()) {
       return std::nullopt;
-    } else {
-      visited.insert(node);
-    }
+    } 
+  
+    visited.insert(node);
 
-    if (!node->isUnexplored()) {
+    if (!NodeBox::isUnexplored(*node)) {
       // if it's not unexplored anymore, skip it
       return std::nullopt;
     }
@@ -134,7 +136,7 @@ public:
       if (visited.find(node) != visited.end()) {
         continue;
       }
-      if (!node->isUnexplored()) {
+      if (NodeBox::isUnexplored(*node)) {
         // I suppose thse should not happen
         // assert(false);
         continue;
@@ -161,13 +163,13 @@ inline void ConcolicDriver::main_exploration_loop() {
 
   // Register a collector to ExploreTree to add new nodes to work_list
   ExploreTree.register_new_node_collector([&](NodeBox *new_node) {
-    if (std::find(work_list.begin(), work_list.end(), new_node) ==
-        work_list.end())
+    if (queued_nodes.insert(new_node).second)
       work_list.push_back(new_node);
   });
 
-  assert(ExploreTree.get_root()->isUnexplored() &&
+  assert(NodeBox::isUnexplored(*ExploreTree.get_root()) &&
          "Before main loop, root should be unexplored!");
+  queued_nodes.insert(ExploreTree.get_root());
   work_list.push_back(ExploreTree.get_root());
 
   PathPicker &&picker = DefaultPathPicker(work_list, visited);
@@ -254,7 +256,7 @@ inline std::vector<std::vector<SymVal>>
 ConcolicDriver::collect_all_unexplored_path_conds() {
   std::vector<std::vector<SymVal>> result;
   for (auto node : work_list) {
-    if (node->isUnexplored()) {
+    if (NodeBox::isUnexplored(*node)) {
       result.push_back(node->collect_path_conds());
     }
   }

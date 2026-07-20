@@ -10,7 +10,10 @@ struct Num {
   Num() : value(0) {}
   int64_t value;
 
-  int32_t toInt() const { return static_cast<int32_t>(value); }
+  int32_t toInt() const {
+    ManagedInterfaceTimer interface_timer("Num::toInt");
+    return static_cast<int32_t>(value);
+  }
   uint32_t toUInt() const { return static_cast<uint32_t>(value); }
   int64_t toInt64() const { return static_cast<int64_t>(value); }
   uint64_t toUInt64() const { return static_cast<uint64_t>(value); }
@@ -37,6 +40,7 @@ struct Num {
   // oprands are i32
   // i32.eq (Equals): *this == other
   inline Num i32_eq(const Num &other) const {
+    ManagedInterfaceTimer interface_timer("Num::i32_eq");
     Num res = WasmBool(this->toUInt() == other.toUInt());
     debug_print("i32.eq", *this, other, res);
     return res;
@@ -44,6 +48,7 @@ struct Num {
 
   // i32.ne (Not Equals): *this != other
   inline Num i32_ne(const Num &other) const {
+    ManagedInterfaceTimer interface_timer("Num::i32_ne");
     Num res = WasmBool(this->toUInt() != other.toUInt());
     debug_print("i32.ne", *this, other, res);
     return res;
@@ -58,6 +63,7 @@ struct Num {
 
   // i32.lt_u (Unsigned Less Than): *this < other (unsigned)
   inline Num i32_lt_u(const Num &other) const {
+    ManagedInterfaceTimer interface_timer("Num::i32_lt_u");
     Num res = WasmBool(this->toUInt() < other.toUInt());
     debug_print("i32.lt_u", *this, other, res);
     return res;
@@ -71,6 +77,7 @@ struct Num {
   }
   // i32.le_u (Unsigned Less Than or Equal): *this <= other (unsigned)
   inline Num i32_le_u(const Num &other) const {
+    ManagedInterfaceTimer interface_timer("Num::i32_le_u");
     Num res = WasmBool(this->toUInt() <= other.toUInt());
     debug_print("i32.le_u", *this, other, res);
     return res;
@@ -99,6 +106,7 @@ struct Num {
 
   // i32.ge_u (Unsigned Greater Than or Equal): *this >= other (unsigned)
   inline Num i32_ge_u(const Num &other) const {
+    ManagedInterfaceTimer interface_timer("Num::i32_ge_u");
     Num res = WasmBool(this->toUInt() >= other.toUInt());
     debug_print("i32.ge_u", *this, other, res);
     return res;
@@ -106,6 +114,7 @@ struct Num {
 
   // i32.add (Wrapping addition)
   inline Num i32_add(const Num &other) const {
+    ManagedInterfaceTimer interface_timer("Num::i32_add");
     uint32_t result_u = this->toUInt() + other.toUInt();
     Num res(static_cast<int32_t>(result_u));
     debug_print("i32.add", *this, other, res);
@@ -114,6 +123,7 @@ struct Num {
 
   // i32.sub (Wrapping subtraction)
   inline Num i32_sub(const Num &other) const {
+    ManagedInterfaceTimer interface_timer("Num::i32_sub");
     uint32_t result_u = this->toUInt() - other.toUInt();
     Num res(static_cast<int32_t>(result_u));
     debug_print("i32.sub", *this, other, res);
@@ -122,6 +132,7 @@ struct Num {
 
   // i32.mul (Wrapping multiplication)
   inline Num i32_mul(const Num &other) const {
+    ManagedInterfaceTimer interface_timer("Num::i32_mul");
     uint32_t result_u = this->toUInt() * other.toUInt();
     Num res(static_cast<int32_t>(result_u));
     debug_print("i32.mul", *this, other, res);
@@ -144,6 +155,7 @@ struct Num {
 
   // i32.div_u (Unsigned division with traps)
   inline Num i32_div_u(const Num &other) const {
+    ManagedInterfaceTimer interface_timer("Num::i32_div_u");
     uint32_t divisor = other.toUInt();
     uint32_t dividend = this->toUInt();
     if (divisor == 0) {
@@ -186,6 +198,7 @@ struct Num {
 
   // i32.shl (Shift Left): *this << other (shift count masked by 31)
   inline Num i32_shl(const Num &other) const {
+    ManagedInterfaceTimer interface_timer("Num::i32_shl");
     uint32_t shift_amount = other.toUInt() & 0x1F;
     uint32_t result_u = toUInt() << shift_amount;
     Num res(static_cast<int32_t>(result_u));
@@ -215,6 +228,7 @@ struct Num {
 
   // i32.and (Bitwise AND)
   inline Num i32_and(const Num &other) const {
+    ManagedInterfaceTimer interface_timer("Num::i32_and");
     uint32_t result_u = this->toUInt() & other.toUInt();
     Num res(static_cast<int32_t>(result_u));
     debug_print("i32.and", *this, other, res);
@@ -506,6 +520,7 @@ struct Num {
 
   // f32.mul
   inline Num f32_mul(const Num &other) const {
+    ManagedInterfaceTimer interface_timer("Num::f32_mul");
     uint32_t a_bits = toUInt();
     uint32_t b_bits = other.toUInt();
     float a = f32_from_bits(a_bits);
@@ -566,6 +581,7 @@ struct Num {
 
   // ordered comparisons: return false if any operand is NaN
   inline Num f32_lt(const Num &other) const {
+    ManagedInterfaceTimer interface_timer("Num::f32_lt");
     uint32_t a_bits = toUInt(), b_bits = other.toUInt();
     if (f32_is_nan(a_bits) || f32_is_nan(b_bits))
       return WasmBool(false);
@@ -575,6 +591,7 @@ struct Num {
     return res;
   }
   inline Num f32_le(const Num &other) const {
+    ManagedInterfaceTimer interface_timer("Num::f32_le");
     uint32_t a_bits = toUInt(), b_bits = other.toUInt();
     if (f32_is_nan(a_bits) || f32_is_nan(b_bits))
       return WasmBool(false);
@@ -593,6 +610,7 @@ struct Num {
     return res;
   }
   inline Num f32_ge(const Num &other) const {
+    ManagedInterfaceTimer interface_timer("Num::f32_ge");
     uint32_t a_bits = toUInt(), b_bits = other.toUInt();
     if (f32_is_nan(a_bits) || f32_is_nan(b_bits))
       return WasmBool(false);
@@ -626,6 +644,7 @@ struct Num {
   }
 
   inline Num convert_i32_to_f32_u() const {
+    ManagedInterfaceTimer interface_timer("Num::convert_i32_to_f32_u");
     uint32_t r_bits = f32_to_bits(static_cast<float>(toUInt()));
     return Num(static_cast<int32_t>(r_bits));
   }
@@ -662,6 +681,7 @@ struct Num {
   }
 
   inline Num trunc_f32_to_i32_u() const {
+    ManagedInterfaceTimer interface_timer("Num::trunc_f32_to_i32_u");
     uint32_t bits = toUInt();
     float value = f32_from_bits(bits);
 

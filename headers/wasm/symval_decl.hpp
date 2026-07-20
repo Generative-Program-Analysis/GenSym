@@ -80,6 +80,7 @@ template <typename TValue>
 using SymValMap = std::unordered_map<SymVal, TValue, SymValHash>;
 
 template <typename... Args> inline bool allConcrete(const Args &...args) {
+  ManagedInterfaceTimer interface_timer("allConcrete");
   static_assert((std::is_same_v<Args, SymVal> && ...),
                 "all_concrete only accepts SymVal arguments");
   return (... && args.is_concrete());

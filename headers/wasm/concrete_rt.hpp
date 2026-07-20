@@ -31,6 +31,7 @@ public:
   }
 
   std::monostate push(Num &&num) {
+    ManagedInterfaceTimer interface_timer("Stack_t::push");
 #ifdef DEBUG
     printf("[Debug] pushing a value %ld to stack, size of concrete stack is: "
            "%d\n",
@@ -43,6 +44,7 @@ public:
   }
 
   std::monostate push(Num &num) {
+    ManagedInterfaceTimer interface_timer("Stack_t::push");
     Profile.step(StepProfileKind::PUSH);
     stack_ptr[count] = num;
     count++;
@@ -50,6 +52,7 @@ public:
   }
 
   Num pop() {
+    ManagedInterfaceTimer interface_timer("Stack_t::pop");
     Profile.step(StepProfileKind::POP);
     if (count <= 0) {
       assert(false);
@@ -66,6 +69,7 @@ public:
   }
 
   Num peek() {
+    ManagedInterfaceTimer interface_timer("Stack_t::peek");
     Profile.step(StepProfileKind::PEEK);
 #ifdef DEBUG
     if (count == 0) {
@@ -75,7 +79,10 @@ public:
     return stack_ptr[count - 1];
   }
 
-  int32_t size() { return count; }
+  int32_t size() {
+    ManagedInterfaceTimer interface_timer("Stack_t::size");
+    return count;
+  }
 
   void shift(int32_t offset, int32_t size) {
     Profile.step(StepProfileKind::SHIFT);
@@ -142,6 +149,7 @@ public:
   }
 
   std::monostate popFrameCaller(std::int32_t size) {
+    ManagedInterfaceTimer interface_timer("Frames_t::popFrameCaller");
     assert(size >= 0);
     assert(size <= count);
     assert(!frame_ptrs.empty());
@@ -157,6 +165,7 @@ public:
   }
 
   std::monostate popFrameCallee(std::int32_t size) {
+    ManagedInterfaceTimer interface_timer("Frames_t::popFrameCallee");
     assert(size >= 0);
     assert(size <= count);
     count -= size;
@@ -164,6 +173,7 @@ public:
   }
 
   Num get(std::int32_t index) {
+    ManagedInterfaceTimer interface_timer("Frames_t::get");
     assert(!frame_ptrs.empty() && "No active frame");
     auto frame_base = current_frame_base();
     assert(index >= 0 && frame_base + index < count && "Index out of bounds");
@@ -173,6 +183,7 @@ public:
   }
 
   void set(std::int32_t index, Num num) {
+    ManagedInterfaceTimer interface_timer("Frames_t::set");
     assert(!frame_ptrs.empty() && "No active frame");
     auto frame_base = current_frame_base();
     assert(index >= 0 && frame_base + index < count && "Index out of bounds");
@@ -181,6 +192,7 @@ public:
   }
 
   void pushFrameCaller(std::int32_t size) {
+    ManagedInterfaceTimer interface_timer("Frames_t::pushFrameCaller");
     assert(size >= 0);
     frame_ptrs.push_back(count);
     count += size;
@@ -191,6 +203,7 @@ public:
   }
 
   void pushFrameCallee(std::int32_t size) {
+    ManagedInterfaceTimer interface_timer("Frames_t::pushFrameCallee");
     assert(size >= 0);
     assert(!frame_ptrs.empty() && "No active frame");
     auto old_count = count;
@@ -272,6 +285,7 @@ struct Memory_t {
   }
 
   int32_t loadInt(int32_t base, int32_t offset) {
+    ManagedInterfaceTimer interface_timer("Memory_t::loadInt");
     int32_t addr = base + offset;
     assert_valid_range(addr, 4);
     int32_t result = 0;
@@ -289,12 +303,14 @@ struct Memory_t {
   }
 
   uint8_t loadByte(int32_t base, int32_t offset) {
+    ManagedInterfaceTimer interface_timer("Memory_t::loadByte");
     int32_t addr = base + offset;
     assert_valid_range(addr, 1);
     return memory[addr];
   }
 
   int32_t loadInt8U(int32_t base, int32_t offset) {
+    ManagedInterfaceTimer interface_timer("Memory_t::loadInt8U");
     return static_cast<uint32_t>(loadByte(base, offset));
   }
 
@@ -365,6 +381,7 @@ struct Memory_t {
   }
 
   std::monostate storeInt(int32_t base, int32_t offset, int32_t value) {
+    ManagedInterfaceTimer interface_timer("Memory_t::storeInt");
     int32_t addr = base + offset;
     assert_valid_range(addr, 4);
     for (int i = 0; i < 4; ++i) {
@@ -388,6 +405,7 @@ struct Memory_t {
   }
 
   std::monostate storeInt8(int32_t base, int32_t offset, int32_t value) {
+    ManagedInterfaceTimer interface_timer("Memory_t::storeInt8");
     return store_byte(base + offset, static_cast<uint8_t>(value & 0xFF));
   }
 
@@ -416,6 +434,7 @@ struct Memory_t {
   }
 
   std::monostate store_byte(int32_t addr, uint8_t value) {
+    ManagedInterfaceTimer interface_timer("Memory_t::store_byte");
 #ifdef DEBUG
     std::cout << "[Debug] storing byte " << std::to_string(value)
               << " to memory at address " << addr << std::endl;
@@ -471,6 +490,7 @@ struct FuncTable_t {
   std::vector<Func_t> table;
 
   Func_t read(int32_t index) {
+    ManagedInterfaceTimer interface_timer("FuncTable_t::read");
     auto offset = index - start_index.value();
     if (offset < 0 || offset >= table.size()) {
       throw std::runtime_error("Function table read out of bounds: " +

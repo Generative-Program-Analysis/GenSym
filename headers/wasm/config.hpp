@@ -99,4 +99,11 @@ static const bool SOFT_ASSERT = true;
 static const bool SOFT_ASSERT = false;
 #endif
 
+#ifdef BUG_FINDING
+static const bool ENABLE_BUG_FINDING = true;
+#else
+static const bool ENABLE_BUG_FINDING = false;
+#endif
+
+
 #endif // CONFIG_HPP
