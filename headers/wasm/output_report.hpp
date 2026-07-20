@@ -40,7 +40,7 @@ inline void dump_all_summary_json(const Profile_t &profile,
   ofs << "  \"not_to_explore_count\": " << overall.not_to_explore_count
       << ",\n";
   ofs << "  \"unreachable_count\": " << overall.unreachable_count;
-  if (PROFILE_STEP || PROFILE_TIME || PROFILE_SNAPSHOT) {
+  if (PROFILE_STEP || PROFILE_TIME || PROFILE_SNAPSHOT || PROFILE_INTERFACE) {
     ofs << ",\n";
     profile.write_as_json(ofs);
   }

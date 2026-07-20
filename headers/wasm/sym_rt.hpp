@@ -40,11 +40,13 @@ class Snapshot_t;
 class SymStack_t {
 public:
   void push(SymVal val) {
+    ManagedInterfaceTimer interface_timer("SymStack_t::push");
     // Push a symbolic value to the stack
     stack.push_back(val);
   }
 
   SymVal pop() {
+    ManagedInterfaceTimer interface_timer("SymStack_t::pop");
     // Pop a symbolic value from the stack
 #ifdef DEBUG
     printf("[Debug] poping from stack, size of symbolic stack is: %zu\n",
@@ -61,9 +63,13 @@ public:
 #endif
   }
 
-  SymVal peek() { return *(stack.end() - 1); }
+  SymVal peek() {
+    ManagedInterfaceTimer interface_timer("SymStack_t::peek");
+    return *(stack.end() - 1);
+  }
 
   std::monostate shift(int32_t offset, int32_t size) {
+    ManagedInterfaceTimer interface_timer("SymStack_t::shift");
     auto n = stack.size();
     for (size_t i = n - size; i < n; ++i) {
       assert(i - offset >= 0);
@@ -82,6 +88,7 @@ public:
   }
 
   void reset() {
+    ManagedInterfaceTimer interface_timer("SymStack_t::reset");
 // Reset the symbolic stack
 #ifdef USE_IMM
     stack = immer::vector_transient<SymVal>();
@@ -96,6 +103,7 @@ public:
   SymVal operator[](size_t index) const { return stack[index]; }
 
   int total_sym_size() const {
+    ManagedInterfaceTimer interface_timer("SymStack_t::total_sym_size");
     ManagedTimer timer(TimeProfileKind::COUNT_SYM_SIZE);
     int total_size = 0;
     for (const auto &val : stack) {
@@ -123,6 +131,7 @@ public:
   void restore_frame_ptr(Frames_t &frame) const;
 
   void pushFramePtr() {
+    ManagedInterfaceTimer interface_timer("SymFrames_t::pushFramePtr");
 #ifdef USE_IMM
     frame_ptrs.push_back(stack.size());
 #else
@@ -131,6 +140,7 @@ public:
   }
 
   void pushFrameSlot(int width) {
+    ManagedInterfaceTimer interface_timer("SymFrames_t::pushFrameSlot");
 #ifdef USE_IMM
     stack.push_back(SVFactory::make_concrete_bv(I64V(0), width));
 #else
@@ -139,6 +149,7 @@ public:
   }
 
   std::monostate popFrameCaller(int size) {
+    ManagedInterfaceTimer interface_timer("SymFrames_t::popFrameCaller");
     assert(size >= 0);
     assert(static_cast<size_t>(size) <= stack.size());
     assert(!frame_ptrs.empty());
@@ -161,6 +172,7 @@ public:
   }
 
   std::monostate popFrameCallee(int size) {
+    ManagedInterfaceTimer interface_timer("SymFrames_t::popFrameCallee");
     // Pop the frame of the given size
     assert(size >= 0);
     assert(static_cast<size_t>(size) <= stack.size());
@@ -175,6 +187,7 @@ public:
   }
 
   SymVal get(int index) {
+    ManagedInterfaceTimer interface_timer("SymFrames_t::get");
     // Get the symbolic value at the given frame index
     assert(!frame_ptrs.empty());
     auto frame_base = current_frame_base();
@@ -185,6 +198,7 @@ public:
   }
 
   void set(int index, SymVal val) {
+    ManagedInterfaceTimer interface_timer("SymFrames_t::set");
     // Set the symbolic value at the given index
     assert(val.symptr != nullptr);
     assert(!frame_ptrs.empty());
@@ -199,6 +213,7 @@ public:
   }
 
   void reset() {
+    ManagedInterfaceTimer interface_timer("SymFrames_t::reset");
     // Reset the symbolic frames
 
 #ifdef USE_IMM
@@ -216,6 +231,7 @@ public:
   SymVal operator[](size_t index) const { return stack[index]; }
 
   int total_sym_size() const {
+    ManagedInterfaceTimer interface_timer("SymFrames_t::total_sym_size");
     ManagedTimer timer(TimeProfileKind::COUNT_SYM_SIZE);
     int total_size = 0;
     for (const auto &val : stack) {
@@ -256,6 +272,7 @@ public:
   int symbolic_size = 0;
 
   SymVal loadSymByte(int32_t addr) {
+    ManagedInterfaceTimer interface_timer("SymMemory_t::loadSymByte");
 // if the address is not in the memory, it must be a zero-initialized memory
 #ifdef USE_IMM
     auto it = memory.find(addr);
@@ -273,6 +290,7 @@ public:
   }
 
   SymVal loadSym(int32_t base, int32_t offset) {
+    ManagedInterfaceTimer interface_timer("SymMemory_t::loadSym");
     // calculate the real address
 
 #ifdef USE_IMM
@@ -303,6 +321,7 @@ public:
   }
 
   SymVal loadSymLong(int32_t base, int32_t offset) {
+    ManagedInterfaceTimer interface_timer("SymMemory_t::loadSymLong");
 #ifdef USE_IMM
     int32_t addr = base + offset;
     auto it = memory.find(addr);
@@ -351,6 +370,7 @@ public:
   }
 
   SymVal loadSymFloat(int32_t base, int32_t offset) {
+    ManagedInterfaceTimer interface_timer("SymMemory_t::loadSymFloat");
     // For simplicity, we treat float as concrete value for now
     auto symbv = loadSym(base, offset);
     assert(symbv.is_concrete() && "Currently only support concrete symbolic "
@@ -364,6 +384,7 @@ public:
   }
 
   SymVal loadSymDouble(int32_t base, int32_t offset) {
+    ManagedInterfaceTimer interface_timer("SymMemory_t::loadSymDouble");
     // For simplicity, we treat double as concrete value for now
     auto symbv = loadSymLong(base, offset);
     assert(symbv.is_concrete() && "Currently only support concrete symbolic "
@@ -377,6 +398,7 @@ public:
   }
 
   SymVal loadSymInt8U(int32_t base, int32_t offset) {
+    ManagedInterfaceTimer interface_timer("SymMemory_t::loadSymInt8U");
     return SVFactory::make_smallbv(24, 0).concat(loadSymByte(base + offset));
   }
 
@@ -443,6 +465,7 @@ public:
   // Load a 4-byte symbolic value from memory
   // Store a 4-byte symbolic value to memory
   std::monostate storeSym(int32_t base, int32_t offset, SymVal value) {
+    ManagedInterfaceTimer interface_timer("SymMemory_t::storeSym");
     int32_t addr = base + offset;
     // Extract 4 bytes from that symbol
     SymVal s0 = value.extract(1, 1);
@@ -457,6 +480,7 @@ public:
   }
 
   std::monostate storeSymLong(int32_t base, int32_t offset, SymVal value) {
+    ManagedInterfaceTimer interface_timer("SymMemory_t::storeSymLong");
     int32_t addr = base + offset;
     // TODO: Can we receive a float point symbolic value here? which may produce a bug
     SymVal s0 = value.extract(1, 1);
@@ -479,6 +503,7 @@ public:
   }
 
   std::monostate storeSymInt8(int32_t base, int32_t offset, SymVal value) {
+    ManagedInterfaceTimer interface_timer("SymMemory_t::storeSymInt8");
     int32_t addr = base + offset;
     storeSymByte(addr, value.extract(1, 1));
     return std::monostate{};
@@ -526,6 +551,7 @@ public:
   }
 
   std::monostate storeSymByte(int32_t addr, SymVal value) {
+    ManagedInterfaceTimer interface_timer("SymMemory_t::storeSymByte");
     // assume the input value is 8-bit symbolic value
     bool exists;
 #ifdef USE_IMM
@@ -548,6 +574,7 @@ public:
   }
 
   std::monostate reset() {
+    ManagedInterfaceTimer interface_timer("SymMemory_t::reset");
 #ifdef USE_IMM
     memory = immer::map_transient<int, SymVal>();
 #else
@@ -557,6 +584,7 @@ public:
   }
 
   int total_sym_size() const {
+    ManagedInterfaceTimer interface_timer("SymMemory_t::total_sym_size");
     ManagedTimer timer(TimeProfileKind::COUNT_SYM_SIZE);
     int total_size = 0;
     for (const auto &[_, val] : memory) {
@@ -939,10 +967,10 @@ struct SnapshotNode : Node {
       return REUSE_SNAPSHOT;
     }
     double re_execution_cost = cost_of_restart();
-    if (re_execution_cost < 100) {
-      // If the re-execution cost is too small, we don't need to create snapshot
-      return false;
-    }
+    // if (re_execution_cost < 100) {
+    //   // If the re-execution cost is too small, we don't need to create snapshot
+    //   return false;
+    // }
     // find out the best way to reach the current position via our cost model
     auto snapshot_cost = snapshot.cost_of_snapshot();
     // std::cout << "Snapshot cost: " << snapshot_cost
@@ -1320,11 +1348,15 @@ public:
     assert(dynamic_cast<SnapshotNode *>(cursor->node.get()) != nullptr);
   }
 
-  std::monostate fillFinishedNode() { return cursor->fillFinishedNode(); }
+  std::monostate fillFinishedNode() {
+    ManagedInterfaceTimer interface_timer("ExploreTree_t::fillFinishedNode");
+    return cursor->fillFinishedNode();
+  }
 
   std::monostate fillFailedNode() { return cursor->fillFailedNode(); }
 
   std::monostate fillIfElseNode(SymVal cond, int id) {
+    ManagedInterfaceTimer interface_timer("ExploreTree_t::fillIfElseNode");
     if (cursor->fillIfElseNode(cond, id)) {
       auto if_else_node = dynamic_cast<IfElseNode *>(cursor->node.get());
       register_new_node(if_else_node->true_branch.get());
@@ -1334,6 +1366,8 @@ public:
   }
 
   std::monostate fillCallIndirectNode(SymVal cond, int id) {
+    ManagedInterfaceTimer interface_timer(
+        "ExploreTree_t::fillCallIndirectNode");
     if (cursor->fillCallIndirectNode(cond, id)) {
       auto indirect_node = dynamic_cast<CallIndirectNode *>(cursor->node.get());
       register_new_node(indirect_node->otherwise_branch.get());
@@ -1350,6 +1384,7 @@ public:
   }
 
   std::monostate moveCursor(bool branch, Control control) {
+    ManagedInterfaceTimer interface_timer("ExploreTree_t::moveCursor");
     Profile.step(StepProfileKind::CURSOR_MOVE);
     assert(cursor != nullptr);
     auto if_else_node = dynamic_cast<IfElseNode *>(cursor->node.get());
@@ -1408,6 +1443,7 @@ public:
   }
 
   std::monostate moveCursorIndirect(int branch_index) {
+    ManagedInterfaceTimer interface_timer("ExploreTree_t::moveCursorIndirect");
     // Dont use snapshot reuse for untaken branches of indirect call
     Profile.step(StepProfileKind::CURSOR_MOVE);
     assert(cursor != nullptr);

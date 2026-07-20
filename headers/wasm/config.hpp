@@ -11,6 +11,14 @@ const bool PROFILE_STEP = true;
 const bool PROFILE_STEP = false;
 #endif
 
+// If ENABLE_PROFILE_INTERFACE is defined, the symbolic runtime records the
+// number of calls and elapsed time for its public runtime interfaces.
+#ifdef ENABLE_PROFILE_INTERFACE
+const bool PROFILE_INTERFACE = true;
+#else
+const bool PROFILE_INTERFACE = false;
+#endif
+
 // If ENABLE_PROFILE_TIME defined, the compiled program will collect and print
 // the profile of time spent in main loop and constraint solving
 #ifdef ENABLE_PROFILE_TIME

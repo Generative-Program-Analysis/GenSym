@@ -6,11 +6,13 @@
 #include "z3++.h"
 #include <array>
 #include <chrono>
+#include <cstdint>
 #include <filesystem>
 #include <fstream>
 #include <iomanip>
 #include <ratio>
 #include <string>
+#include <unordered_map>
 #include <utility>
 #include <variant>
 #include <vector>
@@ -237,6 +239,17 @@ public:
               << exec_kind_count[static_cast<std::size_t>(
                      ExecutionKind::FROMSNAPSHOT)]
               << std::endl;
+    if (PROFILE_INTERFACE) {
+      std::cout << "Interface Time Profile Summary:" << std::endl;
+      for (const auto &entry : interface_profile) {
+        const auto calls = entry.second.first;
+        const auto total = entry.second.second;
+        std::cout << "  " << entry.first << ": calls=" << calls
+                  << ", total_s=" << std::setprecision(15) << total
+                  << ", average_s="
+                  << (calls == 0 ? 0.0 : total / calls) << std::endl;
+      }
+    }
   }
 
   void write_as_json(std::ostream &os) const {
@@ -338,6 +351,27 @@ public:
       }
       os << "]";
     }
+    if (PROFILE_INTERFACE) {
+      write_field_prefix("interface_profile");
+      os << "{";
+      bool first = true;
+      for (const auto &entry : interface_profile) {
+        if (!first) {
+          os << ",";
+        }
+        first = false;
+        const auto calls = entry.second.first;
+        const auto total = entry.second.second;
+        os << "\n      \"" << entry.first << "\": {\"calls\": "
+           << calls << ", \"total_s\": " << std::setprecision(15)
+           << total << ", \"average_s\": "
+           << (calls == 0 ? 0.0 : total / calls) << "}";
+      }
+      if (!first) {
+        os << "\n    ";
+      }
+      os << "}";
+    }
     if (needs_comma) {
       os << '\n';
     }
@@ -381,7 +415,22 @@ public:
     snapshot_history.emplace_back(resume_cost, restart_cost);
   }
 
+  void interface_begin(const char *name) {
+    if (PROFILE_INTERFACE) {
+      auto &entry = interface_profile[name];
+      entry.first++;
+    }
+  }
+
+  void interface_end(const char *name, double elapsed) {
+    if (PROFILE_INTERFACE) {
+      interface_profile[name].second += elapsed;
+    }
+  }
+
   std::vector<std::pair<double, double>> snapshot_history;
+  std::unordered_map<std::string, std::pair<uint64_t, double>>
+      interface_profile;
 
   int step_count;
   std::array<int, static_cast<std::size_t>(StepProfileKind::OperationCount)>
@@ -422,6 +471,30 @@ private:
   TimeProfileKind kind;
   std::chrono::high_resolution_clock::time_point start;
   double *time_ref;
+};
+
+class ManagedInterfaceTimer {
+public:
+#ifdef ENABLE_PROFILE_INTERFACE
+  explicit ManagedInterfaceTimer(const char *name) : name(name) {
+    start = std::chrono::high_resolution_clock::now();
+    Profile.interface_begin(name);
+  }
+  ~ManagedInterfaceTimer() {
+    auto end = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> elapsed = end - start;
+    Profile.interface_end(name, elapsed.count());
+  }
+
+private:
+  const char *name;
+  std::chrono::high_resolution_clock::time_point start;
+#else
+  // Keep the call sites in sym_rt.hpp unchanged while compiling the complete
+  // interface-timing body out of non-profiled builds.
+  explicit ManagedInterfaceTimer(const char *) {}
+  ~ManagedInterfaceTimer() = default;
+#endif
 };
 
 using Time = std::chrono::time_point<std::chrono::steady_clock>;
