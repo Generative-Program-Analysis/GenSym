@@ -6,10 +6,11 @@ TOOL="all"
 WASP_TIMEOUT="7200"
 QUICK=0
 FULL_RUNS=5
+COMPILE=0
 
 usage() {
   cat <<'USAGE'
-Usage: benchmarks/oopsla2026/run_btree.sh [--quick] [--case CASE] [--tool all|genwasym|wasp] [--timeout SECONDS]
+Usage: benchmarks/oopsla2026/run_btree.sh [--quick] [--compile] [--case CASE] [--tool all|genwasym|wasp] [--timeout SECONDS]
 
 Runs the btree benchmark:
   genwasym: generate C++ from genwasym-test-input/*.wat, compile/run genwasym-test-artifacts/*.wat.cpp, and store reports in genwasym-test-output
@@ -36,6 +37,10 @@ while [ "$#" -gt 0 ]; do
       ;;
     --quick)
       QUICK=1
+      shift
+      ;;
+    --compile)
+      COMPILE=1
       shift
       ;;
     -h|--help)
@@ -73,19 +78,28 @@ run_genwasym() {
 
     if [ -f "$cpp" ]; then
       log "Skipping C++ generation; already exists: $cpp"
-    else
+    elif [ "$COMPILE" -eq 1 ]; then
       log "Generating C++ from $wat"
       INPUT="$wat" OUTPUT_DIR="$BTREE_CPP_DIR" MAIN=main sbt "testOnly genwasym.TestBenchmark -- -z compile-a-single-file"
+    else
+      echo "Missing generated C++ file: $cpp (use --compile to generate it)" >&2
+      exit 1
     fi
-    log "Compiling generated C++: $cpp"
-    python3 benchmarks/oopsla2026/compile.py --skip-newer "$cpp"
+    if [ "$COMPILE" -eq 1 ]; then
+      log "Compiling generated C++: $cpp"
+      python3 benchmarks/oopsla2026/compile.py --skip-newer "$cpp"
+    fi
     log "Cleaning previous executable outputs for $CASE"
     python3 benchmarks/oopsla2026/run_exe.py btree/genwasym-test-artifacts --run-all --case "$CASE.wat" --clean
     log "Running generated executables for $CASE"
     python3 benchmarks/oopsla2026/run_exe.py btree/genwasym-test-artifacts --run-all --case "$CASE.wat"
   else
-    log "Compiling all generated btree C++ files"
-    python3 benchmarks/oopsla2026/compile.py --skip-newer benchmarks/oopsla2026/btree/genwasym-test-artifacts
+    if [ "$COMPILE" -eq 1 ]; then
+      log "Compiling all generated btree C++ files"
+      python3 benchmarks/oopsla2026/compile.py --skip-newer benchmarks/oopsla2026/btree/genwasym-test-artifacts
+    else
+      log "Using prebuilt btree executables"
+    fi
     log "Running all generated btree executables ${FULL_RUNS} times"
     python3 benchmarks/oopsla2026/run_exe.py btree/genwasym-test-artifacts --run-all --runs "$FULL_RUNS"
   fi

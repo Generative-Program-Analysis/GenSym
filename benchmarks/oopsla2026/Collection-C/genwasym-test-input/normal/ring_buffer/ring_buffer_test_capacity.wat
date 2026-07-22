@@ -14,14 +14,14 @@
   (import "mem" "free" (func (;6;) (type 1)))
   (func (;7;) (type 2)
     i32.const 1052
-    call 13
+    call 14
     drop)
   (func (;8;) (type 2)
     i32.const 0
     i32.load offset=1052
-    call 16)
+    call 17)
   (func (;9;) (type 3) (result i32)
-    (local i32 i32)
+    (local i32 i32 i32)
     global.get 0
     i32.const 160
     i32.sub
@@ -32,7 +32,7 @@
     i32.store offset=156
     call 7
     local.get 0
-    i32.const 1046
+    i32.const 1024
     call 0
     i32.store offset=108
     local.get 0
@@ -43,7 +43,7 @@
     i32.const 0
     i32.store8 offset=107
     local.get 0
-    i32.const 1044
+    i32.const 1026
     call 0
     i32.store offset=100
     local.get 0
@@ -54,7 +54,7 @@
     i32.const 0
     i32.store8 offset=99
     local.get 0
-    i32.const 1042
+    i32.const 1028
     call 0
     i32.store offset=92
     local.get 0
@@ -65,7 +65,7 @@
     i32.const 0
     i32.store8 offset=91
     local.get 0
-    i32.const 1040
+    i32.const 1030
     call 0
     i32.store offset=84
     local.get 0
@@ -76,7 +76,7 @@
     i32.const 0
     i32.store8 offset=83
     local.get 0
-    i32.const 1038
+    i32.const 1032
     call 0
     i32.store offset=76
     local.get 0
@@ -87,7 +87,7 @@
     i32.const 0
     i32.store8 offset=75
     local.get 0
-    i32.const 1036
+    i32.const 1034
     call 0
     i32.store offset=68
     local.get 0
@@ -98,7 +98,7 @@
     i32.const 0
     i32.store8 offset=67
     local.get 0
-    i32.const 1034
+    i32.const 1036
     call 0
     i32.store offset=60
     local.get 0
@@ -109,7 +109,7 @@
     i32.const 0
     i32.store8 offset=59
     local.get 0
-    i32.const 1032
+    i32.const 1038
     call 0
     i32.store offset=52
     local.get 0
@@ -120,7 +120,7 @@
     i32.const 0
     i32.store8 offset=51
     local.get 0
-    i32.const 1030
+    i32.const 1040
     call 0
     i32.store offset=44
     local.get 0
@@ -131,7 +131,7 @@
     i32.const 0
     i32.store8 offset=43
     local.get 0
-    i32.const 1028
+    i32.const 1042
     call 0
     i32.store offset=36
     local.get 0
@@ -145,52 +145,52 @@
     i32.load offset=1052
     local.get 0
     i32.load offset=108
-    call 18
+    call 19
     i32.const 0
     i32.load offset=1052
     local.get 0
     i32.load offset=100
-    call 18
+    call 19
     i32.const 0
     i32.load offset=1052
     local.get 0
     i32.load offset=92
-    call 18
+    call 19
     i32.const 0
     i32.load offset=1052
     local.get 0
     i32.load offset=84
-    call 18
+    call 19
     i32.const 0
     i32.load offset=1052
     local.get 0
     i32.load offset=76
-    call 18
+    call 19
     i32.const 0
     i32.load offset=1052
     local.get 0
     i32.load offset=68
-    call 18
+    call 19
     i32.const 0
     i32.load offset=1052
     local.get 0
     i32.load offset=60
-    call 18
+    call 19
     i32.const 0
     i32.load offset=1052
     local.get 0
     i32.load offset=52
-    call 18
+    call 19
     i32.const 0
     i32.load offset=1052
     local.get 0
     i32.load offset=44
-    call 18
+    call 19
     i32.const 0
     i32.load offset=1052
     local.get 0
     i32.load offset=36
-    call 18
+    call 19
     local.get 0
     i32.const 112
     i32.add
@@ -262,7 +262,7 @@
     i32.const 0
     i32.load offset=1052
     i32.const 0
-    call 20
+    call 21
     i32.eq
     i32.const 1
     i32.and
@@ -272,13 +272,13 @@
     i32.const 0
     i32.load offset=1052
     i32.const 1
-    call 20
+    call 21
     i32.eq
     i32.const 1
     i32.and
     call 2
     local.get 0
-    i32.const 1026
+    i32.const 1044
     call 0
     i32.store offset=28
     local.get 0
@@ -289,7 +289,7 @@
     i32.const 0
     i32.store8 offset=27
     local.get 0
-    i32.const 1024
+    i32.const 1046
     call 0
     i32.store offset=20
     local.get 0
@@ -304,20 +304,20 @@
     local.get 0
     i32.const 26
     i32.add
-    call 18
+    local.tee 1
+    call 19
     i32.const 0
     i32.load offset=1052
     local.get 0
     i32.const 18
     i32.add
-    call 18
+    local.tee 2
+    call 19
     i32.const 0
     i32.load offset=1052
     i32.const 0
-    call 20
-    local.get 0
-    i32.const 26
-    i32.add
+    call 21
+    local.get 1
     i32.eq
     i32.const 1
     i32.and
@@ -325,10 +325,8 @@
     i32.const 0
     i32.load offset=1052
     i32.const 1
-    call 20
-    local.get 0
-    i32.const 18
-    i32.add
+    call 21
+    local.get 2
     i32.eq
     i32.const 1
     i32.and
@@ -338,7 +336,7 @@
     local.get 0
     i32.const 12
     i32.add
-    call 19
+    call 20
     drop
     local.get 0
     i32.load offset=120
@@ -349,12 +347,1280 @@
     i32.and
     call 2
     call 8
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
+    call 10
     local.get 0
     i32.const 160
     i32.add
     global.set 0
     i32.const 0)
-  (func (;10;) (type 4) (param i32) (result i32)
+  (func (;10;) (type 2)
+    (local i32 i32)
+    global.get 0
+    i32.const 160
+    i32.sub
+    local.tee 0
+    global.set 0
+    call 7
+    local.get 0
+    i32.const 1
+    i32.store offset=108
+    local.get 0
+    local.get 0
+    i32.load offset=108
+    i32.store8 offset=106
+    local.get 0
+    i32.const 0
+    i32.store8 offset=107
+    local.get 0
+    i32.const 2
+    i32.store offset=100
+    local.get 0
+    local.get 0
+    i32.load offset=100
+    i32.store8 offset=98
+    local.get 0
+    i32.const 0
+    i32.store8 offset=99
+    local.get 0
+    i32.const 3
+    i32.store offset=92
+    local.get 0
+    local.get 0
+    i32.load offset=92
+    i32.store8 offset=90
+    local.get 0
+    i32.const 0
+    i32.store8 offset=91
+    local.get 0
+    i32.const 4
+    i32.store offset=84
+    local.get 0
+    local.get 0
+    i32.load offset=84
+    i32.store8 offset=82
+    local.get 0
+    i32.const 0
+    i32.store8 offset=83
+    local.get 0
+    i32.const 5
+    i32.store offset=76
+    local.get 0
+    local.get 0
+    i32.load offset=76
+    i32.store8 offset=74
+    local.get 0
+    i32.const 0
+    i32.store8 offset=75
+    local.get 0
+    i32.const 6
+    i32.store offset=68
+    local.get 0
+    local.get 0
+    i32.load offset=68
+    i32.store8 offset=66
+    local.get 0
+    i32.const 0
+    i32.store8 offset=67
+    local.get 0
+    i32.const 7
+    i32.store offset=60
+    local.get 0
+    local.get 0
+    i32.load offset=60
+    i32.store8 offset=58
+    local.get 0
+    i32.const 0
+    i32.store8 offset=59
+    local.get 0
+    i32.const 8
+    i32.store offset=52
+    local.get 0
+    local.get 0
+    i32.load offset=52
+    i32.store8 offset=50
+    local.get 0
+    i32.const 0
+    i32.store8 offset=51
+    local.get 0
+    i32.const 9
+    i32.store offset=44
+    local.get 0
+    local.get 0
+    i32.load offset=44
+    i32.store8 offset=42
+    local.get 0
+    i32.const 0
+    i32.store8 offset=43
+    local.get 0
+    i32.const 10
+    i32.store offset=36
+    local.get 0
+    local.get 0
+    i32.load offset=36
+    i32.store8 offset=34
+    local.get 0
+    i32.const 0
+    i32.store8 offset=35
+    i32.const 0
+    i32.load offset=1052
+    local.get 0
+    i32.load offset=108
+    call 19
+    i32.const 0
+    i32.load offset=1052
+    local.get 0
+    i32.load offset=100
+    call 19
+    i32.const 0
+    i32.load offset=1052
+    local.get 0
+    i32.load offset=92
+    call 19
+    i32.const 0
+    i32.load offset=1052
+    local.get 0
+    i32.load offset=84
+    call 19
+    i32.const 0
+    i32.load offset=1052
+    local.get 0
+    i32.load offset=76
+    call 19
+    i32.const 0
+    i32.load offset=1052
+    local.get 0
+    i32.load offset=68
+    call 19
+    i32.const 0
+    i32.load offset=1052
+    local.get 0
+    i32.load offset=60
+    call 19
+    i32.const 0
+    i32.load offset=1052
+    local.get 0
+    i32.load offset=52
+    call 19
+    i32.const 0
+    i32.load offset=1052
+    local.get 0
+    i32.load offset=44
+    call 19
+    i32.const 0
+    i32.load offset=1052
+    local.get 0
+    i32.load offset=36
+    call 19
+    local.get 0
+    i32.const 112
+    i32.add
+    local.tee 1
+    i64.const 0
+    i64.store
+    local.get 1
+    i32.const 32
+    i32.add
+    i64.const 0
+    i64.store
+    local.get 1
+    i32.const 24
+    i32.add
+    i64.const 0
+    i64.store
+    local.get 1
+    i32.const 16
+    i32.add
+    i64.const 0
+    i64.store
+    local.get 1
+    i32.const 8
+    i32.add
+    i64.const 0
+    i64.store
+    local.get 0
+    local.get 0
+    i32.load offset=108
+    i32.store offset=112
+    local.get 0
+    local.get 0
+    i32.load offset=100
+    i32.store offset=116
+    local.get 0
+    local.get 0
+    i32.load offset=92
+    i32.store offset=120
+    local.get 0
+    local.get 0
+    i32.load offset=84
+    i32.store offset=124
+    local.get 0
+    local.get 0
+    i32.load offset=76
+    i32.store offset=128
+    local.get 0
+    local.get 0
+    i32.load offset=68
+    i32.store offset=132
+    local.get 0
+    local.get 0
+    i32.load offset=60
+    i32.store offset=136
+    local.get 0
+    local.get 0
+    i32.load offset=52
+    i32.store offset=140
+    local.get 0
+    local.get 0
+    i32.load offset=44
+    i32.store offset=144
+    local.get 0
+    local.get 0
+    i32.load offset=36
+    i32.store offset=148
+    local.get 0
+    i32.const 11
+    i32.store offset=28
+    local.get 0
+    local.get 0
+    i32.load offset=28
+    i32.store8 offset=26
+    local.get 0
+    i32.const 0
+    i32.store8 offset=27
+    local.get 0
+    i32.const 12
+    i32.store offset=20
+    local.get 0
+    local.get 0
+    i32.load offset=20
+    i32.store8 offset=18
+    local.get 0
+    i32.const 0
+    i32.store8 offset=19
+    i32.const 0
+    i32.load offset=1052
+    local.get 0
+    i32.const 26
+    i32.add
+    call 19
+    i32.const 0
+    i32.load offset=1052
+    local.get 0
+    i32.const 18
+    i32.add
+    call 19
+    i32.const 0
+    i32.load offset=1052
+    local.get 0
+    i32.const 12
+    i32.add
+    call 20
+    drop
+    call 8
+    local.get 0
+    i32.const 160
+    i32.add
+    global.set 0)
+  (func (;11;) (type 4) (param i32) (result i32)
     (local i32)
     global.get 0
     i32.const 16
@@ -416,7 +1682,7 @@
     i32.add
     global.set 0
     local.get 0)
-  (func (;11;) (type 0) (param i32 i32) (result i32)
+  (func (;12;) (type 0) (param i32 i32) (result i32)
     (local i32)
     global.get 0
     i32.const 16
@@ -490,7 +1756,7 @@
     i32.add
     global.set 0
     local.get 1)
-  (func (;12;) (type 1) (param i32)
+  (func (;13;) (type 1) (param i32)
     (local i32)
     global.get 0
     i32.const 16
@@ -507,7 +1773,7 @@
     i32.const 16
     i32.add
     global.set 0)
-  (func (;13;) (type 4) (param i32) (result i32)
+  (func (;14;) (type 4) (param i32) (result i32)
     (local i32)
     global.get 0
     i32.const 32
@@ -520,20 +1786,19 @@
     local.get 1
     i32.const 8
     i32.add
-    call 14
-    local.get 1
-    i32.const 8
-    i32.add
+    local.tee 0
+    call 15
+    local.get 0
     local.get 1
     i32.load offset=28
-    call 15
+    call 16
     local.set 0
     local.get 1
     i32.const 32
     i32.add
     global.set 0
     local.get 0)
-  (func (;14;) (type 1) (param i32)
+  (func (;15;) (type 1) (param i32)
     (local i32)
     global.get 0
     i32.const 16
@@ -557,7 +1822,7 @@
     i32.load offset=12
     i32.const 3
     i32.store offset=12)
-  (func (;15;) (type 0) (param i32 i32) (result i32)
+  (func (;16;) (type 0) (param i32 i32) (result i32)
     (local i32)
     global.get 0
     i32.const 16
@@ -676,7 +1941,7 @@
     i32.add
     global.set 0
     local.get 1)
-  (func (;16;) (type 1) (param i32)
+  (func (;17;) (type 1) (param i32)
     (local i32)
     global.get 0
     i32.const 16
@@ -703,7 +1968,7 @@
     i32.const 16
     i32.add
     global.set 0)
-  (func (;17;) (type 4) (param i32) (result i32)
+  (func (;18;) (type 4) (param i32) (result i32)
     (local i32)
     global.get 0
     i32.const 16
@@ -718,7 +1983,7 @@
     i32.eq
     i32.const 1
     i32.and)
-  (func (;18;) (type 5) (param i32 i32)
+  (func (;19;) (type 5) (param i32 i32)
     (local i32)
     global.get 0
     i32.const 16
@@ -799,7 +2064,7 @@
       i32.add
       i32.store
     end)
-  (func (;19;) (type 0) (param i32 i32) (result i32)
+  (func (;20;) (type 0) (param i32 i32) (result i32)
     (local i32)
     global.get 0
     i32.const 16
@@ -816,7 +2081,7 @@
       block  ;; label = @2
         local.get 2
         i32.load offset=8
-        call 17
+        call 18
         i32.eqz
         br_if 0 (;@2;)
         local.get 2
@@ -869,7 +2134,7 @@
     i32.add
     global.set 0
     local.get 1)
-  (func (;20;) (type 0) (param i32 i32) (result i32)
+  (func (;21;) (type 0) (param i32 i32) (result i32)
     (local i32)
     global.get 0
     i32.const 16
@@ -889,13 +2154,13 @@
     i32.shl
     i32.add
     i32.load)
-  (func (;21;) (type 1) (param i32)
+  (func (;22;) (type 1) (param i32)
     global.get 0
     i32.const 16
     i32.sub
     local.get 0
     i32.store offset=12)
-  (func (;22;) (type 0) (param i32 i32) (result i32)
+  (func (;23;) (type 0) (param i32 i32) (result i32)
     (local i32)
     global.get 0
     i32.const 16
@@ -908,13 +2173,13 @@
     i32.store offset=8
     local.get 2
     i32.load offset=12)
-  (func (;23;) (type 1) (param i32)
+  (func (;24;) (type 1) (param i32)
     global.get 0
     i32.const 16
     i32.sub
     local.get 0
     i32.store offset=12)
-  (func (;24;) (type 4) (param i32) (result i32)
+  (func (;25;) (type 4) (param i32) (result i32)
     (local i32)
     global.get 0
     i32.const 16
@@ -929,6 +2194,6 @@
   (global (;0;) (mut i32) (i32.const 66592))
   (export "memory" (memory 0))
   (export "__original_main" (func 9))
-  (elem (;0;) (i32.const 1) func 10 11 12)
-  (data (;0;) (i32.const 1024) "y\00x\00j\00i\00h\00g\00f\00e\00d\00c\00b\00a\00")
+  (elem (;0;) (i32.const 1) func 11 12 13)
+  (data (;0;) (i32.const 1024) "a\00b\00c\00d\00e\00f\00g\00h\00i\00j\00x\00y\00")
   (data (;1;) (i32.const 1048) " \04\01\00"))

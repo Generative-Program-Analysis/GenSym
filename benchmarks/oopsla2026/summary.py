@@ -56,6 +56,10 @@ def mean(values: list[float]) -> float | None:
     return statistics.fmean(values) if values else None
 
 
+def geometric_mean(values: list[float]) -> float | None:
+    return statistics.geometric_mean(values) if values else None
+
+
 def fmt(value: float | None, digits: int = 2) -> str:
     if value is None:
         return "-"
@@ -70,7 +74,7 @@ def fmt_time(value: float | None) -> str:
     return f"{value:.2f}"
 
 
-def fmt_metric(row: dict[str, str], prefix: str, suffix: str = "median") -> str:
+def fmt_metric(row: dict[str, str], prefix: str, suffix: str = "average") -> str:
     return fmt_time(parse_float(row, f"{prefix}_{suffix}"))
 
 
@@ -121,14 +125,14 @@ def summarize_compilation(rows: list[dict[str, str]]) -> tuple[list[str], list[l
     ]
 
     for row in rows:
-        wasp_instr_time = parse_float(row, "WASP_InstrTime(s)_median")
-        wasp_total_time = parse_float(row, "WASP_LoopTime(s)_median")
-        genwasym_paths = parse_float(row, "GenWasym_NoConfig_PathsExplored_median")
-        wasp_paths = parse_float(row, "WASP_PathsExplored_median")
+        wasp_instr_time = parse_float(row, "WASP_InstrTime(s)_average")
+        wasp_total_time = parse_float(row, "WASP_LoopTime(s)_average")
+        genwasym_paths = parse_float(row, "GenWasym_NoConfig_PathsExplored_average")
+        wasp_paths = parse_float(row, "WASP_PathsExplored_average")
         genwasym = {
             config: (
-                parse_float(row, f"GenWasym_{config}_InstrTime(s)_median"),
-                parse_float(row, f"GenWasym_{config}_LoopTime(s)_median"),
+                parse_float(row, f"GenWasym_{config}_InstrTime(s)_average"),
+                parse_float(row, f"GenWasym_{config}_LoopTime(s)_average"),
             )
             for config in configs
         }
@@ -144,7 +148,7 @@ def summarize_compilation(rows: list[dict[str, str]]) -> tuple[list[str], list[l
 
         no_config_speedup = wasp_instr_time / genwasym["NoConfig"][0]
         snapshot_speedup = genwasym["NoConfig"][0] / genwasym["Snapshot"][0]
-        heuristic_speedup = genwasym["Snapshot"][0] / genwasym["CostModel"][0]
+        heuristic_speedup = genwasym["NoConfig"][0] / genwasym["CostModel"][0]
         speedups.append(no_config_speedup)
         if genwasym_paths is not None and wasp_paths is not None and genwasym_paths == wasp_paths:
             path_matches += 1
@@ -173,6 +177,10 @@ def summarize_compilation(rows: list[dict[str, str]]) -> tuple[list[str], list[l
     print("RQ: compilation")
     print(f"Benchmarks with both GenWasym and WASP results: {len(complete_rows)}")
     print(f"Mean WASP/GenWasym NoConfig instruction-time ratio: {fmt(mean(speedups))}x")
+    print(
+        "Geomean WASP/GenWasym NoConfig instruction-time ratio: "
+        f"{fmt(geometric_mean(speedups))}x"
+    )
     print(f"Path-count matches: {path_matches}/{len(complete_rows)}")
     print()
     print_table(headers, complete_rows)
@@ -202,9 +210,9 @@ def summarize_heuristic(rows: list[dict[str, str]]) -> tuple[list[str], list[lis
     ]
 
     for row in rows:
-        no_config = parse_float(row, "GenWasym_NoConfig_InstrTime(s)_median")
-        snapshot = parse_float(row, "GenWasym_Snapshot_InstrTime(s)_median")
-        cost_model = parse_float(row, "GenWasym_CostModel_InstrTime(s)_median")
+        no_config = parse_float(row, "GenWasym_NoConfig_InstrTime(s)_average")
+        snapshot = parse_float(row, "GenWasym_Snapshot_InstrTime(s)_average")
+        cost_model = parse_float(row, "GenWasym_CostModel_InstrTime(s)_average")
         if (
             no_config is None
             or snapshot is None
@@ -251,13 +259,22 @@ def summarize_heuristic(rows: list[dict[str, str]]) -> tuple[list[str], list[lis
         f"mean NoConfig/Snapshot ratio: {fmt(mean(snapshot_speedups))}x"
     )
     print(
+        "Geomean NoConfig/Snapshot ratio: "
+        f"{fmt(geometric_mean(snapshot_speedups))}x"
+    )
+    print(
         f"Heuristic wins: {heuristic_wins}/{len(heuristic_speedups)}; "
         f"mean Snapshot/CostModel ratio: {fmt(mean(heuristic_speedups))}x"
+    )
+    print(
+        "Geomean Snapshot/CostModel ratio: "
+        f"{fmt(geometric_mean(heuristic_speedups))}x"
     )
     print(
         f"Combined wins: {all_wins}/{len(all_speedups)}; "
         f"mean combined speedup: {fmt(mean(all_speedups))}x"
     )
+    print(f"Geomean combined speedup: {fmt(geometric_mean(all_speedups))}x")
     print()
     print_table(headers, table_rows)
     return headers, table_rows
@@ -281,24 +298,48 @@ def summarize_collection(rows: list[dict[str, str]]) -> tuple[list[str], list[li
         "heuristic": "GenWasym_CostModel",
     }
     required = [
-        f"{prefix}_InstrTime(s)_median"
+        f"{prefix}_InstrTime(s)_average"
         for prefix in configs.values()
     ]
     grouped: dict[str, list[dict[str, str]]] = {module: [] for module in module_order}
+    path_rows: list[list[str]] = []
 
     for row in rows:
         benchmark_parts = row.get("Benchmark", "").split("/")
         if len(benchmark_parts) < 2 or benchmark_parts[0] != "normal":
             continue
         module = benchmark_parts[1]
-        if module not in grouped or any(parse_float(row, key) is None for key in required):
+        if module not in grouped:
+            continue
+
+        genwasym_paths = parse_float(
+            row, "GenWasym_NoConfig_PathsExplored_average"
+        )
+        wasp_paths = parse_float(row, "WASP_PathsExplored_average")
+        path_match = (
+            genwasym_paths is not None
+            and wasp_paths is not None
+            and genwasym_paths == wasp_paths
+        )
+        path_rows.append(
+            [
+                row.get("Benchmark", ""),
+                fmt(genwasym_paths, 0),
+                fmt(wasp_paths, 0),
+                "yes" if path_match else "no" if genwasym_paths is not None and wasp_paths is not None else "-",
+            ]
+        )
+
+        if any(parse_float(row, key) is None for key in required):
             continue
         grouped[module].append(row)
 
     headers = [
         "Module",
         "n_i",
-        "n_paths",
+        "n_paths_GenWasym",
+        "n_paths_WASP",
+        "PathCountMatch",
         "T_WASP_exec(s)",
         "SD_WASP_exec(s)",
         "T_WASP_total(s)",
@@ -325,7 +366,7 @@ def summarize_collection(rows: list[dict[str, str]]) -> tuple[list[str], list[li
         metrics: dict[str, tuple[float, float, float]] = {}
         for name, prefix in configs.items():
             exec_values = [
-                parse_float(row, f"{prefix}_InstrTime(s)_median") or 0.0
+                parse_float(row, f"{prefix}_InstrTime(s)_average") or 0.0
                 for row in module_rows
             ]
             exec_stdevs = [
@@ -333,7 +374,7 @@ def summarize_collection(rows: list[dict[str, str]]) -> tuple[list[str], list[li
                 for row in module_rows
             ]
             total_values = [
-                parse_float(row, f"{prefix}_LoopTime(s)_median") or 0.0
+                parse_float(row, f"{prefix}_LoopTime(s)_average") or 0.0
                 for row in module_rows
             ]
             metrics[name] = (
@@ -346,16 +387,31 @@ def summarize_collection(rows: list[dict[str, str]]) -> tuple[list[str], list[li
         snapshot_exec = metrics["snapshot"][0]
         heuristic_exec = metrics["heuristic"][0]
         baseline_exec = metrics["WASP"][0]
-        npaths = sum(
-            parse_float(row, "GenWasym_NoConfig_PathsExplored_median") or 0.0
+        genwasym_path_values = [
+            parse_float(row, "GenWasym_NoConfig_PathsExplored_average")
             for row in module_rows
+            if parse_float(row, "GenWasym_NoConfig_PathsExplored_average") is not None
+        ]
+        wasp_path_values = [
+            parse_float(row, "WASP_PathsExplored_average")
+            for row in module_rows
+            if parse_float(row, "WASP_PathsExplored_average") is not None
+        ]
+        genwasym_paths = sum(genwasym_path_values) if genwasym_path_values else None
+        wasp_paths = sum(wasp_path_values) if wasp_path_values else None
+        path_match = (
+            genwasym_paths is not None
+            and wasp_paths is not None
+            and genwasym_paths == wasp_paths
         )
         module_name = "".join(part.capitalize() for part in module.split("_"))
         table_rows.append(
             [
                 module_name,
                 fmt(len(module_rows), 0),
-                fmt(npaths, 0),
+                fmt(genwasym_paths, 0),
+                fmt(wasp_paths, 0),
+                "yes" if path_match else "no" if genwasym_paths is not None and wasp_paths is not None else "-",
                 fmt_time(metrics["WASP"][0]),
                 fmt_time(metrics["WASP"][1]),
                 fmt_time(metrics["WASP"][2]),
@@ -375,6 +431,18 @@ def summarize_collection(rows: list[dict[str, str]]) -> tuple[list[str], list[li
         )
 
     print("RQ: Collection-C")
+    print("Path counts by benchmark")
+    print_table(
+        ["Benchmark", "GenWasymPaths", "WASPPaths", "Match"],
+        sorted(path_rows),
+    )
+    comparable = [row for row in path_rows if row[3] in {"yes", "no"}]
+    matches = sum(row[3] == "yes" for row in comparable)
+    print(f"Path-count matches: {matches}/{len(comparable)} comparable benchmarks")
+    mismatches = [row[0] for row in comparable if row[3] == "no"]
+    if mismatches:
+        print(f"Path-count mismatches: {', '.join(mismatches)}")
+    print()
     print(f"Modules reported: {len(table_rows)}")
     print()
     print_table(headers, table_rows)

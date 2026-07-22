@@ -224,6 +224,7 @@ def aggregate_rows(rows: list[dict[str, object]], suite: str) -> list[dict[str, 
             ]
             if not values:
                 continue
+            out[f"{key}_average"] = statistics.fmean(values)
             out[f"{key}_median"] = statistics.median(values)
             out[f"{key}_stdev"] = statistics.stdev(values) if len(values) > 1 else 0.0
         for key in ("Specification", "Incomplete"):
@@ -256,17 +257,24 @@ def aggregate_rows(rows: list[dict[str, object]], suite: str) -> list[dict[str, 
                 row,
                 [
                     "Runs",
+                    "InstrTime(s)_average",
                     "InstrTime(s)_median",
                     "InstrTime(s)_stdev",
+                    "SolverTime(s)_average",
                     "SolverTime(s)_median",
                     "SolverTime(s)_stdev",
+                    "ResumingTime(s)_average",
                     "ResumingTime(s)_median",
                     "ResumingTime(s)_stdev",
+                    "CostModelTime(s)_average",
                     "CostModelTime(s)_median",
                     "CostModelTime(s)_stdev",
+                    "LoopTime(s)_average",
                     "LoopTime(s)_median",
                     "LoopTime(s)_stdev",
+                    "PathsExplored_average",
                     "PathsExplored_median",
+                    "FailedCount_average",
                     "FailedCount_median",
                 ],
             )
@@ -277,14 +285,20 @@ def aggregate_rows(rows: list[dict[str, object]], suite: str) -> list[dict[str, 
                 row,
                 [
                     "Runs",
+                    "InstrTime(s)_average",
                     "InstrTime(s)_median",
                     "InstrTime(s)_stdev",
+                    "SolverTime(s)_average",
                     "SolverTime(s)_median",
                     "SolverTime(s)_stdev",
+                    "LoopTime(s)_average",
                     "LoopTime(s)_median",
                     "LoopTime(s)_stdev",
+                    "PathsExplored_average",
                     "PathsExplored_median",
+                    "SolverCounter_average",
                     "SolverCounter_median",
+                    "InstructionCounter_average",
                     "InstructionCounter_median",
                     "Specification",
                     "Incomplete",

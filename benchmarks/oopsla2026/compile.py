@@ -14,6 +14,7 @@ BASE_FLAGS = [
     "-std=c++17",
     "-g",
     "-O3",
+    "-DNDEBUG",
     "-DUSE_IMM",
     "-DENABLE_PROFILE_TIME",
     "-DNO_INFO",

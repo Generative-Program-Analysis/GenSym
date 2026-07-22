@@ -3,8 +3,9 @@
   (type (;1;) (func (param i32)))
   (type (;2;) (func (param i32) (result i32)))
   (type (;3;) (func (result i32)))
-  (type (;4;) (func (param i32 i32)))
-  (type (;5;) (func (param i32 i32 i32) (result i32)))
+  (type (;4;) (func))
+  (type (;5;) (func (param i32 i32)))
+  (type (;6;) (func (param i32 i32 i32) (result i32)))
   (import "i32" "symbolic" (func (;0;) (type 2)))
   (import "i32" "sym_assume" (func (;1;) (type 1)))
   (import "i32" "sym_assert" (func (;2;) (type 1)))
@@ -19,31 +20,31 @@
     i32.sub
     local.tee 0
     global.set 0
+    i32.const 0
+    local.set 1
     local.get 0
     i32.const 0
     i32.store offset=60
     i32.const 1
     i32.const 1036
-    call 12
+    call 10
     drop
-    local.get 0
-    i32.const 1030
-    call 0
-    i32.store offset=56
-    local.get 0
-    i32.const 1028
-    call 0
-    i32.store offset=52
-    local.get 0
-    i32.const 1026
-    call 0
-    i32.store offset=48
     local.get 0
     i32.const 1024
     call 0
+    i32.store offset=56
+    local.get 0
+    i32.const 1026
+    call 0
+    i32.store offset=52
+    local.get 0
+    i32.const 1028
+    call 0
+    i32.store offset=48
+    local.get 0
+    i32.const 1030
+    call 0
     i32.store offset=44
-    i32.const 0
-    local.set 1
     block  ;; label = @1
       local.get 0
       i32.load offset=56
@@ -81,28 +82,28 @@
     local.get 0
     i32.const 56
     i32.add
-    call 14
+    call 12
     drop
     i32.const 0
     i32.load offset=1036
     local.get 0
     i32.const 52
     i32.add
-    call 14
+    call 12
     drop
     i32.const 0
     i32.load offset=1036
     local.get 0
     i32.const 48
     i32.add
-    call 14
+    call 12
     drop
     i32.const 0
     i32.load offset=1036
     local.get 0
     i32.const 44
     i32.add
-    call 14
+    call 12
     drop
     local.get 0
     i32.const 0
@@ -121,7 +122,7 @@
     i32.add
     i32.const 0
     i32.load offset=1036
-    call 15
+    call 13
     block  ;; label = @1
       loop  ;; label = @2
         local.get 0
@@ -130,7 +131,7 @@
         local.get 0
         i32.const 12
         i32.add
-        call 16
+        call 14
         i32.const 9
         i32.ne
         i32.const 1
@@ -240,6 +241,1006 @@
     i32.const 1
     i32.and
     call 2
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
+    call 8
     local.get 0
     i32.load offset=60
     local.set 1
@@ -248,7 +1249,453 @@
     i32.add
     global.set 0
     local.get 1)
-  (func (;8;) (type 2) (param i32) (result i32)
+  (func (;8;) (type 4)
+    (local i32 i32)
+    global.get 0
+    i32.const 64
+    i32.sub
+    local.tee 0
+    global.set 0
+    i32.const 0
+    local.set 1
+    i32.const 1
+    i32.const 1036
+    call 10
+    drop
+    local.get 0
+    i32.const 1
+    i32.store offset=60
+    local.get 0
+    i32.const 2
+    i32.store offset=56
+    local.get 0
+    i32.const 3
+    i32.store offset=52
+    local.get 0
+    i32.const 4
+    i32.store offset=48
+    block  ;; label = @1
+      local.get 0
+      i32.load offset=60
+      local.get 0
+      i32.load offset=56
+      i32.lt_s
+      i32.const 1
+      i32.and
+      i32.eqz
+      br_if 0 (;@1;)
+      i32.const 0
+      local.set 1
+      local.get 0
+      i32.load offset=56
+      local.get 0
+      i32.load offset=52
+      i32.lt_s
+      i32.const 1
+      i32.and
+      i32.eqz
+      br_if 0 (;@1;)
+      local.get 0
+      i32.load offset=52
+      local.get 0
+      i32.load offset=48
+      i32.lt_s
+      local.set 1
+    end
+    local.get 1
+    i32.const 1
+    i32.and
+    call 1
+    i32.const 0
+    i32.load offset=1036
+    local.get 0
+    i32.const 60
+    i32.add
+    call 12
+    drop
+    i32.const 0
+    i32.load offset=1036
+    local.get 0
+    i32.const 56
+    i32.add
+    call 12
+    drop
+    i32.const 0
+    i32.load offset=1036
+    local.get 0
+    i32.const 52
+    i32.add
+    call 12
+    drop
+    i32.const 0
+    i32.load offset=1036
+    local.get 0
+    i32.const 48
+    i32.add
+    call 12
+    drop
+    local.get 0
+    i32.const 0
+    i32.store offset=44
+    local.get 0
+    i32.const 0
+    i32.store offset=40
+    local.get 0
+    i32.const 0
+    i32.store offset=36
+    local.get 0
+    i32.const 0
+    i32.store offset=32
+    local.get 0
+    i32.const 16
+    i32.add
+    i32.const 0
+    i32.load offset=1036
+    call 13
+    block  ;; label = @1
+      loop  ;; label = @2
+        local.get 0
+        i32.const 16
+        i32.add
+        local.get 0
+        i32.const 12
+        i32.add
+        call 14
+        i32.const 9
+        i32.ne
+        i32.const 1
+        i32.and
+        i32.eqz
+        br_if 1 (;@1;)
+        block  ;; label = @3
+          local.get 0
+          i32.load offset=12
+          i32.load
+          local.get 0
+          i32.load offset=60
+          i32.eq
+          i32.const 1
+          i32.and
+          i32.eqz
+          br_if 0 (;@3;)
+          local.get 0
+          local.get 0
+          i32.load offset=44
+          i32.const 1
+          i32.add
+          i32.store offset=44
+        end
+        block  ;; label = @3
+          local.get 0
+          i32.load offset=12
+          i32.load
+          local.get 0
+          i32.load offset=56
+          i32.eq
+          i32.const 1
+          i32.and
+          i32.eqz
+          br_if 0 (;@3;)
+          local.get 0
+          local.get 0
+          i32.load offset=40
+          i32.const 1
+          i32.add
+          i32.store offset=40
+        end
+        block  ;; label = @3
+          local.get 0
+          i32.load offset=12
+          i32.load
+          local.get 0
+          i32.load offset=52
+          i32.eq
+          i32.const 1
+          i32.and
+          i32.eqz
+          br_if 0 (;@3;)
+          local.get 0
+          local.get 0
+          i32.load offset=36
+          i32.const 1
+          i32.add
+          i32.store offset=36
+        end
+        block  ;; label = @3
+          local.get 0
+          i32.load offset=12
+          i32.load
+          local.get 0
+          i32.load offset=48
+          i32.eq
+          i32.const 1
+          i32.and
+          i32.eqz
+          br_if 0 (;@3;)
+          local.get 0
+          local.get 0
+          i32.load offset=32
+          i32.const 1
+          i32.add
+          i32.store offset=32
+        end
+        br 0 (;@2;)
+      end
+    end
+    local.get 0
+    i32.const 64
+    i32.add
+    global.set 0)
+  (func (;9;) (type 1) (param i32)
+    (local i32)
+    global.get 0
+    i32.const 16
+    i32.sub
+    local.tee 1
+    global.set 0
+    local.get 1
+    local.get 0
+    i32.store offset=12
+    local.get 1
+    i32.load offset=12
+    call 18
+    local.get 1
+    i32.const 16
+    i32.add
+    global.set 0)
+  (func (;10;) (type 0) (param i32 i32) (result i32)
+    (local i32)
+    global.get 0
+    i32.const 32
+    i32.sub
+    local.tee 2
+    global.set 0
+    local.get 2
+    local.get 0
+    i32.store offset=28
+    local.get 2
+    local.get 1
+    i32.store offset=24
+    local.get 2
+    i32.const 8
+    i32.add
+    local.tee 1
+    call 9
+    local.get 2
+    local.get 2
+    i32.load offset=28
+    i32.store offset=8
+    local.get 1
+    local.get 2
+    i32.load offset=24
+    call 11
+    local.set 1
+    local.get 2
+    i32.const 32
+    i32.add
+    global.set 0
+    local.get 1)
+  (func (;11;) (type 0) (param i32 i32) (result i32)
+    (local i32)
+    global.get 0
+    i32.const 32
+    i32.sub
+    local.tee 2
+    global.set 0
+    local.get 2
+    local.get 0
+    i32.store offset=24
+    local.get 2
+    local.get 1
+    i32.store offset=20
+    local.get 2
+    i32.const 1
+    i32.const 20
+    local.get 2
+    i32.load offset=24
+    i32.load offset=8
+    call_indirect (type 0)
+    i32.store offset=16
+    block  ;; label = @1
+      block  ;; label = @2
+        local.get 2
+        i32.load offset=16
+        i32.const 0
+        i32.ne
+        i32.const 1
+        i32.and
+        br_if 0 (;@2;)
+        local.get 2
+        i32.const 1
+        i32.store offset=28
+        br 1 (;@1;)
+      end
+      local.get 2
+      local.get 2
+      i32.load offset=24
+      local.get 2
+      i32.const 12
+      i32.add
+      call 19
+      i32.store offset=8
+      block  ;; label = @2
+        local.get 2
+        i32.load offset=8
+        i32.eqz
+        br_if 0 (;@2;)
+        local.get 2
+        i32.load offset=16
+        local.get 2
+        i32.load offset=24
+        i32.load offset=12
+        call_indirect (type 1)
+        local.get 2
+        local.get 2
+        i32.load offset=8
+        i32.store offset=28
+        br 1 (;@1;)
+      end
+      local.get 2
+      i32.load offset=16
+      local.get 2
+      i32.load offset=12
+      i32.store
+      local.get 2
+      i32.load offset=16
+      i32.const 1
+      i32.store offset=4
+      local.get 2
+      i32.load offset=16
+      local.get 2
+      i32.load offset=24
+      i32.load offset=4
+      i32.store offset=8
+      local.get 2
+      i32.load offset=16
+      local.get 2
+      i32.load offset=24
+      i32.load offset=8
+      i32.store offset=12
+      local.get 2
+      i32.load offset=16
+      local.get 2
+      i32.load offset=24
+      i32.load offset=12
+      i32.store offset=16
+      local.get 2
+      i32.load offset=20
+      local.get 2
+      i32.load offset=16
+      i32.store
+      local.get 2
+      i32.const 0
+      i32.store offset=28
+    end
+    local.get 2
+    i32.load offset=28
+    local.set 1
+    local.get 2
+    i32.const 32
+    i32.add
+    global.set 0
+    local.get 1)
+  (func (;12;) (type 0) (param i32 i32) (result i32)
+    (local i32)
+    global.get 0
+    i32.const 16
+    i32.sub
+    local.tee 2
+    global.set 0
+    local.get 2
+    local.get 0
+    i32.store offset=12
+    local.get 2
+    local.get 1
+    i32.store offset=8
+    local.get 2
+    i32.load offset=12
+    i32.load
+    local.get 2
+    i32.load offset=8
+    local.get 2
+    i32.load offset=12
+    i32.load offset=4
+    call 22
+    local.set 1
+    local.get 2
+    i32.const 16
+    i32.add
+    global.set 0
+    local.get 1)
+  (func (;13;) (type 5) (param i32 i32)
+    (local i32)
+    global.get 0
+    i32.const 16
+    i32.sub
+    local.tee 2
+    global.set 0
+    local.get 2
+    local.get 0
+    i32.store offset=12
+    local.get 2
+    local.get 1
+    i32.store offset=8
+    local.get 2
+    i32.load offset=12
+    local.get 2
+    i32.load offset=8
+    i32.load
+    call 26
+    local.get 2
+    i32.const 16
+    i32.add
+    global.set 0)
+  (func (;14;) (type 0) (param i32 i32) (result i32)
+    (local i32)
+    global.get 0
+    i32.const 32
+    i32.sub
+    local.tee 2
+    global.set 0
+    local.get 2
+    local.get 0
+    i32.store offset=24
+    local.get 2
+    local.get 1
+    i32.store offset=20
+    block  ;; label = @1
+      block  ;; label = @2
+        local.get 2
+        i32.load offset=24
+        local.get 2
+        i32.const 8
+        i32.add
+        call 27
+        i32.eqz
+        br_if 0 (;@2;)
+        local.get 2
+        i32.const 9
+        i32.store offset=28
+        br 1 (;@1;)
+      end
+      local.get 2
+      i32.load offset=20
+      local.get 2
+      i32.load offset=8
+      i32.store
+      local.get 2
+      i32.const 0
+      i32.store offset=28
+    end
+    local.get 2
+    i32.load offset=28
+    local.set 1
+    local.get 2
+    i32.const 32
+    i32.add
+    global.set 0
+    local.get 1)
+  (func (;15;) (type 2) (param i32) (result i32)
     (local i32)
     global.get 0
     i32.const 16
@@ -310,7 +1757,7 @@
     i32.add
     global.set 0
     local.get 0)
-  (func (;9;) (type 0) (param i32 i32) (result i32)
+  (func (;16;) (type 0) (param i32 i32) (result i32)
     (local i32)
     global.get 0
     i32.const 16
@@ -384,7 +1831,7 @@
     i32.add
     global.set 0
     local.get 1)
-  (func (;10;) (type 1) (param i32)
+  (func (;17;) (type 1) (param i32)
     (local i32)
     global.get 0
     i32.const 16
@@ -401,257 +1848,7 @@
     i32.const 16
     i32.add
     global.set 0)
-  (func (;11;) (type 1) (param i32)
-    (local i32)
-    global.get 0
-    i32.const 16
-    i32.sub
-    local.tee 1
-    global.set 0
-    local.get 1
-    local.get 0
-    i32.store offset=12
-    local.get 1
-    i32.load offset=12
-    call 17
-    local.get 1
-    i32.const 16
-    i32.add
-    global.set 0)
-  (func (;12;) (type 0) (param i32 i32) (result i32)
-    (local i32)
-    global.get 0
-    i32.const 32
-    i32.sub
-    local.tee 2
-    global.set 0
-    local.get 2
-    local.get 0
-    i32.store offset=28
-    local.get 2
-    local.get 1
-    i32.store offset=24
-    local.get 2
-    i32.const 8
-    i32.add
-    call 11
-    local.get 2
-    local.get 2
-    i32.load offset=28
-    i32.store offset=8
-    local.get 2
-    i32.const 8
-    i32.add
-    local.get 2
-    i32.load offset=24
-    call 13
-    local.set 1
-    local.get 2
-    i32.const 32
-    i32.add
-    global.set 0
-    local.get 1)
-  (func (;13;) (type 0) (param i32 i32) (result i32)
-    (local i32)
-    global.get 0
-    i32.const 32
-    i32.sub
-    local.tee 2
-    global.set 0
-    local.get 2
-    local.get 0
-    i32.store offset=24
-    local.get 2
-    local.get 1
-    i32.store offset=20
-    local.get 2
-    i32.const 1
-    i32.const 20
-    local.get 2
-    i32.load offset=24
-    i32.load offset=8
-    call_indirect (type 0)
-    i32.store offset=16
-    block  ;; label = @1
-      block  ;; label = @2
-        local.get 2
-        i32.load offset=16
-        i32.const 0
-        i32.ne
-        i32.const 1
-        i32.and
-        br_if 0 (;@2;)
-        local.get 2
-        i32.const 1
-        i32.store offset=28
-        br 1 (;@1;)
-      end
-      local.get 2
-      local.get 2
-      i32.load offset=24
-      local.get 2
-      i32.const 12
-      i32.add
-      call 18
-      i32.store offset=8
-      block  ;; label = @2
-        local.get 2
-        i32.load offset=8
-        i32.eqz
-        br_if 0 (;@2;)
-        local.get 2
-        i32.load offset=16
-        local.get 2
-        i32.load offset=24
-        i32.load offset=12
-        call_indirect (type 1)
-        local.get 2
-        local.get 2
-        i32.load offset=8
-        i32.store offset=28
-        br 1 (;@1;)
-      end
-      local.get 2
-      i32.load offset=16
-      local.get 2
-      i32.load offset=12
-      i32.store
-      local.get 2
-      i32.load offset=16
-      i32.const 1
-      i32.store offset=4
-      local.get 2
-      i32.load offset=16
-      local.get 2
-      i32.load offset=24
-      i32.load offset=4
-      i32.store offset=8
-      local.get 2
-      i32.load offset=16
-      local.get 2
-      i32.load offset=24
-      i32.load offset=8
-      i32.store offset=12
-      local.get 2
-      i32.load offset=16
-      local.get 2
-      i32.load offset=24
-      i32.load offset=12
-      i32.store offset=16
-      local.get 2
-      i32.load offset=20
-      local.get 2
-      i32.load offset=16
-      i32.store
-      local.get 2
-      i32.const 0
-      i32.store offset=28
-    end
-    local.get 2
-    i32.load offset=28
-    local.set 1
-    local.get 2
-    i32.const 32
-    i32.add
-    global.set 0
-    local.get 1)
-  (func (;14;) (type 0) (param i32 i32) (result i32)
-    (local i32)
-    global.get 0
-    i32.const 16
-    i32.sub
-    local.tee 2
-    global.set 0
-    local.get 2
-    local.get 0
-    i32.store offset=12
-    local.get 2
-    local.get 1
-    i32.store offset=8
-    local.get 2
-    i32.load offset=12
-    i32.load
-    local.get 2
-    i32.load offset=8
-    local.get 2
-    i32.load offset=12
-    i32.load offset=4
-    call 21
-    local.set 1
-    local.get 2
-    i32.const 16
-    i32.add
-    global.set 0
-    local.get 1)
-  (func (;15;) (type 4) (param i32 i32)
-    (local i32)
-    global.get 0
-    i32.const 16
-    i32.sub
-    local.tee 2
-    global.set 0
-    local.get 2
-    local.get 0
-    i32.store offset=12
-    local.get 2
-    local.get 1
-    i32.store offset=8
-    local.get 2
-    i32.load offset=12
-    local.get 2
-    i32.load offset=8
-    i32.load
-    call 25
-    local.get 2
-    i32.const 16
-    i32.add
-    global.set 0)
-  (func (;16;) (type 0) (param i32 i32) (result i32)
-    (local i32)
-    global.get 0
-    i32.const 32
-    i32.sub
-    local.tee 2
-    global.set 0
-    local.get 2
-    local.get 0
-    i32.store offset=24
-    local.get 2
-    local.get 1
-    i32.store offset=20
-    block  ;; label = @1
-      block  ;; label = @2
-        local.get 2
-        i32.load offset=24
-        local.get 2
-        i32.const 8
-        i32.add
-        call 26
-        i32.eqz
-        br_if 0 (;@2;)
-        local.get 2
-        i32.const 9
-        i32.store offset=28
-        br 1 (;@1;)
-      end
-      local.get 2
-      i32.load offset=20
-      local.get 2
-      i32.load offset=8
-      i32.store
-      local.get 2
-      i32.const 0
-      i32.store offset=28
-    end
-    local.get 2
-    i32.load offset=28
-    local.set 1
-    local.get 2
-    i32.const 32
-    i32.add
-    global.set 0
-    local.get 1)
-  (func (;17;) (type 1) (param i32)
+  (func (;18;) (type 1) (param i32)
     (local i32)
     global.get 0
     i32.const 16
@@ -675,7 +1872,7 @@
     i32.load offset=12
     i32.const 0
     i32.store)
-  (func (;18;) (type 0) (param i32 i32) (result i32)
+  (func (;19;) (type 0) (param i32 i32) (result i32)
     (local i32)
     global.get 0
     i32.const 32
@@ -796,7 +1993,7 @@
     i32.add
     global.set 0
     local.get 1)
-  (func (;19;) (type 0) (param i32 i32) (result i32)
+  (func (;20;) (type 0) (param i32 i32) (result i32)
     (local i32)
     global.get 0
     i32.const 16
@@ -834,7 +2031,7 @@
     end
     local.get 2
     i32.load offset=8)
-  (func (;20;) (type 0) (param i32 i32) (result i32)
+  (func (;21;) (type 0) (param i32 i32) (result i32)
     (local i32)
     global.get 0
     i32.const 16
@@ -880,7 +2077,7 @@
         local.get 2
         i32.load offset=4
         i32.load offset=20
-        call 19
+        call 20
         i32.store offset=12
         br 1 (;@1;)
       end
@@ -942,7 +2139,7 @@
     i32.add
     global.set 0
     local.get 1)
-  (func (;21;) (type 5) (param i32 i32 i32) (result i32)
+  (func (;22;) (type 6) (param i32 i32 i32) (result i32)
     (local i32)
     global.get 0
     i32.const 32
@@ -1160,7 +2357,7 @@
         i32.load offset=24
         local.get 3
         i32.load
-        call 22
+        call 23
       end
       local.get 3
       i32.const 0
@@ -1174,7 +2371,7 @@
     i32.add
     global.set 0
     local.get 2)
-  (func (;22;) (type 4) (param i32 i32)
+  (func (;23;) (type 5) (param i32 i32)
     (local i32)
     global.get 0
     i32.const 16
@@ -1274,7 +2471,7 @@
                 i32.load offset=12
                 local.get 2
                 i32.load offset=8
-                call 23
+                call 24
               end
               local.get 2
               i32.load offset=8
@@ -1293,7 +2490,7 @@
               i32.load offset=8
               i32.load offset=12
               i32.load offset=12
-              call 24
+              call 25
             end
             br 1 (;@3;)
           end
@@ -1358,7 +2555,7 @@
               i32.load offset=12
               local.get 2
               i32.load offset=8
-              call 24
+              call 25
             end
             local.get 2
             i32.load offset=8
@@ -1377,7 +2574,7 @@
             i32.load offset=8
             i32.load offset=12
             i32.load offset=12
-            call 23
+            call 24
           end
         end
         br 0 (;@2;)
@@ -1392,7 +2589,7 @@
     i32.const 16
     i32.add
     global.set 0)
-  (func (;23;) (type 4) (param i32 i32)
+  (func (;24;) (type 5) (param i32 i32)
     (local i32)
     global.get 0
     i32.const 16
@@ -1498,7 +2695,7 @@
     local.get 2
     i32.load offset=4
     i32.store offset=12)
-  (func (;24;) (type 4) (param i32 i32)
+  (func (;25;) (type 5) (param i32 i32)
     (local i32)
     global.get 0
     i32.const 16
@@ -1604,7 +2801,7 @@
     local.get 2
     i32.load offset=4
     i32.store offset=12)
-  (func (;25;) (type 4) (param i32 i32)
+  (func (;26;) (type 5) (param i32 i32)
     (local i32)
     global.get 0
     i32.const 16
@@ -1633,7 +2830,7 @@
     local.get 2
     i32.load offset=8
     i32.load
-    call 19
+    call 20
     local.set 1
     local.get 2
     i32.load offset=12
@@ -1643,7 +2840,7 @@
     i32.const 16
     i32.add
     global.set 0)
-  (func (;26;) (type 0) (param i32 i32) (result i32)
+  (func (;27;) (type 0) (param i32 i32) (result i32)
     (local i32)
     global.get 0
     i32.const 16
@@ -1701,7 +2898,7 @@
       local.get 2
       i32.load offset=8
       i32.load offset=4
-      call 20
+      call 21
       local.set 1
       local.get 2
       i32.load offset=8
@@ -1719,7 +2916,7 @@
     i32.add
     global.set 0
     local.get 1)
-  (func (;27;) (type 0) (param i32 i32) (result i32)
+  (func (;28;) (type 0) (param i32 i32) (result i32)
     (local i32)
     global.get 0
     i32.const 32
@@ -1777,19 +2974,19 @@
     end
     local.get 2
     i32.load offset=28)
-  (func (;28;) (type 1) (param i32)
-    global.get 0
-    i32.const 16
-    i32.sub
-    local.get 0
-    i32.store offset=12)
   (func (;29;) (type 1) (param i32)
     global.get 0
     i32.const 16
     i32.sub
     local.get 0
     i32.store offset=12)
-  (func (;30;) (type 0) (param i32 i32) (result i32)
+  (func (;30;) (type 1) (param i32)
+    global.get 0
+    i32.const 16
+    i32.sub
+    local.get 0
+    i32.store offset=12)
+  (func (;31;) (type 0) (param i32 i32) (result i32)
     (local i32)
     global.get 0
     i32.const 16
@@ -1802,13 +2999,13 @@
     i32.store offset=8
     local.get 2
     i32.load offset=12)
-  (func (;31;) (type 1) (param i32)
+  (func (;32;) (type 1) (param i32)
     global.get 0
     i32.const 16
     i32.sub
     local.get 0
     i32.store offset=12)
-  (func (;32;) (type 2) (param i32) (result i32)
+  (func (;33;) (type 2) (param i32) (result i32)
     (local i32)
     global.get 0
     i32.const 16
@@ -1823,6 +3020,6 @@
   (global (;0;) (mut i32) (i32.const 66576))
   (export "memory" (memory 0))
   (export "__original_main" (func 7))
-  (elem (;0;) (i32.const 1) func 27 8 9 10)
-  (data (;0;) (i32.const 1024) "d\00c\00b\00a\00")
+  (elem (;0;) (i32.const 1) func 28 15 16 17)
+  (data (;0;) (i32.const 1024) "a\00b\00c\00d\00")
   (data (;1;) (i32.const 1032) "\10\04\01\00"))
