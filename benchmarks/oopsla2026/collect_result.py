@@ -35,7 +35,9 @@ def prefixed_benchmark_name(prefix: Path, benchmark: str) -> str:
 
 
 def should_ignore_benchmark(prefix: Path) -> bool:
-    return "bugs" in prefix.parts
+    return "bugs" in prefix.parts or any(
+        part.startswith("normal.backup") for part in prefix.parts
+    )
 
 
 def wasp_result_root(suite: str) -> Path:
