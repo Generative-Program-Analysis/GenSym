@@ -38,3 +38,24 @@ grammar/.antlr/
 .git
 .gitignore
 Dockerfile
+
+# Keep benchmark source trees available to the explicit Dockerfile COPY rules.
+!benchmarks/oopsla2026/btree/
+!benchmarks/oopsla2026/btree/**
+!benchmarks/oopsla2026/quicksort/
+!benchmarks/oopsla2026/quicksort/**
+!benchmarks/oopsla2026/crafted/
+!benchmarks/oopsla2026/crafted/**
+!benchmarks/oopsla2026/Collection-C/
+!benchmarks/oopsla2026/Collection-C/**
+
+# Benchmark generated artifacts and prior experiment results are generated
+# inside the image or at runtime, never copied from the build context.
+benchmarks/oopsla2026/**/*.cpp
+benchmarks/oopsla2026/**/*.exe
+benchmarks/oopsla2026/**/*.wasm
+benchmarks/oopsla2026/**/*.json
+benchmarks/oopsla2026/**/result_0*
+benchmarks/oopsla2026/**/result_*/
+benchmarks/oopsla2026/**/run-logs/
+benchmarks/oopsla2026/**/*.log

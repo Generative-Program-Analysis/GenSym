@@ -67,7 +67,7 @@ def collect_cpp_files(target_path: Path) -> tuple[Path, list[Path]]:
         return target_path.parent, [target_path]
 
     if target_path.is_dir():
-        return target_path, sorted(target_path.glob("*.cpp"))
+        return target_path, sorted(target_path.rglob("*.cpp"))
 
     print(f"Target path does not exist: {target_path}", file=sys.stderr)
     sys.exit(2)
@@ -244,6 +244,23 @@ def compile_all(
             print(f"Skipping {cpp.name}: matched skip pattern.")
             continue
 
+        # Collection-C bug cases must be compiled without soft assertions.
+        case_flags = (
+            [flag for flag in flags if flag != SOFT_ASSERT_FLAG]
+            if "bugs" in cpp.parts
+            else flags
+        )
+        case_snapshot_flags = (
+            [flag for flag in snapshot_flags if flag != SOFT_ASSERT_FLAG]
+            if "bugs" in cpp.parts
+            else snapshot_flags
+        )
+        case_snapshot_cost_model_flags = (
+            [flag for flag in snapshot_cost_model_flags if flag != SOFT_ASSERT_FLAG]
+            if "bugs" in cpp.parts
+            else snapshot_cost_model_flags
+        )
+
         out = cpp.with_suffix(".exe")
         snapshot_out = cpp.with_suffix(".snapshot.exe")
         snapshot_cost_model_out = cpp.with_suffix(".costmodel.exe")
@@ -258,20 +275,20 @@ def compile_all(
 
         print("Compiling:", cpp.name)
         proc = run_compile(
-            ["clang++", str(cpp), "-o", str(out)] + flags,
+            ["clang++", str(cpp), "-o", str(out)] + case_flags,
             log_dir / f"{cpp.name}.compile.log",
         )
 
         print("Compiling snapshot version:", cpp.name)
         snapshot_proc = run_compile(
-            ["clang++", str(cpp), "-o", str(snapshot_out)] + snapshot_flags,
+            ["clang++", str(cpp), "-o", str(snapshot_out)] + case_snapshot_flags,
             log_dir / f"{cpp.name}.snapshot.compile.log",
         )
 
         print("Compiling snapshot cost model version:", cpp.name)
         snapshot_cost_model_proc = run_compile(
             ["clang++", str(cpp), "-o", str(snapshot_cost_model_out)]
-            + snapshot_cost_model_flags,
+            + case_snapshot_cost_model_flags,
             log_dir / f"{cpp.name}.costmodel.compile.log",
         )
 
@@ -322,7 +339,10 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "target_dir",
-        help="Directory containing .cpp files to compile, or a single .cpp file.",
+        help=(
+            "Directory containing .cpp files to compile recursively, "
+            "or a single .cpp file."
+        ),
     )
     parser.add_argument(
         "--skip-newer",

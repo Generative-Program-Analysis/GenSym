@@ -45,10 +45,14 @@ class TestBenchmark extends FunSuite {
 
   def compileDirTreeToCpp(dir: String,
                           main: Option[String] = None,
-                          outputDir: Option[String] = None): Unit = {
+                          outputDir: Option[String] = None,
+                          skipExisting: Boolean = false): Unit = {
     import java.io.File
+    import scala.collection.mutable.ArrayBuffer
+    import scala.util.control.NonFatal
 
     val root = new File(dir).getCanonicalFile
+    val failures = ArrayBuffer.empty[(String, Throwable)]
 
     def walk(file: File): Unit = {
       if (file.isDirectory) {
@@ -61,11 +65,29 @@ class TestBenchmark extends FunSuite {
           out.mkdirs()
           out.getPath
         }
-        compileToCpp(file.getAbsolutePath, main, targetDir)
+        val targetCpp = targetDir.map(dir => new File(dir, s"${file.getName}.cpp"))
+        if (skipExisting && targetCpp.exists(_.isFile)) {
+          println(s"Skipping ${file.getAbsolutePath}; C++ already exists at ${targetCpp.get.getPath}")
+        } else {
+          try {
+            compileToCpp(file.getAbsolutePath, main, targetDir)
+          } catch {
+            case NonFatal(error) =>
+              println(s"Failed to compile ${file.getAbsolutePath}; continuing")
+              failures += ((file.getAbsolutePath, error))
+          }
+        }
       }
     }
 
     walk(root)
+
+    if (failures.nonEmpty) {
+      val summary = failures.map { case (file, error) =>
+        s"$file: ${Option(error.getMessage).getOrElse(error.getClass.getName)}"
+      }.mkString("\n  ", "\n  ", "")
+      throw new Exception(s"${failures.size} WAT file(s) failed to compile:$summary")
+    }
   }
 
   test("compile-btree-benchmarks") {
@@ -88,6 +110,22 @@ class TestBenchmark extends FunSuite {
       "./benchmarks/oopsla2026/Collection-C/genwasym-test-input/",
       Some("__original_main"),
       Some("./benchmarks/oopsla2026/Collection-C/genwasym-test-artifacts")
+    )
+  }
+  test("compile-collection-c-normal-benchmarks") {
+    compileDirTreeToCpp(
+      "./benchmarks/oopsla2026/Collection-C/genwasym-test-input/normal/",
+      Some("__original_main"),
+      Some("./benchmarks/oopsla2026/Collection-C/genwasym-test-artifacts/normal"),
+      skipExisting = true
+    )
+  }
+  test("compile-collection-c-array-benchmarks") {
+    compileDirTreeToCpp(
+      "./benchmarks/oopsla2026/Collection-C/genwasym-test-input/normal/array/",
+      Some("__original_main"),
+      Some("./benchmarks/oopsla2026/Collection-C/genwasym-test-artifacts/normal/array"),
+      skipExisting = true
     )
   }
   test("compile-quicksort-benchmark") {

@@ -10,7 +10,7 @@ COMPILE=0
 
 usage() {
   cat <<'USAGE'
-Usage: benchmarks/oopsla2026/run_btree.sh [--quick] [--compile] [--case CASE] [--tool all|genwasym|wasp] [--timeout SECONDS]
+Usage: benchmarks/oopsla2026/run_btree.sh [--quick] [--compile] [--case CASE] [--runs N] [--tool all|genwasym|wasp] [--timeout SECONDS]
 
 Runs the btree benchmark:
   genwasym: generate C++ from genwasym-test-input/*.wat, compile/run genwasym-test-artifacts/*.wat.cpp, and store reports in genwasym-test-output
@@ -35,6 +35,10 @@ while [ "$#" -gt 0 ]; do
       WASP_TIMEOUT="$2"
       shift 2
       ;;
+    --runs)
+      FULL_RUNS="$2"
+      shift 2
+      ;;
     --quick)
       QUICK=1
       shift
@@ -54,6 +58,11 @@ while [ "$#" -gt 0 ]; do
       ;;
   esac
 done
+
+if ! [[ "$FULL_RUNS" =~ ^[1-9][0-9]*$ ]]; then
+  echo "Invalid --runs value: $FULL_RUNS" >&2
+  exit 2
+fi
 
 SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 REPO_ROOT=$(CDPATH= cd -- "$SCRIPT_DIR/../.." && pwd)

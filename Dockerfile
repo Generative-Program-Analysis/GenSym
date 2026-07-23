@@ -141,21 +141,70 @@ COPY benchmarks/oopsla2026/compile.py \
      benchmarks/oopsla2026/run_exe.py \
      benchmarks/oopsla2026/normalize_wat.py \
      benchmarks/oopsla2026/collect_result.py \
+     benchmarks/oopsla2026/summary.py \
      benchmarks/oopsla2026/run_btree.sh \
+     benchmarks/oopsla2026/run_quicksort.sh \
+     benchmarks/oopsla2026/run_crafted.sh \
+     benchmarks/oopsla2026/run_collection_c.sh \
      ./benchmarks/oopsla2026/
 
 COPY benchmarks/oopsla2026/btree/normalize_all_wat.sh benchmarks/oopsla2026/btree/run_exe.py \
      ./benchmarks/oopsla2026/btree/
-COPY benchmarks/oopsla2026/btree/wasp-test-input/ \
+COPY benchmarks/oopsla2026/btree/wasp-test-input/*.wast \
      ./benchmarks/oopsla2026/btree/wasp-test-input/
 COPY benchmarks/oopsla2026/btree/genwasym-test-input/*.wat \
      ./benchmarks/oopsla2026/btree/genwasym-test-input/
-COPY benchmarks/oopsla2026/btree/genwasym-test-artifacts/*.py \
-     benchmarks/oopsla2026/btree/genwasym-test-artifacts/*.wat.cpp \
-     benchmarks/oopsla2026/btree/genwasym-test-artifacts/*.sh \
+COPY benchmarks/oopsla2026/btree/genwasym-test-artifacts/*.sh \
      ./benchmarks/oopsla2026/btree/genwasym-test-artifacts/
 
 COPY benchmarks/oopsla2026/btree/wasp-test-output/*.py \
      ./benchmarks/oopsla2026/btree/wasp-test-output/
+
+## 6.2 copy quicksort benchmark
+
+RUN mkdir -p \
+    ./benchmarks/oopsla2026/quicksort/genwasym-test-input \
+    ./benchmarks/oopsla2026/quicksort/genwasym-test-artifacts \
+    ./benchmarks/oopsla2026/quicksort/genwasym-test-output \
+    ./benchmarks/oopsla2026/quicksort/wasp-test-input \
+    ./benchmarks/oopsla2026/quicksort/wasp-test-output
+
+COPY benchmarks/oopsla2026/quicksort/genwasym-test-input/*.wat \
+     ./benchmarks/oopsla2026/quicksort/genwasym-test-input/
+COPY benchmarks/oopsla2026/quicksort/wasp-test-input/*.wast \
+     ./benchmarks/oopsla2026/quicksort/wasp-test-input/
+
+## 6.3 copy crafted benchmark
+
+RUN mkdir -p \
+    ./benchmarks/oopsla2026/crafted/genwasym-test-input \
+    ./benchmarks/oopsla2026/crafted/genwasym-test-artifacts \
+    ./benchmarks/oopsla2026/crafted/genwasym-test-output \
+    ./benchmarks/oopsla2026/crafted/wasp-test-input \
+    ./benchmarks/oopsla2026/crafted/wasp-test-output
+
+COPY benchmarks/oopsla2026/crafted/genwasym-test-input/*.wat \
+     ./benchmarks/oopsla2026/crafted/genwasym-test-input/
+COPY benchmarks/oopsla2026/crafted/wasp-test-input/*.wast \
+     ./benchmarks/oopsla2026/crafted/wasp-test-input/
+
+## 6.4 copy Collection-C benchmark
+
+RUN mkdir -p \
+    ./benchmarks/oopsla2026/Collection-C/genwasym-test-input \
+    ./benchmarks/oopsla2026/Collection-C/genwasym-test-artifacts \
+    ./benchmarks/oopsla2026/Collection-C/genwasym-test-output \
+    ./benchmarks/oopsla2026/Collection-C/wasp-test-input \
+    ./benchmarks/oopsla2026/Collection-C/wasp-test-output
+
+COPY benchmarks/oopsla2026/Collection-C/genwasym-test-input/normal/ \
+     ./benchmarks/oopsla2026/Collection-C/genwasym-test-input/normal/
+COPY benchmarks/oopsla2026/Collection-C/genwasym-test-artifacts/compile.sh \
+     benchmarks/oopsla2026/Collection-C/genwasym-test-artifacts/run.sh \
+     ./benchmarks/oopsla2026/Collection-C/genwasym-test-artifacts/
+COPY benchmarks/oopsla2026/Collection-C/wasp-test-input/normal/ \
+     ./benchmarks/oopsla2026/Collection-C/wasp-test-input/normal/
+COPY benchmarks/oopsla2026/Collection-C/wasp-test-output/run.sh \
+     ./benchmarks/oopsla2026/Collection-C/wasp-test-output/run.sh
 
 CMD ["bash"]
