@@ -253,8 +253,8 @@ reported in the paper. Run the following command to compute the geometric mean
 of the speedups for all benchmark rows in the CSV files. (The `--cutoff`
 options exclude benchmarks for which WASP exceeded the two-hour timeout.)
 
-```
-**python3 benchmarks/oopsla2026/average_speedup.py** --cutoff 10o3u --cutoff quicksort2.sym3.size10
+```bash
+python3 benchmarks/oopsla2026/average_speedup.py --cutoff 10o3u --cutoff quicksort2.sym3.size10
 ```
 
 The command should produce output similar to the following. Exact values may
@@ -292,8 +292,6 @@ across all available benchmark rows.
 ### 4.2 Bug Detection Experiments (RQ3)
 
 **Expected Time: < 30min**
-
-FIXME: explain how this correspond to paper table 2
 
 This part of the artifact tests whether GenWasym can detect bugs in Wasm
 programs, as WASP does, and reproduce the results in Table 2.
@@ -354,8 +352,6 @@ The expected JSON output should contain the following fields:
 ```
 
 This confirms that GenWasym effectively detects the bug as WASP does.
-
-FIXME: how to reproduce the table 2
 
 To summarize the GenWasym NoConfig running times in a table:
 
