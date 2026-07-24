@@ -34,9 +34,9 @@ RUN curl -fsSL -o /tmp/sbt.tgz \
 
 # 2. prepare wasp dependencies
 
-WORKDIR /ae/GenSym
+WORKDIR /ae/GenWasym
 
-ENV WASP_HOME=/ae/GenSym/third-party/wasp
+ENV WASP_HOME=/ae/GenWasym/third-party/wasp
 
 RUN opam init -y --disable-sandboxing --bare && \
     CFLAGS="-std=gnu17" opam switch create -y 4.13.1 --jobs=1
@@ -114,7 +114,7 @@ RUN eval $(opam env) && \
     python3 -m pip install --break-system-packages pycparser numpy tsbuilder && \
     make -C "${WASP_HOME}/wasp-c/lib"
 
-# 5. build GenSym
+# 5. build GenWasym
 COPY build.sbt .
 COPY project/build.properties ./project/build.properties
 COPY project/plugins.sbt ./project/plugins.sbt
@@ -150,6 +150,7 @@ COPY benchmarks/oopsla2026/compile.py \
      benchmarks/oopsla2026/run_quicksort.sh \
      benchmarks/oopsla2026/run_crafted.sh \
      benchmarks/oopsla2026/run_collection_c.sh \
+     benchmarks/oopsla2026/run_collection_c_buggy.sh \
      ./benchmarks/oopsla2026/
 
 COPY benchmarks/oopsla2026/btree/normalize_all_wat.sh benchmarks/oopsla2026/btree/run_exe.py \
@@ -196,18 +197,24 @@ COPY benchmarks/oopsla2026/crafted/wasp-test-input/*.wast \
 
 RUN mkdir -p \
     ./benchmarks/oopsla2026/Collection-C/genwasym-test-input \
+    ./benchmarks/oopsla2026/Collection-C/genwasym-test-artifacts/buggy \
     ./benchmarks/oopsla2026/Collection-C/genwasym-test-artifacts \
     ./benchmarks/oopsla2026/Collection-C/genwasym-test-output \
     ./benchmarks/oopsla2026/Collection-C/wasp-test-input \
+    ./benchmarks/oopsla2026/Collection-C/wasp-test-input/buggy \
     ./benchmarks/oopsla2026/Collection-C/wasp-test-output
 
 COPY benchmarks/oopsla2026/Collection-C/genwasym-test-input/normal/ \
      ./benchmarks/oopsla2026/Collection-C/genwasym-test-input/normal/
+COPY benchmarks/oopsla2026/Collection-C/genwasym-test-input/bugs/ \
+     ./benchmarks/oopsla2026/Collection-C/genwasym-test-input/bugs/
 COPY benchmarks/oopsla2026/Collection-C/genwasym-test-artifacts/compile.sh \
      benchmarks/oopsla2026/Collection-C/genwasym-test-artifacts/run.sh \
      ./benchmarks/oopsla2026/Collection-C/genwasym-test-artifacts/
 COPY benchmarks/oopsla2026/Collection-C/wasp-test-input/normal/ \
      ./benchmarks/oopsla2026/Collection-C/wasp-test-input/normal/
+COPY benchmarks/oopsla2026/Collection-C/wasp-test-input/buggy/*.wat \
+     ./benchmarks/oopsla2026/Collection-C/wasp-test-input/buggy/
 COPY benchmarks/oopsla2026/Collection-C/wasp-test-output/run.sh \
      ./benchmarks/oopsla2026/Collection-C/wasp-test-output/run.sh
 
