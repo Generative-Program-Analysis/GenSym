@@ -25,7 +25,7 @@ object ModuleInstance {
   }
 }
 
-// TODO: use mutable data structures?
+// use mutable data structures?
 case class Frame(module: ModuleInstance, var locals: List[Value])
 
 abstract class AdminInstr
@@ -100,7 +100,7 @@ case class Config(var frame: Frame, stackBudget: Int) {
     case _ => ???
   }
 
-  // TODO: double check (copilot generated)
+  // double check (copilot generated)
   def evalRelOp(op: RelOp, lhs: Value, rhs: Value) = op match {
     case Eq(_) => (lhs, rhs) match {
       case (I32V(v1), I32V(v2)) => I32V(if (v1 == v2) 1 else 0)
@@ -170,7 +170,7 @@ case class Config(var frame: Frame, stackBudget: Int) {
     end > memory.size
   }
 
-  // TODO: remove duplication with definition at MiniWasm.scala
+  // remove duplication with definition at MiniWasm.scala
   def getFuncType(module: ModuleInstance, ty: BlockType): FuncType = {
     ty match {
       case VarBlockType(_, None) => ???
@@ -377,7 +377,7 @@ case class Config(var frame: Frame, stackBudget: Int) {
         val args = stack.take(tipe.inps.length).reverse
         val newStack = stack.drop(tipe.inps.length)
 
-        val locals = args ++ fnLocals.map(_ => I32V(0)) // TODO: map locals to default value for type
+        val locals = args ++ fnLocals.map(_ => I32V(0)) // map locals to default value for type
         val fnFrame = Frame(frame.module, locals)
         val labelCode = Code(List(), body.map(Plain(_).asInstanceOf[AdminInstr]).toList)
         val label = Label(tipe.out.length, List(), labelCode)

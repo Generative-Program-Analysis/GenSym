@@ -4,7 +4,7 @@
 #include <memory>
 #include <set>
 
-// Todo: remove this later, this is just a workaround to make sure that the
+
 // SymVals' memory will not be freed during the main execution.
 // We can leave the SymVal's memory unmanaged if reference counting is not
 // performant

@@ -50,7 +50,7 @@ object ModuleInstance {
       })
       .toList
 
-    // TODO: correct the behavior for memory
+
     val memory = module.definitions
       .collect({
         case Memory(id, MemoryType(min, max_opt)) =>
@@ -132,7 +132,7 @@ object Primtives {
     case _ => ???
   }
 
-  // TODO: double check (copilot generated)
+
   def evalRelOp(op: RelOp, lhs: Value, rhs: Value) = op match {
     case Eq(_) =>
       (lhs, rhs) match {

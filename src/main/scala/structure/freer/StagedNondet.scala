@@ -120,7 +120,7 @@ trait StagedNondet extends SAIOps {
 
   //implicit def manifestfromndet[A](nl : NondetList[A]): Manifest[A] = nl.m
   //implicit def manifestfromresult[A](r : NondetListEx$.Result[A]): Manifest[r.K] = r.m
-  // TODO: Doesn't work yet
+
   def runRepNondet3[E <: Eff, A: Manifest](comp: Comp[Nondet ⊗ E, Rep[A]]): Comp[E, Rep[List[A]]] = {
     import NondetListEx$.??
     comp match {

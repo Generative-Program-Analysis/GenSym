@@ -42,7 +42,7 @@
 //   object State {
 //     def pushStack(value: Rep[Value]) =
 //       Adapter.g.reflectWrite("static-state-push-stack", Unwrap(value))(Adapter.CTRL)
-//     def stackAt(i: Int): Rep[Value] = 
+//     def stackAt(i: Int): Rep[Value] =
 //       Wrap[Value](Adapter.g.reflectWrite("static-state-stack-at", Unwrap(i))(Adapter.CTRL))
 //     def popStack: Rep[Value] =
 //       Wrap[Value](Adapter.g.reflectWrite("static-state-pop-stack")(Adapter.CTRL))
@@ -63,7 +63,7 @@
 //     def setLocal(i: Rep[Int], v: Rep[Value])(implicit ss: StaticState) =
 //       Adapter.g.reflectWrite("static-state-set-local", Unwrap(-ss.numLocals + i + 1), Unwrap(v))(Adapter.CTRL)
 
-//     def printStack = 
+//     def printStack =
 //       Adapter.g.reflectWrite("static-state-print-stack")(Adapter.CTRL)
 
 //     def getGlobal(i: Int): Rep[Value] =
@@ -153,10 +153,10 @@
 //       val funFun: Rep[Cont => Unit] = topFun { (k: Rep[Cont]) =>
 //         System.out.println("started topFun for funFun")
 //         for (local <- locals) {
-//           State.pushStack(I32(0)) // TODO: default values for other types
+
 //         }
 //         val newSS = ss.copy(
-//           returnLabel = Some(k), 
+//           returnLabel = Some(k),
 //           numLocals = locals.length + argNum,
 //           retN = Some(outNum),
 //         )
@@ -199,7 +199,7 @@
 //       loopFuns += id -> loopFn
 //     }
 
-//     // TODO: pass precise type to operations
+
 //     def evalBinOp(op: BinOp, lhsV: Rep[Value], rhsV: Rep[Value]): Rep[Value] = op match {
 //       case BinOp.Int(Add) => {
 //         // assume I32
@@ -225,7 +225,7 @@
 //       }
 //     }
 
-//     // TODO: probably use a monad for ss
+
 //     def execInst
 //     (instr: Instr, k: (StaticState, SSCont) => Rep[Unit])(kk: SSCont)(implicit ss: StaticState): Rep[Unit]
 //     = {
@@ -375,8 +375,8 @@
 //       //   val cond: Rep[Int] = State.popStack
 //       //   val zero: Rep[Int] = 0
 
-//       //   // TODO: sp should be updated somehow based on blockTy
-//       //   val endK = topFun { (_: Rep[Unit]) => 
+
+//       //   val endK = topFun { (_: Rep[Unit]) =>
 //       //     execInstrs(rest, k)(ss)
 //       //   }
 
@@ -394,8 +394,8 @@
 //       }
 //       // case Block(blockTy, blockInstrs) :: rest => {
 //       //   // continuation for after the block ends
-//       //   // TODO: sp should be updated somehow based on blockTy
-//       //   val blockK = (blockSS: StaticState) => fun { (_: Rep[Unit]) => 
+
+//       //   val blockK = (blockSS: StaticState) => fun { (_: Rep[Unit]) =>
 //       //     execInstrs(rest, k)(ss.copy(stackPtr = blockSS.stackPtr))
 //       //   }
 
@@ -428,8 +428,8 @@
 //       }
 //       // case Loop(blockTy, loopInstrs) :: rest => {
 //       //   // continuation for after the loop breaks
-//       //   // TODO: sp should be updated somehow based on blockTy
-//       //   val loopK = (loopDoneSS: StaticState) => fun { (_: Rep[Unit]) => 
+
+//       //   val loopK = (loopDoneSS: StaticState) => fun { (_: Rep[Unit]) =>
 //       //     execInstrs(rest, k)(ss)
 //       //   }
 
@@ -447,11 +447,11 @@
 //         // all the state methods global in cpp even if they're methods in scala
 //         // def compileFun(argNum: Int, retNum: Int, body: List[Instr]): Rep[Cont => Unit] = topFun { (k: Rep[Cont]) =>
 //         //   for (local <- locals) {
-//         //     State.pushStack(I32(0)) // TODO: default values for other types
+
 //         //   }
 //         //   val newSP = ss.stackPtr + locals.length
 //         //   val newSS = ss.copy(
-//         //     // TODO: should returnLabel be finK?
+
 //         //     returnLabel = Some(k), stackPtr = newSP, localPtr = ss.stackPtr - funcType.inps.length, retN = Some(retNum)
 //         //   )
 //         //   val finK = (funSS: StaticState) => topFun { (_: Rep[Unit]) =>
@@ -478,7 +478,7 @@
 //         val numOuts = funcDef.tipe.out.length
 //         val numLocals = funcDef.locals.length
 //         compileStuffIn(rest, k)
-//         val evalRest: Rep[Cont] = topFun { (_: Rep[Unit]) => 
+//         val evalRest: Rep[Cont] = topFun { (_: Rep[Unit]) =>
 //           execInstrs(rest, k)
 //         }
 
@@ -500,12 +500,12 @@
 //     case Node(s, "reverse-ls", List(ls), _) => emit("flex_vector_reverse("); shallow(ls); emit(")")
 //     case Node(s, "I32V", List(i), _) => emit("I32V("); shallow(i); emit(")")
 //     case Node(s, "I32V-proj", List(i), _) => shallow(i); emit(".i32")
-//     case Node(s, "state-new", List(memory, globals, stack), _) => 
-//       emit("State("); 
-//       shallow(memory); emit(", "); shallow(globals); emit(", "); shallow(stack); 
+//     case Node(s, "state-new", List(memory, globals, stack), _) =>
+//       emit("State(");
+//       shallow(memory); emit(", "); shallow(globals); emit(", "); shallow(stack);
 //       emit(")")
-//     case Node(s, "state-init", List(memory, globals, numLocals), _) => 
-//       emit("init_state("); 
+//     case Node(s, "state-init", List(memory, globals, numLocals), _) =>
+//       emit("init_state(");
 //       shallow(memory); emit(", "); shallow(globals); emit(", "); shallow(numLocals);
 //       emit(")")
 //     case Node(s, "state-memory", List(state), _) => shallow(state); emit(".memory")
@@ -513,31 +513,31 @@
 //     case Node(s, "state-stack", List(state), _) => shallow(state); emit(".stack")
 //     case Node(s, "static-state-stack-at", List(i), _) =>
 //       emit("global_state.stack_at("); shallow(i); emit(")")
-//     case Node(s, "static-state-push-stack", List(v), _) => 
+//     case Node(s, "static-state-push-stack", List(v), _) =>
 //       emit("global_state.push_stack("); shallow(v); emit(")")
-//     case Node(s, "static-state-pop-stack", List(), _) => 
+//     case Node(s, "static-state-pop-stack", List(), _) =>
 //       emit("global_state.pop_stack()")
-//     case Node(s, "static-state-peek-stack", List(), _) => 
+//     case Node(s, "static-state-peek-stack", List(), _) =>
 //       emit("global_state.peek_stack()")
 //     case Node(s, "static-state-print-stack", List(), _) =>
 //       emit("global_state.print_stack()")
 //     case Node(s, "static-state-get-local", List(i), _) =>
 //       emit("global_state.get_local("); shallow(i); emit(")")
-//     case Node(s, "static-state-set-local", List(i, v), _) => 
+//     case Node(s, "static-state-set-local", List(i, v), _) =>
 //       emit("global_state.set_local("); shallow(i); emit(", "); shallow(v); emit(")")
-//     case Node(s, "static-state-remove-stack-range", List(st, ed), _) => 
+//     case Node(s, "static-state-remove-stack-range", List(st, ed), _) =>
 //       emit("global_state.remove_stack_range("); shallow(st); emit(", "); shallow(ed); emit(")")
-//     case Node(s, "static-state-return", List(numLocals, retN), _) => 
+//     case Node(s, "static-state-return", List(numLocals, retN), _) =>
 //       emit("global_state.return_from_fun("); shallow(numLocals); emit(", "); shallow(retN); emit(")")
-//     case Node(s, "static-state-set-frame-ptr", List(), _) => 
+//     case Node(s, "static-state-set-frame-ptr", List(), _) =>
 //       emit("global_state.set_frame_ptr()")
 //     case Node(s, "memory-size", List(memory), _) => shallow(memory); emit(".size()")
-//     case Node(s, "memory-grow", List(memory, delta), _) => 
+//     case Node(s, "memory-grow", List(memory, delta), _) =>
 //       shallow(memory); emit(".grow("); shallow(delta); emit(")")
 //     case Node(s, "memory-fill", List(memory, offset, size, value), _) =>
 //       shallow(memory); emit(".fill("); shallow(offset); emit(", "); shallow(size); emit(", "); shallow(value); emit(")")
 //     case Node(s, "memory-copy", List(memory, srcOffset, dstOffset, size), _) =>
-//       shallow(memory); emit(".copy("); 
+//       shallow(memory); emit(".copy(");
 //       shallow(srcOffset); emit(", "); shallow(dstOffset); emit(", "); shallow(size); emit(")")
 //     case Node(s, "memory-store-int", List(memory, offset, value), _) =>
 //       shallow(memory); emit(".storeInt("); shallow(offset); emit(", "); shallow(value); emit(")")

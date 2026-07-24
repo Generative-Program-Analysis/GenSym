@@ -482,7 +482,7 @@ public:
   std::monostate storeSymLong(int32_t base, int32_t offset, SymVal value) {
     ManagedInterfaceTimer interface_timer("SymMemory_t::storeSymLong");
     int32_t addr = base + offset;
-    // TODO: Can we receive a float point symbolic value here? which may produce
+    // Can we receive a float point symbolic value here? which may produce
     // a bug
     SymVal s0 = value.extract(1, 1);
     SymVal s1 = value.extract(2, 2);
@@ -617,7 +617,7 @@ static std::monostate memoryInitialize(int32_t offset,
 
 using NumMap = std::unordered_map<int, Num>;
 
-// TODO: remove this class later
+// remove this class later
 class ImmNumMapBox {
 public:
   ImmNumMapBox(const NumMap &sym_env)
@@ -830,7 +830,7 @@ inline double NodeBox::instr_cost() const {
   }
 }
 
-// TODO: use this header file in multiple compilation units will cause problems
+// use this header file in multiple compilation units will cause problems
 // during linking
 int Node::current_id = 0;
 
@@ -1644,7 +1644,7 @@ NodeBox::reach_here(std::function<void()> entrypoint) {
     return;
   }
   // Reach the parent node, then from the parent node, we can reach here
-  // TODO: short circuit the lookup
+  // short circuit the lookup
   parent->reach_here(entrypoint);
   return;
 }
@@ -1822,7 +1822,7 @@ static EvalRes eval_binary_op(EvalRes lhs_res, EvalRes rhs_res,
   }
 }
 
-// TODO: reduce the re-computation of the same symbolic expression, it's better
+// reduce the re-computation of the same symbolic expression, it's better
 // if it can be done by the smt solver
 static EvalRes eval_sym_expr(const SymVal &sym, const SymEnv_t &sym_env) {
   Profile.step(StepProfileKind::SYM_EVAL);

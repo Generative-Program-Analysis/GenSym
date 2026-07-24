@@ -10,7 +10,7 @@ import lms.core.virtualize
 import lms.macros.SourceContext
 
 trait SMTArrayOps extends SMTArrayInterface with StagedSMTBase with SMTBitVecOps {
-  // TODO: support arrays of arbitrary dimensions
+
 
   // lengthMap maps array representations to pairs of its 2nd-dim length and index domain bit-width.
   val lengthMap = collection.mutable.Map[Rep[SMTArray], (Int, Int)]()

@@ -54,7 +54,7 @@ trait SMTBaseOps extends SMTBaseInterface with StagedSMTBase {
   def query(x: Rep[SMTBool]): Rep[Int] =
     Wrap[Int](Adapter.g.reflectWrite("smt-query", Unwrap(x))(Adapter.CTRL))
   def getCounterEx(x: Rep[SMTExpr]): Rep[SMTExpr] =
-    // TODO: what's the expression should be given here?
+
     Wrap[SMTExpr](Adapter.g.reflectWrite("smt-get-cex", Unwrap(x))(Adapter.CTRL))
   def printCounterEx: Rep[Unit] =
     Wrap[Unit](Adapter.g.reflectWrite("smt-print-cex")(Adapter.CTRL))

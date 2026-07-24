@@ -1,7 +1,7 @@
 (module
   (type (;0;) (func))
-  (type (;1;) (func (result i32))) 
-  ;; TODO: It seems that our parser or preprocessor has some problems; the result type of the last line doesn't take effect
+  (type (;1;) (func (result i32)))
+
   (func (result i32)
     block
       i32.const 21

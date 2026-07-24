@@ -317,11 +317,11 @@ offset
   | expr
   ;
 
-// TODO: not sure about the the parsing rules here
+
 // fow now, I only extend it to support declarative mode for ref.func
 // like (elem declarative func 1)
 // TBH I'm not even sure what the `func 1` should count as
-// TODO: align with the rules here:
+
 // https://webassembly.github.io/function-references/core/_download/WebAssembly.pdf
 // For now, only support initialize one table via function indices
 elem

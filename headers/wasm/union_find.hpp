@@ -6,7 +6,7 @@
 #include <immer/vector.hpp>
 #include <optional>
 
-// TODO: merge this file with headers/gensym/unionfind.hpp with a general implementation in a new PR
+
 class UnionFind {
 private:
   immer::map_transient<int, int> parent;

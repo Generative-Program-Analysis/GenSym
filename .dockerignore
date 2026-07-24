@@ -12,6 +12,7 @@
 third-party/wasp/wasp/wasp
 
 .idea
+.clangd
 .metals
 .vscode
 .bsp

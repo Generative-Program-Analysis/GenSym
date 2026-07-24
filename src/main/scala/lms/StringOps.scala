@@ -11,7 +11,7 @@ import lms.macros.SourceContext
 
 trait StringOps { b: Base =>
   // object String {
-  //   // TODO: use reflect instead of reflectUnsafe when hardtopfun has support for variable dependencies <2022-05-26, David Deng> //
+
   //   def apply(str: String): Rep[String] = Wrap[String](Adapter.g.reflect("string-new", Unwrap(unit[String](str))))
   // }
 

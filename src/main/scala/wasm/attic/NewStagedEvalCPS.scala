@@ -203,7 +203,7 @@ trait StagedEvalCPS extends SAIOps {
       loopFuns: HashMap[Int, Rep[Cont]],
       stackBudget: Int
   ) {
-    // TODO: pass precise type to operations
+
     def evalBinOp(op: BinOp, lhsV: Rep[Value], rhsV: Rep[Value]): Rep[Value] =
       op match {
         case Add(_) => {
@@ -318,7 +318,7 @@ trait StagedEvalCPS extends SAIOps {
       compileStuffIn(body, (_: StaticState) => retCont)(innerSS)
       val funFun = topFun { (k1: Rep[Cont]) =>
         System.out.println(s"started topFun for fun $name")
-        // TODO: make some sort of compile time map of retCont and then
+
         // use LMS reflection to substitute in a direct identifier and static assignments
         // funRetConts(name) = retCont
         // setFunRetCont(name, k1)
@@ -644,7 +644,7 @@ trait CppStagedWasmDriver[A, B] extends CppSAIDriver[A, B] with StagedEvalCPS {
       if (initStream.size > 0)
         emitln("if (init()) return 0;")
       emitln(s"""
-      |  // TODO: what is the right way to pass arguments?
+      |
       |  $name(${convert("argv[1]", m1)});
       |  return 0;
       |}""".stripMargin)

@@ -114,7 +114,7 @@ public:
   }
 
   void initialize() {
-    // todo: remove this method
+
     reset();
   }
 

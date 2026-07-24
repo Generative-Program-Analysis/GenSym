@@ -2,7 +2,7 @@ package gensym.structure.freer
 
 import scala.language.{higherKinds, implicitConversions, existentials}
 
-//TODO would be nice if we could unify into a stage-polymorphic effect definition
+
 object NondetList {
   import Eff._
   import Freer._

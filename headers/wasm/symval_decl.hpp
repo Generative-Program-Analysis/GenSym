@@ -58,7 +58,7 @@ struct SymVal {
   SymVal bool2bv() const;
   SymVal rem_u(const SymVal &other) const;
   SymVal extend_to_i64() const; // only for i32 symbolic values, extend to i64 by sign extension
-  // TODO: add bitwise operations, and use the underlying bitvector theory
+
 
   bool is_concrete() const;
 

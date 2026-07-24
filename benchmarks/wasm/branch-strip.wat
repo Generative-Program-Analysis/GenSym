@@ -32,7 +32,7 @@
   )
   (export "f" (func 0))
   (func $real_main
-    ;; TODO: is there a better way to put symbolic values on the stack?
+
     i32.const 0
     i32.symbolic
     i32.const 1

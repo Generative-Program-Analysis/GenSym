@@ -1545,8 +1545,8 @@ trait StagedWasmEvaluator extends SAIOps
           Stack.popS(ty)
           val ret = Memory.grow(delta.toInt)
           val retNum = Values.I32V(ret)
-          // For now, we assume that the result of memory.grow only depends on the execution path, 
-          // we can relax this by turning it return to a symbol value and mimic the memory.grow's result as input. 
+          // For now, we assume that the result of memory.grow only depends on the execution path,
+          // we can relax this by turning it return to a symbol value and mimic the memory.grow's result as input.
           val retSym = "Concrete".reflectCtrlWith[SymVal](retNum, 32)
           Stack.pushC(StagedConcreteNum(NumType(I32Type), retNum))
           Stack.pushS(StagedSymbolicNum(NumType(I32Type), retSym))
@@ -1754,7 +1754,7 @@ trait StagedWasmEvaluator extends SAIOps
             }
             // When moving the cursor to a branch, we mark another branch as
             // snapshotNode (this is done by moveCursor's runtime implementation)
-            // TODO: store snapshot into this snapshot node
+
             def thnK: Rep[Cont[Unit]] = topFun((_: Rep[Unit]) => {
               info(s"Entering the true branch $id of the br_table")
               Stack.popC(ty)
@@ -1901,7 +1901,7 @@ trait StagedWasmEvaluator extends SAIOps
       case Import("console", "assert", _) =>
         val (ty, newCtx) = ctx.pop()
         val v = Stack.popC(ty)
-        // TODO: We should also add s into exploration tree
+
         val s = Stack.popS(ty)
         v.assert()
         eval(rest, kont, trail)(newCtx)
@@ -2025,7 +2025,7 @@ trait StagedWasmEvaluator extends SAIOps
     case Mul(_) => v1 * v2
     case Sub(_) => v1 - v2
     case Shl(_) => v1 << v2
-    case ShrS(_) => v1 shrS v2 // TODO: signed shift right
+    case ShrS(_) => v1 shrS v2
     case ShrU(_) => v1 shrU v2
     case And(_) => v1 & v2
     case DivS(_) => v1 divs v2
@@ -2050,7 +2050,7 @@ trait StagedWasmEvaluator extends SAIOps
         case Mul(_) => v1 * v2
         case Sub(_) => v1 - v2
         case Shl(_) => v1 << v2
-        case ShrS(_) => v1 shrS v2 // TODO: signed shift right
+        case ShrS(_) => v1 shrS v2
         case ShrU(_) => v1 shrU v2
         case And(_) => v1 & v2
         case DivS(_) => v1 divs v2
@@ -2132,7 +2132,7 @@ trait StagedWasmEvaluator extends SAIOps
     val res = if (allConcrete(value)) {
       c.toStagedSymbolicNum.s
     } else (op match {
-      case _ => StagedSymbolicNum(NumType(I32Type) /* Just a place holder here */, 
+      case _ => StagedSymbolicNum(NumType(I32Type) /* Just a place holder here */,
                                   "debug-unreachable".reflectCtrlWith[SymVal]("All runtime converted value must be concrete values"))
     }).s
     StagedSymbolicNum(c.tipe, res)

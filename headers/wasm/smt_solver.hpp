@@ -73,7 +73,7 @@ struct GroupResult {
 };
 
 static std::optional<int> group_of_symval(const SymVal &sym, UnionFind &uf) {
-  // TODO: This process is un optimized and slow, just want to see if the idea
+  // This process is un optimized and slow, just want to see if the idea
   // of independent resolving works
   if (auto symbol = dynamic_cast<Symbol *>(sym.symptr.get())) {
     return symbol->get_id();
@@ -101,7 +101,7 @@ static std::optional<int> group_of_symval(const SymVal &sym, UnionFind &uf) {
 }
 
 static VectorGroupMap build_group_map(const std::vector<SymVal> &conditions) {
-  // TODO: This is a slow temporary solution which only used for validating the
+  // This is a slow temporary solution which only used for validating the
   // idea of independent constraint resolving, the intermediate result of
   // independent solving is reusable
   ManagedTimer timer(TimeProfileKind::SPLIT_CONDITIONS);

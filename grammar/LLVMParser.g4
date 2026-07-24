@@ -260,7 +260,7 @@ functionDef
 //       '(' argList ')' OptFuncAttrs section ? OptionalAlign OptGC
 //       OptionalPrefix OptionalPrologue OptPersonalityFn
 
-// TODO: Add OptAlignment before OptGC once the LR-1 conflict has been resolved,
+
 // as funcAttrs also contains 'align'.
 
 functionHeader
@@ -582,7 +582,7 @@ arrayType
 //     ::= '<' '{' '}' '>'
 //     ::= '<' '{' type (',' type)* '}' '>'
 
-// TODO: Simplify when parser generator is not limited by 1 token lookahead.
+
 //
 //    structType
 //       : '{' types '}'
@@ -741,7 +741,7 @@ noneConst
 //  ::= '{' ConstVector '}'
 //  ::= '<' '{' ConstVector '}' '>' --> Packed Struct.
 
-// TODO: Simplify when parser generator is not limited by 1 token lookahead.
+
 //
 //    structConst
 //       : '{' Elems '}'
@@ -1659,7 +1659,7 @@ insertValueInst
 //   ::= 'alloca' 'inalloca'? 'swifterror'? type (',' TypeAndValue)?
 //       (',' 'align' i32)? (',', 'addrspace(n))?
 
-// TODO: Simplify when parser generator is not limited by 1 token lookahead.
+
 //
 //    allocaInst
 //       : 'alloca' optInAlloca OptSwiftError type OptCommaTypeValue OptCommaAlignment OptCommaAddrSpace optCommaSepMetadataAttachmentList
@@ -1694,7 +1694,7 @@ optSwiftError
 //   ::= 'load' 'atomic' 'volatile'? TypeAndValue
 //       'singlethread'? AtomicOrdering (',' 'align' i32)?
 
-// TODO: Simplify when parser generator is not limited by 1 token lookahead.
+
 //
 //    loadInst
 //       : 'load' VOLATILE ? type ',' type value OptCommaAlignment optCommaSepMetadataAttachmentList
@@ -1720,7 +1720,7 @@ loadInst
 //   ::= 'store' 'atomic' 'volatile'? TypeAndValue ',' TypeAndValue
 //       'singlethread'? AtomicOrdering (',' 'align' i32)?
 
-// TODO: Simplify when parser generator is not limited by 1 token lookahead.
+
 //
 //    storeInst
 //       : 'store' VOLATILE ? type value ',' type value OptCommaAlignment optCommaSepMetadataAttachmentList
@@ -1798,7 +1798,7 @@ binOp
 //
 //   ::= 'getelementptr' 'inbounds'? TypeAndValue (',' TypeAndValue)*
 
-// TODO: Simplify when parser generator is not limited by 1 token lookahead.
+
 //
 //    getElementPtrInst
 //       : 'getelementptr' optInBounds type ',' type value GEPIndices optCommaSepMetadataAttachmentList

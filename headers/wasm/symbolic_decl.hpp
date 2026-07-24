@@ -13,7 +13,7 @@ enum BinOperation {
   DIV_U,   // Unsigned division
   AND,     // Logical AND
   OR,      // Logical OR
-  EQ_BOOL, // Equal (return a boolean) TODO: remove bv version of comparison ops
+  EQ_BOOL,
   NEQ_BOOL, // Not equal (return a boolean)
   LT_BOOL,  // Less than (return a boolean)
   LTU_BOOL, // Unsigned less than (return a boolean)
@@ -58,7 +58,7 @@ private:
 
 class Symbol : public Symbolic {
 public:
-  // TODO: add type information to determine the size of bitvector
+
   // for now we just assume that only i32 will be used
   Symbol(int id, int width, ValueKind kind)
       : id(id), _width(width), _kind(kind) {}

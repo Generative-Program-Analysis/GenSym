@@ -85,7 +85,7 @@ trait SAIOps extends Base
 
   implicit class StringOps(op: String) {
     def reflectPureWith[T: Manifest](rs: Rep[_]*): Rep[T] = {
-      // TODO: merge this into LMS?
+
       val args = rs.map(Unwrap)
       Adapter.g.findDefinition(op, args) match {
         case Some(n) => Wrap[T](n.n)

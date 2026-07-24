@@ -48,7 +48,7 @@ case class RTMemory(var memType: RTMemoryType, data: ArrayBuffer[Byte]) {
     }
   }
 
-  // TODO: store/load different types
+
   def loadInt(addr: Long): Int = {
     val result: Long = loadn(addr, 0, 4)
     result.toInt
@@ -59,7 +59,7 @@ case class RTMemory(var memType: RTMemoryType, data: ArrayBuffer[Byte]) {
   }
 
   def fill(offset: Long, size: Long, value: Byte): Unit = {
-    // TODO: instead of using storeByte and loadByte, check
+
     // bounds up front so we can avoid the checks in load/storeByte
     for (i <- offset until offset + size) {
       storeByte(i, value)
@@ -67,7 +67,7 @@ case class RTMemory(var memType: RTMemoryType, data: ArrayBuffer[Byte]) {
   }
 
   def copy(src: Long, dst: Long, size: Long): Unit = {
-    // TODO: instead of using storeByte and loadByte, check
+
     // bounds up front so we can avoid the checks in load/storeByte
     if (src < dst) {
       for (i <- size - 1 to 0 by -1) {

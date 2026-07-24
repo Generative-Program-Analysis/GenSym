@@ -34,7 +34,7 @@ trait ListOps { b: Base =>
     def isEmpty: Rep[Boolean] = Wrap[Boolean](Adapter.g.reflect("list-isEmpty", Unwrap(xs)))
     def take(i: Rep[Int]) = Wrap[List[A]](Adapter.g.reflect("list-take", Unwrap(xs), Unwrap(i)))
     def drop(i: Rep[Int]) = Wrap[List[A]](Adapter.g.reflect("list-drop", Unwrap(xs), Unwrap(i)))
-    def updated(i: Rep[Int], x: Rep[A]) = 
+    def updated(i: Rep[Int], x: Rep[A]) =
       Wrap[List[A]](Adapter.g.reflect("list-updated", Unwrap(xs), Unwrap(i), Unwrap(x)))
     def ::(x: Rep[A]): Rep[List[A]] =
       Wrap[List[A]](Adapter.g.reflect("list-prepend", Unwrap(xs), Unwrap(x)))
@@ -71,7 +71,7 @@ trait ListOps { b: Base =>
       Wrap[List[A]](Adapter.g.reflect("list-filter", Unwrap(xs), block))
     }
     def withFilter(f: Rep[A] => Rep[Boolean]): Rep[List[A]] = filter(f)
-    // TODO: what if the Ordering of B not exists at the next stage?
+
     def sortBy[B: Manifest : Ordering](f: Rep[A] => Rep[B]): Rep[List[A]] = {
       val block = Adapter.g.reify(x => Unwrap(f(Wrap[A](x))))
       Wrap[List[A]](Adapter.g.reflect("list-sortBy", Unwrap(xs), block))
@@ -80,7 +80,7 @@ trait ListOps { b: Base =>
       Wrap[Boolean](Adapter.g.reflect("list-containsSlice", Unwrap(xs), Unwrap(ys)))
     def intersect[B >: A : Manifest](ys: Rep[List[B]]): Rep[List[A]] =
       Wrap[List[A]](Adapter.g.reflect("list-intersect", Unwrap(xs), Unwrap(ys)))
-    // TODO correct?
+
     def foreach(f: Rep[A] => Rep[Unit]): Rep[List[Unit]] = {
       val block = Adapter.g.reify(x => Unwrap(f(Wrap[A](x))))
       Wrap[List[Unit]](Adapter.g.reflect("list-foreach", Unwrap(xs), block))
@@ -99,7 +99,7 @@ trait ListOpsOpt extends ListOps { b: Base =>
   implicit override def __liftVarList[A: Manifest](xs: Var[List[A]]): ListOps[A] = new ListOpsOpt(readVar(xs))
 
   implicit class ListOpsOpt[A: Manifest](xs: Rep[List[A]]) extends ListOps[A](xs) {
-    // TODO: apply
+
     override def ++(ys: Rep[List[A]]): Rep[List[A]] = (Unwrap(xs), Unwrap(ys)) match {
       case (Adapter.g.Def("list-new", mA::(xs: List[Backend.Exp])),
             Adapter.g.Def("list-new",  _::(ys: List[Backend.Exp]))) =>
@@ -133,7 +133,7 @@ trait ListOpsOpt extends ListOps { b: Base =>
         case Adapter.g.Def("list-new", mA::(xs: List[Backend.Exp])) =>
           xs.map(Wrap[A](_)).foldLeft(z)(f)
         case _ =>
-          // TODO: simplify this code
+
           // foldLeft(xs, List(), (acc, x) => acc ++ List(x)) ==> xs
           Unwrap(z) match {
             case Adapter.g.Def("list-new", _::Nil) if manifest[A] == manifest[B].typeArguments(0) =>
@@ -242,7 +242,7 @@ trait ScalaCodeGen_List extends ExtendedScalaCodeGen {
     case _ => super.shallow(n)
   }
 
-  //TODO: what should be added here?
+
   override def traverse(n: Node): Unit = n match {
     case _ => super.traverse(n)
   }

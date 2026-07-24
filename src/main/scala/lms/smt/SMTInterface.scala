@@ -69,14 +69,14 @@ trait SMTBitVecInterface extends SMTBaseInterface { op =>
   def bvVar(s: String)(implicit width: Int): BT[BV]
 
   // BV arithmetics
-  // TODO: signed operations?
+
   def bvPlus(x: BT[BV], y: BT[BV])(implicit width: Int): BT[BV]
   def bvMul(x: BT[BV], y: BT[BV])(implicit width: Int): BT[BV]
   def bvDiv(x: BT[BV], y: BT[BV])(implicit width: Int): BT[BV]
   def bvMinus(x: BT[BV], y: BT[BV])(implicit width: Int): BT[BV]
   def bvMod(x: BT[BV], y: BT[BV])(implicit width: Int): BT[BV]
   def bvRem(x: BT[BV], y: BT[BV])(implicit width: Int): BT[BV]
-  
+
   // BV comparisons
   def bvLt(x: BT[BV], y: BT[BV]): BT[SMTBool]
   def bvLe(x: BT[BV], y: BT[BV]): BT[SMTBool]
@@ -87,7 +87,7 @@ trait SMTBitVecInterface extends SMTBaseInterface { op =>
   def bvAnd(x: BT[BV], y: BT[BV]): BT[BV]
   def bvOr(x: BT[BV], y: BT[BV]): BT[BV]
   def bvXor(x: BT[BV], y: BT[BV]): BT[BV]
-  // TODO: bvNot vs bvUMinus, sign bit?
+
   def bvNot(x: BT[BV]): BT[BV]
 
   def bvToInt(x: BT[BV]): BT[Int]
@@ -114,7 +114,7 @@ trait SMTBitVecInterface extends SMTBaseInterface { op =>
       def &(y: BT[BV]) = op.bvAnd(x, y)
       def |(y: BT[BV]) = op.bvOr(x, y)
       def ⊕(y: BT[BV]) = op.bvXor(x, y)
-      // TODO not
+
     }
   }
 }

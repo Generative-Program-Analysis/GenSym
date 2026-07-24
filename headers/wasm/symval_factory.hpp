@@ -653,7 +653,7 @@ inline SymVal make_concat(const SymVal &lhs, const SymVal &rhs) {
           extract1->value == extract2->value) {
         if (extract1->high == 4 && extract2->low == 1) {
           // special case for full 4-byte extract concatenation
-          // TODO: support 64-bit later, this optimization is only valid when we
+
           // only work on 32-bit values
           return extract1->value;
         }

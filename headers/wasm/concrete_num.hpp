@@ -36,7 +36,7 @@ struct Num {
     debug_print("WasmBool", *this, *this, res);
     return res;
   }
-  // TODO: support different bit width operations, for now we just assume all
+
   // oprands are i32
   // i32.eq (Equals): *this == other
   inline Num i32_eq(const Num &other) const {

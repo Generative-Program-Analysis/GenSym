@@ -20,7 +20,7 @@ case class Start(id: Int) extends Definition
 case class Import(mod: String, name: String, desc: ImportDesc) extends Definition with Callable
 case class Export(name: String, desc: ExportDesc) extends Definition
 case class Tag(id: Option[String], tipe: FuncType) extends Definition
-// FIXME: missing top-level module fields, see WatParser.g4
+
 
 abstract class ImportDesc extends WIR
 case class ImportFuncTy(name: Option[String], t: FuncType) extends ImportDesc
@@ -33,8 +33,8 @@ case class ElemListExpr(exprs: List[List[Instr]]) extends ElemList
 abstract class FuncField extends WIR
 case class FuncBodyDef(tipe: FuncType, localNames: List[String], locals: List[ValueType], body: List[Instr])
     extends FuncField
-// TODO: FunInline was never used
-case class FunInlineImport(mod: String, name: String, typeUse: Option[Int], imports: Any /*FIXME*/ ) extends FuncField
+
+case class FunInlineImport(mod: String, name: String, typeUse: Option[Int], imports: Any  ) extends FuncField
 case class FunInlineExport(fd: List[FuncDef]) extends FuncField
 
 abstract class TableField extends WIR
@@ -74,7 +74,7 @@ case class ForLoop(init:List[Instr], cond: List[Instr], post: List[Instr], body:
 case class IdLoop(id: Int, ty: BlockType, instrs: List[Instr]) extends Instr
 case class If(ty: BlockType, thenInstrs: List[Instr], elseInstrs: List[Instr]) extends Instr
 case class IdIf(ty: BlockType, thenInstrs: IdBlock, elseInstrs: IdBlock) extends Instr
-// FIXME: labelId can be string?
+
 case class Br(labelId: Int) extends Instr
 case class BrIf(labelId: Int) extends Instr
 case class BrTable(labels: List[Int], default: Int) extends Instr
@@ -148,7 +148,7 @@ case class RefFunc(func: Int) extends Instr
 case class CallRef(ty: Int) extends Instr
 
 case class Resume(ty: Int, ons: List[Handler]) extends Instr
-// TODO: make sure this class wants to extend WIR
+
 case class Handler(tag: Int, label: Int) extends WIR
 
 // resumable try-catch:
@@ -274,7 +274,7 @@ abstract class BlockType extends WIR {
   def funcType: FuncType =
     this match {
       case VarBlockType(_, None) =>
-        ??? // TODO: fill this branch until we handle type index correctly
+        ???
       case VarBlockType(_, Some(tipe)) => tipe
       case ValBlockType(Some(tipe))    => FuncType(List(), List(), List(tipe))
       case ValBlockType(None)          => FuncType(List(), List(), List())
@@ -292,9 +292,9 @@ case class ExportGlobal(i: Int) extends ExportDesc
 
 case class Script(cmds: List[Cmd]) extends WIR
 abstract class Cmd extends WIR
-// TODO: can we turn abstract class sealed?
+
 case class CmdModule(module: Module) extends Cmd
-// TODO: extend if needed
+
 case class CMdInstnace() extends Cmd
 
 abstract class Action extends Cmd
@@ -302,7 +302,7 @@ case class Invoke(instName: Option[String], name: String, args: List[Value]) ext
 
 abstract class Assertion extends Cmd
 case class AssertInvalid() extends Assertion
-case class AssertReturn(action: Action, expect: List[Num] /* TODO: support multiple expect result type*/)
+case class AssertReturn(action: Action, expect: List[Num] )
     extends Assertion
 case class AssertTrap(action: Action, message: String) extends Assertion
 

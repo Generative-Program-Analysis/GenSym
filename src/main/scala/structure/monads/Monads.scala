@@ -14,7 +14,7 @@ trait RMonad[R[_], M[_]] {
   def pure[A](a: R[A]): M[A]
   def flatMap[A, B](ma: M[A])(f: R[A] => M[B]): M[B]
   def map[A,B](ma: M[A])(f: R[A] => R[B]): M[B] = flatMap(ma)(a => pure(f(a)))
-  //TODO: refactor filter, not necessary for monad
+
   def filter[A](ma: M[A])(f: R[A] => R[Boolean]): M[A] =
     throw new Exception("Not supported")
 

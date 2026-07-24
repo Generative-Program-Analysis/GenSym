@@ -140,7 +140,7 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
 
   override def visitTag(ctx: TagContext): Tag = {
     val fty = visitFuncType(ctx.funcType)
-    
+
     Tag(None, fty)
 
   }
@@ -149,7 +149,7 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
     if (ctx.defType.FUNC != null) {
       TypeDef(getVar(ctx.bindVar()), visit(ctx.defType.funcType).asInstanceOf[FuncType])
     } else if (ctx.defType.CONT != null) {
-      // TODO: here, the getVar is more link the typeUse one, although it uses the IdxContext one
+
        TypeDef(getVar(ctx.bindVar()), ContType(getVar(ctx.defType.idx).toInt))
     } else {
       error
@@ -221,7 +221,7 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
       ???
   }
 
-  // TODO: This doesn't seems quite correct
+
   def parseHexFloat(text: String): Float = {
     if (text.startsWith("0x") || text.startsWith("-0x") || text.startsWith("+0x")) {
       // Remove optional sign and "0x" prefix
@@ -285,7 +285,7 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
           }
         }
       }
-    // TODO: parsing support for hex representation for f32/f64 not quite there yet
+
     } else if (ctx.FLOAT != null) {
       ty.kind match {
         case F32Type =>
@@ -293,7 +293,7 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
           F32V(parsedValue)
 
         case F64Type =>
-          // TODO: not processed at all
+
           val parsedValue = ctx.FLOAT.getText.toDouble
           F64V(parsedValue)
       }
@@ -467,7 +467,7 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
           val fromTy = toNumType(fromTySign)
           Wrap(fromTy, toTy)
         case "trunc" =>
-          // TODO: handle trunc_sat instr, split by "_" current not work for that
+
           val Array(fromTyStr, signStr) = fromTySign.split("_")
           val fromTy = toNumType(fromTyStr)
           val sign = visitSignExt(signStr)
@@ -539,14 +539,14 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
 
   override def visitBlockType(ctx: BlockTypeContext): BlockType = {
     if (ctx.typeUse != null) {
-      // TODO: explicit type use
+
       val tyIndex = -1
       val funcType = visitFuncType(ctx.funcType)
       VarBlockType(tyIndex, Some(funcType))
     } else if (ctx.funcType != null){
       // abbreviation form
       val ty = visitFuncType(ctx.funcType)
-      // TODO: append ty to the type definition list of parsing context, when necessarily
+
       VarBlockType(-1, Some(ty))
     }
     else {
@@ -675,7 +675,7 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
   override def visitFuncFields(ctx: FuncFieldsContext): WIR = {
     if (ctx.funcFieldsBody() != null) {
       val typeUse = getVar(ctx.typeUse)
-      // FIXME: typeUse is not current used
+
       visit(ctx.funcFieldsBody)
     } else if (ctx.inlineImport() != null) {
       ???
@@ -771,7 +771,7 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
     else error
   }
 
-  // TODO: we instantiate the module no matter what, might want to change the
+
   // behavior in the future
   override def visitScriptModule(ctx: ScriptModuleContext): Module = {
     if (ctx.module_ != null) {
@@ -839,7 +839,7 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
       }
       AssertReturn(action, expect.toList)
     } else if (ctx.ASSERT_INVALID != null ) {
-      // TODO: we simply ignore assert_invalid for now
+
       AssertInvalid()
     } else {
       throw new RuntimeException("Unsupported")
@@ -857,7 +857,7 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
     } else if (ctx.action_ != null) {
       visitAction_(ctx.action_)
     }
-    
+
     else {
       throw new RuntimeException("Unsupported")
     }

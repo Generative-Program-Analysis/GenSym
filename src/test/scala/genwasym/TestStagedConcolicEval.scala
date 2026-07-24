@@ -140,11 +140,11 @@ class TestStagedConcolicEval extends CppCompilationTestBase {
   test("power - concrete") { testFileConcreteCpp("./benchmarks/wasm/pow.wat", Some("real_main"), expect=Some(List(1024))) }
   test("start - concrete") { testFileConcreteCpp("./benchmarks/wasm/start.wat") }
   test("fact - concrete") { testFileConcreteCpp("./benchmarks/wasm/fact.wat", None, expect=Some(List(120))) }
-  // TODO: Waiting more symbolic operators' implementations
+
   // test("loop - concrete") { testFileConcreteCpp("./benchmarks/wasm/loop.wat", None, expect=Some(List(10))) }
   test("even-odd - concrete") { testFileConcreteCpp("./benchmarks/wasm/even_odd.wat", None, expect=Some(List(1))) }
   test("global - concrete") { testFileConcreteCpp("./benchmarks/wasm/global-sym.wat", None) }
-  // TODO: Waiting symbolic memory's implementations
+
   test("load - concrete") { testFileConcreteCpp("./benchmarks/wasm/load.wat", None, expect=Some(List(1))) }
   test("select - concrete") { testFileConcreteCpp("./benchmarks/wasm/select.wat", Some("real_main")) }
   test("load overflow 1 - concrete") { testFileConcreteCpp("./benchmarks/wasm/load-overflow1.wat", None, expect=Some(List(1))) }
@@ -195,7 +195,7 @@ class TestStagedConcolicEval extends CppCompilationTestBase {
     testFileConcreteCpp("./benchmarks/wasm/compare_wasp/small-snapshot.wat", Some("main"))
   }
 
-  // TODO: support float point operations in symbolic semantics
+
   // test("f32-operations-concrete") {
   //   testFileConcreteCpp("./benchmarks/wasm/f32_test.wat", Some("test_f32"))
   // }

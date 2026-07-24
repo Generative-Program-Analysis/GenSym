@@ -84,7 +84,7 @@ object OpenUnion {
       }
   }
 
-  //TODO can this be made more flexible? i.e. have decomp at arbitrary positions in the list R?
+
   def decomp[T[_], R <: Eff, X](u: (T ⊗ R) ⊎ X): Either[R ⊎ X, T[X]] = u match {
     case Union(0, v) => Right(v.asInstanceOf[T[X]])
     case Union(n, v) => Left(Union(n-1, v))
@@ -107,7 +107,7 @@ object Freer {
     override def map[B](f: A => B): Comp[R, B] = Return(f(a))
   }
 
-  //TODO use the construction from sec. 3.1 for the continuations
+
   case class Op[R <: Eff, A, X](op: R ⊎ X, k: X => Comp[R, A]) extends Comp[R, A] {
     override def flatMap[B](f: A => Comp[R, B]): Comp[R, B] =
       Op(op, { x: X => k(x) >>= f })
@@ -123,7 +123,7 @@ object Freer {
     def apply[R <: Eff, A, X](op: R ⊎ X)(k: X => Comp[R, A]): Comp[R, A] = Op(op, k)
   }
 
-  def perform[T[_], R <: Eff, X](op: T[X])(implicit I: T ∈ R): Comp[R, X] = //TODO naming
+  def perform[T[_], R <: Eff, X](op: T[X])(implicit I: T ∈ R): Comp[R, X] =
     Op(I.inj(op)) { x => Return(x) }
 
   def ret[R <: Eff, A](x:A): Return[R, A] = Return(x)
@@ -191,7 +191,7 @@ object Handlers {
     //to allow inducing other effects in the handler body passed by the programmer,
     //we'll need an implicit context with the capability.
     //we could probably have a leaner overall design with dotty's implicit function types
-    //TODO: weak point: what if we require G to consist of multiple effects?
+
     implicit val canG: G ∈ (G ⊗ R) = implicitly
   }
 
@@ -243,7 +243,7 @@ object Handlers {
     implicit def openHK[I,E[_],R<:Eff,X<:Eff,R2<:Eff,O](implicit cat : RowConcat[X,R,R2]) =
       new HKind[I, E ⊗ R, O, R2]  {
         override type Ret = Return[E ⊗ R, I] => Comp[R2, O]
-        //TODO it would be better if we had a partial function here too, but then we have the problem of not having a
+
         //capability canG: G ∈ (G ⊗ R) in scope
         override type Clauses = HO[E,X,R,R2,O]
 
@@ -386,5 +386,5 @@ object Handlers {
     def apply[I,E <: Eff, O, F <: Eff](implicit kind : HKind[I,E,O,F]): kind.type = kind
   }
 
-  //TODO: koka-style parameterized handlers?
+
 }

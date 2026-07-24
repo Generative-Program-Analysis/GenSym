@@ -102,15 +102,15 @@ trait CppSAICodeGenBase extends ExtendedCPPCodeGen
     case n @ Node(f, "λ", (b: Block)::Const(0)::rest, _) =>
       super.traverse(n)
     case n @ Node(f, "λ", (b: Block)::rest, _) =>
-      // TODO: what are the rest?
-      // TODO: regression test
+
+
       /* Note: First, generate a function declaration with full type annotation,
        * and then generate the actual closure.
        */
       val retType = remap(typeBlockRes(b.res))
       val argTypes = b.in.map(a => remap(typeMap(a))).mkString(", ")
       emitln(s"std::function<$retType(${argTypes})> ${quote(f)};")
-      // TODO: pass by ref vs pass by val?
+
       //emitln(s"std::function<$retType(${argTypes})&> ${quote(f)};")
       emit(quote(f)); emit(" = ")
       quoteTypedBlock(b, false, true, capture = "=")
@@ -162,7 +162,7 @@ trait CppSAICodeGenBase extends ExtendedCPPCodeGen
     if (initStream.size > 0)
       emitln("if (init()) return 0;")
     emitln(s"""
-    |  // TODO: what is the right way to pass arguments?
+    |
     |  $name(${convert("argv[1]", m1)});
     |  return 0;
     |}""".stripMargin)

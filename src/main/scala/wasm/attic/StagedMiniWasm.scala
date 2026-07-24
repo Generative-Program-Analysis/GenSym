@@ -46,7 +46,7 @@ trait StagedEvalCPS extends SAIOps {
   object State {
     def pushStack(value: Rep[Value]) =
       "static-state-push-stack".reflectWriteWith(value)(Adapter.CTRL)
-    def stackAt(i: Int): Rep[Value] = 
+    def stackAt(i: Int): Rep[Value] =
       Wrap[Value](Adapter.g.reflectWrite("static-state-stack-at", Unwrap(i))(Adapter.CTRL))
     def popStack: Rep[Value] =
       Wrap[Value](Adapter.g.reflectWrite("static-state-pop-stack")(Adapter.CTRL))
@@ -76,7 +76,7 @@ trait StagedEvalCPS extends SAIOps {
     def setLocal(i: Rep[Int], v: Rep[Value])(implicit frameSize: Int) =
       Adapter.g.reflectWrite("static-state-set-local", Unwrap(-frameSize + i), Unwrap(v))(Adapter.CTRL)
 
-    def printStack = 
+    def printStack =
       Adapter.g.reflectWrite("static-state-print-stack")(Adapter.CTRL)
 
     def getGlobal(i: Int): Rep[Value] =
@@ -147,7 +147,7 @@ trait StagedEvalCPS extends SAIOps {
 
   def evalInsts(insts: List[Instr], ret: Rep[Cont], trail: List[Rep[Cont]])(implicit frameSize: Int): Unit = {
     if (insts.isEmpty) return trail.head()
-    
+
     val inst = insts.head
     val rest = insts.tail
 
@@ -171,7 +171,7 @@ trait StagedEvalCPS extends SAIOps {
         val v = State.peekStack
         State.setLocal(i, v)
         evalInsts(rest, ret, trail)
-      case GlobalGet(i) => 
+      case GlobalGet(i) =>
         val v = State.getGlobal(i)
         State.pushStack(v)
         evalInsts(rest, ret, trail)
@@ -183,10 +183,10 @@ trait StagedEvalCPS extends SAIOps {
       case MemoryGrow => ???
       case MemoryFill => ???
       case MemoryCopy => ???
-      case Konst(I32V(n)) => // FIXME: could be other const
+      case Konst(I32V(n)) =>
         State.pushStack(I32(n))
         evalInsts(rest, ret, trail)
-      case Binary(op) => 
+      case Binary(op) =>
         val (v2, v1) = (State.popStack, State.popStack)
         State.pushStack(evalBinOp(op, v1, v2))
         evalInsts(rest, ret, trail)
@@ -212,7 +212,7 @@ trait StagedEvalCPS extends SAIOps {
       case IdBlock(id, ty, inner) =>
         System.out.println(s"Block $id, |trail|: ${trail.size}")
         def repCont: Rep[Unit => Unit] = topFun { (u: Rep[Unit]) => evalInsts(rest, ret, trail) }
-        // TODO: block can take inputs too
+
         def repBody: Rep[Unit => Unit] = topFun { (u: Rep[Unit]) => evalInsts(inner, ret, repCont::trail) }
         repBody()
       case IdLoop(id, ty, inner) =>
@@ -277,48 +277,48 @@ trait CppStagedWasmGen extends CppSAICodeGenBase {
     case Node(s, "I32V-proj", List(i), _) => shallow(i); emit(".i32")
     case Node(s, "state-new", List(memory, globals, stack), _) =>
       es"State($memory, $globals, $stack)"
-    case Node(s, "state-init", List(memory, globals, numLocals), _) => 
-      es"init_state($memory, $globals, $numLocals)" 
+    case Node(s, "state-init", List(memory, globals, numLocals), _) =>
+      es"init_state($memory, $globals, $numLocals)"
     case Node(s, "state-memory", List(state), _) => es"$state.memory"
     case Node(s, "state-globals", List(state), _) => es"$state.globals"
     case Node(s, "state-stack", List(state), _) => es"$state.stack"
     case Node(s, "static-state-stack-at", List(i), _) =>
       emit("global_state.stack_at("); shallow(i); emit(")")
-    case Node(s, "static-state-push-stack", List(v), _) => 
+    case Node(s, "static-state-push-stack", List(v), _) =>
       emit("global_state.push_stack("); shallow(v); emit(")")
-    case Node(s, "static-state-pop-stack", List(), _) => 
+    case Node(s, "static-state-pop-stack", List(), _) =>
       emit("global_state.pop_stack()")
-    case Node(s, "static-state-peek-stack", List(), _) => 
+    case Node(s, "static-state-peek-stack", List(), _) =>
       emit("global_state.peek_stack()")
     case Node(s, "static-state-print-stack", List(), _) =>
       emit("global_state.print_stack()")
     case Node(s, "static-state-get-local", List(i), _) =>
       emit("global_state.get_local("); shallow(i); emit(")")
-    case Node(s, "static-state-set-local", List(i, v), _) => 
+    case Node(s, "static-state-set-local", List(i, v), _) =>
       emit("global_state.set_local("); shallow(i); emit(", "); shallow(v); emit(")")
-    case Node(s, "static-state-remove-stack-range", List(st, ed), _) => 
+    case Node(s, "static-state-remove-stack-range", List(st, ed), _) =>
       emit("global_state.remove_stack_range("); shallow(st); emit(", "); shallow(ed); emit(")")
-    case Node(s, "static-state-reverse-top-n", List(n), _) => 
+    case Node(s, "static-state-reverse-top-n", List(n), _) =>
       emit("global_state.reverse_top_n("); shallow(n); emit(")")
-    case Node(s, "static-state-return", List(numLocals, retN), _) => 
+    case Node(s, "static-state-return", List(numLocals, retN), _) =>
       emit("global_state.return_from_fun("); shallow(numLocals); emit(", "); shallow(retN); emit(")")
-    case Node(s, "static-state-bump-frame-ptr", List(), _) => 
+    case Node(s, "static-state-bump-frame-ptr", List(), _) =>
       emit("global_state.bump_frame_ptr()")
-    case Node(s, "static-state-get-frame-ptr", List(), _) => 
+    case Node(s, "static-state-get-frame-ptr", List(), _) =>
       emit("global_state.get_frame_ptr()")
-    case Node(s, "static-state-set-frame-ptr", List(fp), _) => 
+    case Node(s, "static-state-set-frame-ptr", List(fp), _) =>
       emit("global_state.set_frame_ptr("); shallow(fp); emit(")")
     case Node(s, "static-state-save-frame-ptr", _, _) =>
       es"global_state.save_frame_ptr()"
     case Node(s, "static-state-restore-frame-ptr", _, _) =>
       es"global_state.restore_frame_ptr()"
     case Node(s, "memory-size", List(memory), _) => shallow(memory); emit(".size()")
-    case Node(s, "memory-grow", List(memory, delta), _) => 
+    case Node(s, "memory-grow", List(memory, delta), _) =>
       shallow(memory); emit(".grow("); shallow(delta); emit(")")
     case Node(s, "memory-fill", List(memory, offset, size, value), _) =>
       shallow(memory); emit(".fill("); shallow(offset); emit(", "); shallow(size); emit(", "); shallow(value); emit(")")
     case Node(s, "memory-copy", List(memory, srcOffset, dstOffset, size), _) =>
-      shallow(memory); emit(".copy("); 
+      shallow(memory); emit(".copy(");
       shallow(srcOffset); emit(", "); shallow(dstOffset); emit(", "); shallow(size); emit(")")
     case Node(s, "memory-store-int", List(memory, offset, value), _) =>
       shallow(memory); emit(".storeInt("); shallow(offset); emit(", "); shallow(value); emit(")")
@@ -378,7 +378,7 @@ trait CppStagedWasmDriver[A, B] extends CppSAIDriver[A, B] with StagedEvalCPS { 
       if (initStream.size > 0)
         emitln("if (init()) return 0;")
       emitln(s"""
-      |  // TODO: what is the right way to pass arguments?
+      |
       |  $name(${convert("argv[1]", m1)});
       |  return 0;
       |}""".stripMargin)

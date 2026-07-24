@@ -54,7 +54,7 @@ trait StagedEval extends SAIOps {
       Wrap[State](Adapter.g.reflect("state-update-stack", Unwrap(state), Unwrap(stack)))
   }
 
-  // TODO: can probably replace Global with Value since we assume validation
+  // can probably replace Global with Value since we assume validation
   implicit class GlobalOps(global: Rep[Global]) {
     def value: Rep[Value] = Wrap[Value](Adapter.g.reflect("global-value", Unwrap(global)))
     def withValue(value: Rep[Value]): Rep[Global] =
@@ -201,7 +201,7 @@ trait StagedEval extends SAIOps {
         case MemoryFill => {
           val (value, offset, length) = (stack(0), stack(1), stack(2))
           val memInstance = state.memory.head
-          // TODO when implementing Memory.fill, check out of bounds
+          // when implementing Memory.fill, check out of bounds
           val newMemInstance = memInstance.fill(repI32Proj(offset), repI32Proj(length), repI32Proj(value))
           val newState = state.withStack(stack.drop(3)).withMemory(newMemInstance :: state.memory.tail)
           this.eval(newState, instrs.tail)
@@ -209,7 +209,7 @@ trait StagedEval extends SAIOps {
         case MemoryCopy => {
           val (src, dst, length) = (stack(0), stack(1), stack(2))
           val memInstance = state.memory.head
-          // TODO when implementing Memory.copy, check out of bounds
+          // when implementing Memory.copy, check out of bounds
           val newMemInstance = memInstance.copy(repI32Proj(src), repI32Proj(dst), repI32Proj(length))
           val newState = state.withStack(stack.drop(3)).withMemory(newMemInstance :: state.memory.tail)
           this.eval(newState, instrs.tail)

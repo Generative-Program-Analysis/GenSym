@@ -14,15 +14,15 @@ import scala.collection.immutable.Queue
 
 trait Explore {
   type □[_] //stage
-  type N[_] //nondet version TODO: have stage-polymorphic nondet
+  type N[_]
   type Row <: Eff
   type In
   final type C[+X] = Comp[Row, X]
   final type CIn   = Comp[N ⊗ Row, □[In]]
   type Cont[-A]
-  type Sol  //TODO: parameterize over a monoid for In
+  type Sol
   type World
-  type Worlds  //TODO: parameterize over the data structure, is this also a monoid?
+  type Worlds
 
   // this is the handler
   def apply(sol : □[Sol], worlds: □[Worlds])(c : CIn): C[□[Sol]]
@@ -30,7 +30,7 @@ trait Explore {
   def schedule(sol: □[Sol], worlds: □[Worlds]): C[□[Sol]]
 
   //aux computations, essentially ops lifted to the C[-] monad
-  def extend[A](worlds: □[Worlds], xs: □[List[A]], k : Cont[□[A]]): C[□[Worlds]] //TODO will need to account for Manifest view on A
+  def extend[A](worlds: □[Worlds], xs: □[List[A]], k : Cont[□[A]]): C[□[Worlds]]
   def nonEmpty (worlds: □[Worlds])                                : C[□[Boolean]]
   def head     (worlds: □[Worlds])                                : C[□[World]]
   def tail     (worlds: □[Worlds])                                : C[□[Worlds]]
@@ -56,21 +56,21 @@ trait StagedExplore2 { self : StagedNondet with SAIOps =>
   type In
   final type C[+X] = Comp[Row, X]
   final type CIn   = Comp[N ⊗ Row, □[In]]
-  type Sol  //TODO: parameterize over a monoid for In
+  type Sol
   type World = Unit => In
-  type Worlds   //TODO: parameterize over the data structure, is this also a monoid?
+  type Worlds
 
 
   val sol : □[Sol]
   val worlds :  □[Worlds]
 
   def apply(c: CIn): C[□[Sol]] = for {
-    //TODO it would be more general if we had a "jump out" effect that carries the solution
+
     //as of now, sol must repr a global mutable state
     _ <- concurrent(c)
   } yield sol
 
-  //TODO nicify with handler combinator
+
   def concurrent(c: CIn): Comp[Row, □[In]] = c match {
     case Return(x) => for {
       _    <- acc(sol,x)
@@ -134,15 +134,15 @@ trait StagedExplore { self : StagedNondet with SAIOps =>
   final type □[X] = Rep[X]
   type In
   final type CIn   = Comp[self.Nondet ⊗ ∅, □[In]]
-  type Sol  //TODO: parameterize over a monoid for In
-  type Worlds   //TODO: parameterize over the data structure, is this also a monoid?
+  type Sol
+  type Worlds
   type Kont[A] = A => Sol
   type World = Kont[Unit]
 
   val sol    : Var[Sol]
   val worlds : Var[Worlds]
 
-  //TODO nicify with handler combinator
+
   def apply(c: CIn): □[Sol] = c match {
     case Return(x) =>
       __assign(sol, acc(sol, x))
@@ -220,7 +220,7 @@ trait StagedDFSExplore extends StagedListExplore { self : StagedNondet with SAIO
   override def ext(k : □[Kont[Boolean]]): □[Unit] = ext(List(true,false), k)
 }
 
-//TODO generalize the impl to stage-polymorphic version, need to abstract over if-then-else semantics, and application on World
+
 class Exhaustive[E <: Eff, A] extends Explore {
   import gensym.structure.freer.NondetList.NondetList$.??
   import gensym.structure.freer.NondetList.{Fail$, Nondet, NondetList, NondetList$}
@@ -230,14 +230,14 @@ class Exhaustive[E <: Eff, A] extends Explore {
   type Cont[-A] = A => CIn
   type In = A
 
-  type Sol       = List[In]     //TODO: parameterize over a monoid for In
-  type Worlds    = Queue[World] //TODO: parameterize over the data structure, is this also a monoid?
+  type Sol       = List[In]
+  type Worlds    = Queue[World]
   type Thunk[+X] = () => X
   type World     = Thunk[CIn]
 
   // Sol, Worlds will become Rep[_]
   // We don't want Rep[CIn] or anything like staged freer monad
-  // TODO nicify with the handler combinator
+
   def apply(sol: □[Sol], worlds: □[Worlds])(c: CIn): C[□[Sol]] = c match {
     case Return(x) => for {
       sol1 <- acc(sol,x)
