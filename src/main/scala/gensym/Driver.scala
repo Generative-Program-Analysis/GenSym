@@ -12,7 +12,6 @@ import gensym.llvm.parser.Parser._
 import gensym.lmsx._
 import gensym.utils.Utils.time
 import gensym.imp.Mut
-import gensym.imp.ImpGSEngine
 import gensym.imp.ImpCPSGSEngine
 import gensym.Constants._
 
@@ -149,6 +148,7 @@ abstract class GenericGSDriver[A: Manifest, B: Manifest]
   }
 }
 
+/*
 abstract class PureEngineDriver[A: Manifest, B: Manifest] extends GenericGSDriver[A, B] {
   q: EngineBase =>
   override lazy val codegen: GenericGSCodeGen = new PureGSCodeGen {
@@ -166,6 +166,7 @@ abstract class PureEngineDriver[A: Manifest, B: Manifest] extends GenericGSDrive
     } else g0
   }
 }
+*/
 
 abstract class ImpureEngineDriver[A: Manifest, B: Manifest] extends GenericGSDriver[A, B] {
   q: EngineBase =>
@@ -237,6 +238,7 @@ abstract class ImpureEngineDriver[A: Manifest, B: Manifest] extends GenericGSDri
 
 }
 
+/*
 // Using immer data structures for
 //   1) internal state/memory representation
 //   2) function call argument list
@@ -270,6 +272,7 @@ abstract class ImpVecGSDriver[A: Manifest, B: Manifest](
     setBlockMap(q.nodeBlockMap)
   }
 }
+*/
 
 // Generting CPS code with C++ containers for internal state/memory representation.
 // Function call argument lists and result lists still use immer containers.
@@ -309,14 +312,17 @@ trait GenSym {
   }
 }
 
+/*
 trait PureState { self: GenSym =>
   override def extraFlags = "-D PURE_STATE"
 }
+*/
 
 trait ImpureState { self: GenSym =>
   override def extraFlags = "-D IMPURE_STATE"
 }
 
+/*
 class PureGS extends GenSym with PureState {
   val insName = "PureGS"
   def newInstance(m: Module, name: String, fname: String, config: Config): GenericGSDriver[Int, Unit] =
@@ -329,7 +335,9 @@ class PureGS extends GenSym with PureState {
       }
     }
 }
+*/
 
+/*
 class PureCPSGS extends GenSym with PureState {
   val insName = "PureCPSGS"
   def newInstance(m: Module, name: String, fname: String, config: Config): GenericGSDriver[Int, Unit] =
@@ -340,7 +348,9 @@ class PureCPSGS extends GenSym with PureState {
       }
     }
 }
+*/
 
+/*
 class ImpGS extends GenSym with ImpureState {
   val insName = "ImpGS"
   def newInstance(m: Module, name: String, fname: String, config: Config): GenericGSDriver[Int, Unit] =
@@ -364,6 +374,7 @@ class ImpVecGS extends GenSym with ImpureState {
       }
     }
 }
+*/
 
 class ImpCPSGS extends GenSym with ImpureState {
   val insName = "ImpCPSGS"

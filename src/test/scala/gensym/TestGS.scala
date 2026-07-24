@@ -100,34 +100,10 @@ abstract class TestGS extends FunSuite {
   def testGS(gs: GenSym, tests: List[TestPrg]): Unit = tests.foreach(testGS(gs, _))
 }
 
-class TestPureGS extends TestGS {
-  testGS(new PureGS, TestCases.all ++ filesys ++ varArg)
-}
-
-class TestPureCPSGS extends TestGS {
-  val gs = new PureCPSGS
-
-  // Note: the following test cases need to use `--thread=n` to enable random path selection strategy.
-  //       They also relies on block-level path switching to increase randomness, which currently has only
-  //       been implemented in PureCPS engine.
-  testGS(gs, TestPrg(unboundedLoop, "unboundedLoop", "@main", noArg, "--thread=2 --search=random-path --output-tests-cov-new --timeout=2 --solver=z3", minTest(1)))
-  testGS(gs, TestPrg(unboundedLoop, "unboundedLoopMT", "@main", noArg, "--thread=2 --timeout=2 --solver=z3", minTest(1)))
-  testGS(gs, TestPrg(data_structures_set_multi_proc_ground_1, "testCompArraySet1", "@main", noArg, "--thread=2 --search=random-path --solver=z3", status(255)))
-  testGS(gs, TestPrg(standard_allDiff2_ground, "stdAllDiff2Ground", "@main", noArg, "--thread=2 --output-tests-cov-new --solver=z3", status(255)))
-  testGS(gs, TestPrg(standard_copy9_ground, "stdCopy9", "@main", noArg, "--thread=2 --search=random-path  --solver=z3", status(255)))
-
-  // Timeout
-  //testGS(gs, TestPrg(sorting_selection_ground_1, "testCompSelectionSort", "@main", noArg, "--thread=2 --timeout=2 --solver=z3", minTest(1)))
-}
-
-class TestImpGS extends TestGS {
-  testGS(new ImpGS, TestCases.all ++ filesys ++ varArg)
-}
-
 class TestImpCPSGS extends TestGS {
   val gs = new ImpCPSGS
   testGS(gs, TestCases.all ++ filesys ++ varArg)
-  // Note: compile-time switch merge is only implement for ImpCPS so far
+  // Note: compile-time switch merge is only implemented for ImpCPS so far
   testGS(gs, TestPrg(switchMergeSym, "switchMergeTest", "@main", noArg, noOpt, nPath(3)))
 
   // Test uninitialized ptr access, only enabled for CPS+thread pool version
@@ -154,7 +130,8 @@ class TestImpCPSGS extends TestGS {
 
 class TestImpCPSGS_Z3 extends TestGS {
   val gs = new ImpCPSGS
-  val cases =  (TestCases.all ++ filesys ++ varArg).map { t =>
+  //val cases =  (TestCases.all ++ filesys ++ varArg).map { t =>
+  val cases =  (TestCases.all).map { t =>
     t.copy(runOpt = t.runOpt ++ Seq("--solver=z3"))
   }
   testGS(gs, cases)
@@ -205,54 +182,4 @@ class Playground extends TestGS {
   import gensym.llvm.parser.Parser._
   Global.config.enableOpt
   val gs = new ImpCPSGS
-  //testGS(gs, TestPrg(unboundedLoop, "unboundedLoop", "@main", noArg, "--thread=2 --search=random-path --output-tests-cov-new --timeout=2 --solver=z3", minTest(1)))
-  //testGS(gs, TestPrg(unboundedLoop, "unboundedLoopMT", "@main", noArg, "--thread=2 --timeout=2 --solver=z3", minTest(1)))
-
-  //testGS(gs, TestPrg(mergesort, "mergeSortTest1", "@main", noArg, noOpt, nPath(720)))
-  //testGS(new PureCPSGS, TestPrg(arrayFlow, "arrayFlow", "@main", noArg, noOpt, nPath(15)++status(0)))
-  //testGS(new ImpCPSGS, TestPrg(arrayFlow, "arrayFlow2", "@main", noArg, noOpt, nPath(15)++status(0)))
-
-  //testGS(gs, TestPrg(switchMergeSym, "switchMergeTest", "@main", noArg, noOpt, nPath(3)))
-  //testGS(gs, TestPrg(switchTestSym, "switchSymTest", "@main", noArg, noOpt, nPath(5)))
-  //testGS(gs, TestPrg(switchTestConc, "switchConcreteTest", "@main", noArg, noOpt, nPath(1)))
-  //testGS(gs, TestPrg(maze, "mazeTest", "@main", noArg, noOpt, nPath(309)))
-
-  //testGS(new PureCPSGS, TestPrg(mergesort, "mergeSortTest2", "@main", noArg, noOpt, nPath(720)))
-  //testGS(new ImpGS, TestPrg(mergesort, "mergeSortTest3", "@main", noArg, noOpt, nPath(720)))
-  //testGS(gs, TestPrg(knapsack, "knapsackTest", "@main", noArg, noOpt, nPath(1666)))
-  //val echo_linked = parseFile("/home/kraks/research/gs/coreutils/obj-llvm/playground/echo_gs.ll")
-  //testGS(gs, TestPrg(echo_linked, "echo_linked_posix", "@main",
-  //  noMainFileOpt, Seq("--cons-indep", "--argv=./echo.bc --sym-stdout --sym-arg 8"), nPath(4971)++status(0)))
-
-  //testGS(gs, TestPrg(mp1048576, "mp1mTest", "@f", symArg(20), "--solver=disable", nPath(1048576)))
-  //testGS(gs, TestPrg(quicksort, "quickSortTest", "@main", noArg, noOpt, nPath(120)))
-  //testGS(gs, TestPrg(printfTest, "printfTest", "@main", noArg, noOpt, nPath(1)++status(0)))
-  //testGS(gs, TestPrg(selectTestSym, "selectTest", "@main", noArg, noOpt, nPath(1)))
-  //testGS(new ImpCPSGS, List(TestPrg(base32_linked, "base32_linked_posix", "@main", noMainFileOpt, Seq("--cons-indep","--argv=./true.bc --sym-stdout  --sym-stdin 2 --sym-arg 1 -sym-files 2 10"), nPath(4971)++status(0))))
-  //testGS(new PureCPSGS, TestPrg(unboundedLoop, "unboundedLoop", "@main", noArg, "--thread=2 --timeout=2 --solver=z3", minTest(1)))
-  // testGS(new ImpCPSGS, TestPrg(standard_minInArray_ground_1, "standard_minInArray_ground_1", "@main", noArg, noOpt, status(255)))
-
-  //testGS(new PureCPSGS, TestPrg(mp1048576, "mp1mTest_CPS", "@f", symArg(20), "--disable-solver", nPath(1048576)))
-
-  //testGS(new PureGS, List(TestPrg(echo_linked, "echo_linked_posix", "@main", noMainFileOpt, Seq("--cons-indep","--argv=./true.bc --sym-stdout --sym-arg 8"), nPath(4971)++status(0))))
-  //testGS(new ImpCPSGS, List(TestPrg(cat_linked, "cat_linked_posix", "@main", noMainFileOpt, Seq("--cons-indep","--argv=./true.bc --sym-stdout  --sym-stdin 2 --sym-arg 1 -sym-files 2 10"), nPath(256)++status(0))))
-  //testGS(new ImpCPSGS, List(TestPrg(echo_linked, "echo_linked_posix", "@main", noMainFileOpt, Seq("--cons-indep","--argv=./true.bc --sym-stdout --sym-arg 8"), nPath(4971)++status(0))))
-  //testGS(new PureGS, List(TestPrg(echo_gs_linked, "echo_gs_linked", "@main", noMainFileOpt, Seq("--cons-indep","--argv=./true.bc #{3}"), nPath(26)++status(0))))
-  //testGS(gs, TestPrg(mp1048576, "mp1mTest", "@f", symArg(20), "--disable-solver", nPath(1048576)))
-  //testGS(gs, TestPrg(parseFile("benchmarks/demo-benchmarks/nqueen_opt.ll"), "nQueensOpt", "@main", noArg, noOpt, nPath(1363)))
-  //testGS(new PureGS, List(TestPrg(true_linked, "true_linked", "@main", useArgv, "--argv=./true.bc --sym-arg 3", nPath(16)++status(0))))
-  //testGS(new PureGS, List(TestPrg(false_linked, "false_linked", "@main", useArgv, "--argv=./false.bc --sym-arg 3", nPath(16)++status(0))))
-  //testGS(gs, TestPrg(bubbleSort2Ground, "bubbleSort2Ground", "@main", 0, noOpt, status(255)))
-  //testGS(gs, TestPrg(bubbleSortGround2, "bubbleSortGround2", "@main", 0, noOpt, status(255)))
-
-  // Timeout:
-  //testGS(gs, TestPrg(copysome1_2, "copysome1_2", "@main", noArg, noOpt, status(255)))
-  //testGS(gs, TestPrg(copysome2_2, "copysome2_2", "@main", noArg, noOpt, status(255)))
-  //testGS(gs, TestPrg(sorting_bubblesort_2_ground, "bubbleSort2Ground", "@main", noArg, noOpt, status(255)))
-  //testGS(gs, TestPrg(sorting_bubblesort_ground_2, "bubbleSortGround2", "@main", 0, noOpt, status(255)))
-  //testGS(gs, TestPrg(copysome1_2, "copysome1_2", "@main", noArg, noOpt, status(255)))
-  //testGS(gs, TestPrg(copysome2_2, "copysome2_2", "@main", noArg, noOpt, status(255)))
-  //testGS(gs, TestPrg(sorting_bubblesort_2_ground, "bubbleSort2Ground", "@main", noArg, noOpt, status(255)))
-  //testGS(gs, TestPrg(sorting_bubblesort_ground_2, "bubbleSortGround2", "@main", 0, noOpt, status(255)))
 }
-

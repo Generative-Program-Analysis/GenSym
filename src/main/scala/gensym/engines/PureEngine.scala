@@ -1,5 +1,5 @@
 package gensym
-
+/*
 import lms.core._
 import lms.core.Backend._
 import lms.core.virtualize
@@ -501,3 +501,4 @@ trait GSEngine extends StagedNondet with SymExeDefs with EngineBase {
     reify[Value](initState(heap0))(comp)
   }
 }
+*/

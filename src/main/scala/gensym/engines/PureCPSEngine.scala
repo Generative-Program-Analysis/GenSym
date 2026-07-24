@@ -1,5 +1,6 @@
 package gensym
 
+/*
 import lms.core._
 import lms.core.Backend._
 import lms.core.virtualize
@@ -389,3 +390,4 @@ trait PureCPSGSEngine extends SymExeDefs with EngineBase {
     fv[Id](ss.push.updateArg.initErrorLoc, args, k)
   }
 }
+*/

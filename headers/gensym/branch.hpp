@@ -228,7 +228,9 @@ sym_exec_br_k(SS& ss, unsigned int block_id, PtrVal t_cond, PtrVal f_cond,
               std::function<std::monostate(SS&, std::function<std::monostate(SS&, PtrVal)>)> tf,
               std::function<std::monostate(SS&, std::function<std::monostate(SS&, PtrVal)>)> ff,
               std::function<std::monostate(SS&, PtrVal)> k) {
+  INFO("Before solver call");
   auto [tbr_sat, fbr_sat] = check_branch(ss.get_PC(), t_cond);
+  INFO("After solver call");
   if ((tbr_sat == solver_result::sat) && (fbr_sat == solver_result::sat)) {
     // both branches are sat
     cov().inc_path(1);

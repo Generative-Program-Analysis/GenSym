@@ -429,6 +429,7 @@ inline T __syscall(SS& state, List<PtrVal>& args, __Cont<T> k) {
 
   SS res = state;
   switch (syscall_number) {
+#if defined(__x86_64__) || defined(__i386__)
     case __NR_read: {
       int fd = get_int_arg(state, args.at(1));
       ASSERT(0 == fd, "syscall read can only read from stdin, other fd should use pread64\n");
@@ -558,6 +559,7 @@ inline T __syscall(SS& state, List<PtrVal>& args, __Cont<T> k) {
     case __NR_openat:
     case __NR_futimesat:
     case __NR_newfstatat:
+#endif
     default:
       ABORT("Unsupported Systemcall");
       break;

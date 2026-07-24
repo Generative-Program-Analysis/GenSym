@@ -19,8 +19,9 @@ import scala.collection.mutable.{Map => MutableMap, Set => MutableSet}
 // external/intrinsic functions with only slightly backend difference.
 // Can we generate them from our Scala DSL?
 
+/*
 @virtualize
-trait GenExternal extends SymExeDefs {
+trait GenExternal extends ImpSymExeDefs {
   trait Auto
   def info(msg: String) = unchecked("INFO(\"[FS] \" << \"" + msg + "\")")
   def info_obj(p: Rep[_], l: String = ""): Rep[Unit] = unchecked("INFO(\"", if (l == "") "" else l + ": ", "\" << ", p, ")")
@@ -88,7 +89,7 @@ trait GenExternal extends SymExeDefs {
 
     val canRead = ((mode & IntV(S_IRUSR, bw)) | (mode & IntV(S_IRGRP, bw)) | (mode & IntV(S_IROTH, bw)))
     val illegalRead = IntOp2.eq(canRead, IntV(0, bw))
-   
+
     val canWrite = ((mode & IntV(S_IWUSR, bw)) | (mode & IntV(S_IWGRP, bw)) | (mode & IntV(S_IWOTH, bw)))
     val illegalWrite = IntOp2.eq(canWrite, IntV(0, bw))
 
@@ -96,16 +97,16 @@ trait GenExternal extends SymExeDefs {
   }
 
   // returns a SymV that encodes each element in the list equals the element in the other list
-  def listEq(l1: Rep[List[Value]], l2: Rep[List[Value]]): Rep[Value] = 
+  def listEq(l1: Rep[List[Value]], l2: Rep[List[Value]]): Rep[Value] =
     l1.zip(l2).foldLeft[Value](SymV.fromBool(true))((symv, pair) =>
         IntOp2("and", symv, IntOp2.eq(pair._1, pair._2)))
 
-  // takes the current ss, fs, a symbolic file path, 
-  // the continuation k takes the new ss, fs, and a concrete path, 
+  // takes the current ss, fs, a symbolic file path,
+  // the continuation k takes the new ss, fs, and a concrete path,
   // with the assumption that the symbolic file path is resolved to the concrete path.
   // The continuation tk can be called multiple times
   // The continuation fk will be called only one time when the resolution failed.
-  def resolvePath[T: Manifest](ss: Rep[SS], fs: Rep[FS], symPath: Rep[List[Value]], 
+  def resolvePath[T: Manifest](ss: Rep[SS], fs: Rep[FS], symPath: Rep[List[Value]],
     tk: (Rep[SS], Rep[FS], Rep[String]) => Rep[T], fk: (Rep[SS], Rep[FS]) => Rep[T]): Rep[T] = {
       if (symPath.foldLeft[Boolean](true)((b, v) => b && v.isConc)) {
         info("symPath is concrete")
@@ -140,7 +141,7 @@ trait GenExternal extends SymExeDefs {
                   // not match
                   stop[T](ss)
                 })
-              acc 
+              acc
             })
           } else {
             fk(ss, fs)
@@ -151,7 +152,7 @@ trait GenExternal extends SymExeDefs {
       }
   }
 
-  /* 
+  /*
    * int open(const char *pathname, int flags);
    * int open(const char *pathname, int flags, mode_t mode);
    */
@@ -208,14 +209,14 @@ trait GenExternal extends SymExeDefs {
     k(ss, IntV(0, 32))
   }
 
-  /* 
+  /*
    * int close(int fd);
    */
   def close[T: Manifest](ss: Rep[SS], fs: Rep[FS], args: Rep[List[Value]], k: ExtCont[T]): Rep[T] = {
     unchecked("INFO(\"close syscall\")")
     val fd: Rep[Fd] = args(0).int.toInt
     unchecked("INFO(\"fd: \" << ", fd, ")")
-    if (!fs.hasStream(fd)) 
+    if (!fs.hasStream(fd))
       k(ss.setErrorLoc(flag("EBADF")), fs, IntV(-1, 32))
     else {
       val strm = fs.getStream(fd)
@@ -240,7 +241,7 @@ trait GenExternal extends SymExeDefs {
     info_ptrval(loc, "loc")
     val count: Rep[Int] = args(2).int.toInt
     info_obj(count, "count")
-    if (!fs.hasStream(fd)) 
+    if (!fs.hasStream(fd))
       k(ss.setErrorLoc(flag("EBADF")), fs, IntV(-1, 64))
     else {
       val strm = fs.getStream(fd)
@@ -252,7 +253,7 @@ trait GenExternal extends SymExeDefs {
     }
   }
 
-  /* 
+  /*
    * ssize_t write(int fd, const void *buf, size_t count);
    */
   def write[T: Manifest](ss: Rep[SS], fs: Rep[FS], args: Rep[List[Value]], k: ExtCont[T]): Rep[T] = {
@@ -284,7 +285,7 @@ trait GenExternal extends SymExeDefs {
     val fd: Rep[Fd] = args(0).int.toInt
     val o: Rep[Long] = args(1).int
     val w: Rep[Int] = args(2).int.toInt
-    if (!fs.hasStream(fd)) 
+    if (!fs.hasStream(fd))
       k(ss.setErrorLoc(flag("EBADF")), fs, IntV(-1, 64))
     else {
       val strm = fs.getStream(fd)
@@ -294,7 +295,7 @@ trait GenExternal extends SymExeDefs {
         else if (w == SEEK_END) strm.seekEnd(o)
         else -1L
       }
-      if (pos == -1L) 
+      if (pos == -1L)
         k(ss.setErrorLoc(flag("EINVAL")), fs, IntV(-1, 64))
       else {
         fs.setStream(fd, strm)
@@ -332,7 +333,7 @@ trait GenExternal extends SymExeDefs {
     unchecked("INFO(\"fstat syscall\")")
     val fd: Rep[Fd] = args(0).int.toInt
     val buf: Rep[Value] = args(1)
-    if (!fs.hasStream(fd)) 
+    if (!fs.hasStream(fd))
       k(ss.setErrorLoc(flag("EBADF")), fs, IntV(-1, 32))
     else {
       val stat = fs.getStream(fd).file.stat
@@ -508,10 +509,10 @@ trait GenExternal extends SymExeDefs {
         val bw = Constants.BYTE_SIZE * StructCalc()(null).getFieldOffsetSize(StatType.types, getFieldIdx(statFields, "st_mode"))._2
         val ischr: Rep[Value] = IntOp2.eq(mode & IntV(cmacro[Int]("S_IFMT"), bw), IntV(cmacro[Int]("S_IFCHR"), bw))
         brFs(ss, fs, ischr,
-        (ss, fs) => { 
+        (ss, fs) => {
           info("is character")
           k(ss, fs, IntV(0, 32))
-        }, 
+        },
         (ss, fs) => {
           info("is not a character, return error")
           k(ss.setErrorLoc(flag("ENOTTY")), fs, IntV(-1, 32))
@@ -572,7 +573,7 @@ trait GenExternal extends SymExeDefs {
     f
   }
 
-  def _errno_location[T: Manifest](ss: Rep[SS], args: Rep[List[Value]], k: (Rep[SS], Rep[Value]) => Rep[T]): Rep[T] = 
+  def _errno_location[T: Manifest](ss: Rep[SS], args: Rep[List[Value]], k: (Rep[SS], Rep[Value]) => Rep[T]): Rep[T] =
     k(ss, ss.getErrorLoc)
 
   def _has_file_type(f: Rep[File], mask: Rep[Int]): Rep[Value] = {
@@ -621,6 +622,7 @@ trait GenExternal extends SymExeDefs {
     res
   }
 }
+*/
 
 @virtualize
 trait ExternalUtil { self: BasicDefs with ValueDefs with SAIOps =>
@@ -648,6 +650,7 @@ trait ExternalUtil { self: BasicDefs with ValueDefs with SAIOps =>
   }
 }
 
+/*
 class ExternalGSDriver(folder: String = "./headers/gensym") extends SAISnippet[Int, Unit]
     with SAIOps with GenExternal { q =>
   import java.io.{File, PrintStream}
@@ -731,10 +734,13 @@ class ExternalGSDriver(folder: String = "./headers/gensym") extends SAISnippet[I
     ()
   }
 }
+*/
 
+/*
 object GenerateExternal {
   def main(args: Array[String]): Unit = {
     val code = new ExternalGSDriver
     code.genHeader
   }
 }
+*/

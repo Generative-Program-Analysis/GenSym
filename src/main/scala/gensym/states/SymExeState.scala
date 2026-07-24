@@ -1,5 +1,5 @@
 package gensym
-
+/*
 import lms.core._
 import lms.core.Backend._
 import lms.core.virtualize
@@ -191,3 +191,4 @@ trait SymExeDefs extends SAIOps with StagedNondet with BasicDefs with ValueDefs 
 
   def writebackPointerArg(res: Rep[Any], addr: Rep[Value], x: Rep[Ptr[Char]]): Comp[E, Rep[Unit]] = updateState(_.writebackPointerArg(res, addr, x))
 }
+*/
