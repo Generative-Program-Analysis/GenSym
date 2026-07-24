@@ -208,23 +208,7 @@ bash benchmarks/oopsla2026/run_evaluator.sh --runs 1
 bash benchmarks/oopsla2026/run_collection_c.sh --runs 1
 ```
 
-Each benchmark wrapper supports `--quick --case CASE` for a single-case
-test; quick mode runs the selected case once. For B-Tree, Quicksort, and
-Arithmetic-Evaluator, `CASE` is the input-file basename without the `.wat` or
-`.wast` extension. For example, `2o1u` selects
-`btree/genwasym-test-input/2o1u.wat` and `btree/wasp-test-input/2o1u.wast`:
-
-```bash
-bash benchmarks/oopsla2026/run_btree.sh --quick --case 2o1u
-bash benchmarks/oopsla2026/run_quicksort.sh --quick --case quicksort1.sym2.size20
-bash benchmarks/oopsla2026/run_evaluator.sh --quick --case parse_expr2000-8
-bash benchmarks/oopsla2026/run_collection_c.sh --quick --case array/array_test_add
-```
-
-For Collection-C, `CASE` is the path relative to its `normal/` input directory,
-in the form `MODULE/CASE` (for example, `array/array_test_add`).
-
-#### Summarize Results and Reproduce Table 1
+#### Summarize Results and Reproduce Table 1 and Figure 10
 
 After the runs finish, we first convert the raw WASP and GenWasym reports into
 per-suite CSV files, then summarize each suite for the compilation experiment:
@@ -299,13 +283,28 @@ Snapshot + Heuristic** bar. We consider the results reproduced when the
 the `Snapshot/Default` and `CostModel/Default` geometric means are both close
 to **1.0x**.
 
+To reproduce two panel of Figure 10, run the following command to generate the PDF files:
+```bash
+python3 benchmarks/oopsla2026/plot_speedup.py
+```
+
+The script reads the four compilation CSV files, separates Quicksort into its
+two settings, and produces `benchmarks/oopsla2026/fig_speedup_left.pdf` (Figure 10a:
+per-benchmark speedups) and `benchmarks/oopsla2026/fig_speedup_right.pdf` (Figure 10b:
+overall speedups and the legend). The left panel uses the selected per-group
+summary statistic (mean by default), while the right panel uses geometric means
+across all available benchmark rows.
+
 ### 4.2 Bug Detection Experiments (RQ3)
 
 **Expected Time: < 30min**
 
 FIXME: explain how this correspond to paper table 2
 
-This part of the artifact tests whether GenWasym can detect bugs in Wasm programs, as WASP does.
+This part of the artifact tests whether GenWasym can detect bugs in Wasm
+programs, as WASP does, and reproduce the results in Table 2.
+
+#### Use GenWasym and WASP to Detect Bugs in 2 Buggy Collection-C Programs
 
 Use GenWasym to compile the buggy WebAssembly programs into C++ concolic execution programs:
 
@@ -361,3 +360,6 @@ The expected JSON output should contain the following fields:
 ```
 
 This confirms that GenWasym effectively detects the bug as WASP does.
+
+FIXME: how to reproduce the table 2
+
