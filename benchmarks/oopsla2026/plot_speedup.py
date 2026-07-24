@@ -24,8 +24,6 @@ import argparse
 import csv
 import math
 import re
-import shutil
-import subprocess
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
@@ -40,7 +38,7 @@ except ModuleNotFoundError:  # Keep the script usable on a minimal Python setup.
 HERE = Path(__file__).resolve().parent
 
 # Keep both figures on the same canvas and, more importantly, give them the
-# same plotting rectangle. This lets the two PDFs align when placed together.
+# same plotting rectangle. This lets the two SVGs align when placed together.
 FIGURE_WIDTH = 456
 # Trim the canvas by approximately one 7 pt text line while retaining the
 # spacing between the x-axis labels and legend.
@@ -63,8 +61,8 @@ DISPLAY_LABELS = {
     "Quicksort (Setting 2)": r"Quicksort ($n_{\mathrm{comp}} > 10^{4}$)",
 }
 
-# The PDF output is produced through SVG, whose text renderer does not parse
-# LaTeX. These equivalent labels preserve the subscript in that output path.
+# SVG text does not parse LaTeX. These equivalent labels preserve the
+# subscript in the SVG output.
 SVG_DISPLAY_LABELS = {
     "Quicksort (Setting 1)": (
         'Quicksort (<tspan font-style="italic">n</tspan>'
@@ -95,13 +93,13 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--left-output",
         type=Path,
-        default=HERE / "fig_speedup_left.pdf",
+        default=HERE / "fig_speedup_left.svg",
         help="Output path for the benchmark-speedup panel.",
     )
     parser.add_argument(
         "--right-output",
         type=Path,
-        default=HERE / "fig_speedup_right.pdf",
+        default=HERE / "fig_speedup_right.svg",
         help="Output path for the mean-speedup panel and legend.",
     )
     parser.add_argument(
@@ -115,7 +113,12 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Use a linear y-axis instead of the default log y-axis.",
     )
-    return parser.parse_args()
+    args = parser.parse_args()
+    if args.left_output.suffix.lower() != ".svg":
+        args.left_output = args.left_output.with_suffix(".svg")
+    if args.right_output.suffix.lower() != ".svg":
+        args.right_output = args.right_output.with_suffix(".svg")
+    return args
 
 
 def numeric(value: str) -> float | None:
@@ -672,50 +675,14 @@ def plot(groups: list[SpeedupGroup], output: Path, use_log_scale: bool) -> Path:
         plot_matplotlib(groups, output, use_log_scale)
         return output
 
-    if output.suffix.lower() == ".svg":
-        plot_svg(groups, output, use_log_scale)
-        return output
-
-    converter = shutil.which("rsvg-convert")
-    if converter is None:
-        svg_output = output.with_suffix(".svg")
-        plot_svg(groups, svg_output, use_log_scale)
-        print("rsvg-convert is not available; wrote SVG instead of PDF.")
-        return svg_output
-
-    output.parent.mkdir(parents=True, exist_ok=True)
-    with tempfile.TemporaryDirectory() as tmpdir:
-        svg_output = Path(tmpdir) / "fig_speedup.svg"
-        plot_svg(groups, svg_output, use_log_scale)
-        subprocess.run(
-            [converter, "-f", "pdf", "-o", str(output), str(svg_output)],
-            check=True,
-        )
+    plot_svg(groups, output, use_log_scale)
     return output
 
 
 def plot_panels(
     panels: list[list[SpeedupGroup]], output: Path, use_log_scale: bool
 ) -> Path:
-    if output.suffix.lower() == ".svg":
-        plot_svg_panels(panels, output, use_log_scale)
-        return output
-
-    converter = shutil.which("rsvg-convert")
-    if converter is None:
-        svg_output = output.with_suffix(".svg")
-        plot_svg_panels(panels, svg_output, use_log_scale)
-        print("rsvg-convert is not available; wrote SVG instead of PDF.")
-        return svg_output
-
-    output.parent.mkdir(parents=True, exist_ok=True)
-    with tempfile.TemporaryDirectory() as tmpdir:
-        svg_output = Path(tmpdir) / "fig_speedup.svg"
-        plot_svg_panels(panels, svg_output, use_log_scale)
-        subprocess.run(
-            [converter, "-f", "pdf", "-o", str(output), str(svg_output)],
-            check=True,
-        )
+    plot_svg_panels(panels, output, use_log_scale)
     return output
 
 
@@ -723,25 +690,7 @@ def plot_configured_panel(
     groups: list[SpeedupGroup], output: Path, use_log_scale: bool, **options
 ) -> Path:
     """Render one panel with its own SVG layout options."""
-    if output.suffix.lower() == ".svg":
-        plot_svg(groups, output, use_log_scale, **options)
-        return output
-
-    converter = shutil.which("rsvg-convert")
-    if converter is None:
-        svg_output = output.with_suffix(".svg")
-        plot_svg(groups, svg_output, use_log_scale, **options)
-        print("rsvg-convert is not available; wrote SVG instead of PDF.")
-        return svg_output
-
-    output.parent.mkdir(parents=True, exist_ok=True)
-    with tempfile.TemporaryDirectory() as tmpdir:
-        svg_output = Path(tmpdir) / "panel.svg"
-        plot_svg(groups, svg_output, use_log_scale, **options)
-        subprocess.run(
-            [converter, "-f", "pdf", "-o", str(output), str(svg_output)],
-            check=True,
-        )
+    plot_svg(groups, output, use_log_scale, **options)
     return output
 
 

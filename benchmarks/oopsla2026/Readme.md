@@ -214,7 +214,7 @@ After the runs finish, we first convert the raw WASP and GenWasym reports into
 per-suite CSV files, then summarize each suite for the compilation experiment:
 
 ```bash
-./summarize_results.sh
+bash benchmarks/oopsla2026/summarize_results.sh
 ```
 
 The above step produces the following CSV files:
@@ -283,14 +283,14 @@ Snapshot + Heuristic** bar. We consider the results reproduced when the
 the `Snapshot/Default` and `CostModel/Default` geometric means are both close
 to **1.0x**.
 
-To reproduce two panel of Figure 10, run the following command to generate the PDF files:
+To reproduce two panel of Figure 10, run the following command to generate the svg files:
 ```bash
 python3 benchmarks/oopsla2026/plot_speedup.py
 ```
 
 The script reads the four compilation CSV files, separates Quicksort into its
-two settings, and produces `benchmarks/oopsla2026/fig_speedup_left.pdf` (Figure 10a:
-per-benchmark speedups) and `benchmarks/oopsla2026/fig_speedup_right.pdf` (Figure 10b:
+two settings, and produces `benchmarks/oopsla2026/fig_speedup_left.svg` (Figure 10a:
+per-benchmark speedups) and `benchmarks/oopsla2026/fig_speedup_right.svg` (Figure 10b:
 overall speedups and the legend). The left panel uses the selected per-group
 summary statistic (mean by default), while the right panel uses geometric means
 across all available benchmark rows.

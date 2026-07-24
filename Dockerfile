@@ -115,7 +115,7 @@ RUN eval $(opam env) && \
 
 # 5. build GenWasym
 COPY build.sbt .
-COPY summarize_results.sh .
+COPY benchmarks/oopsla2026/summarize_results.sh ./benchmarks/oopsla2026/
 COPY project/build.properties ./project/build.properties
 COPY project/plugins.sbt ./project/plugins.sbt
 COPY src ./src
