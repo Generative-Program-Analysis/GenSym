@@ -128,6 +128,13 @@ class TestBenchmark extends FunSuite {
       skipExisting = true
     )
   }
+  test("compile-collection-c-buggy-benchmarks") {
+    compileDirTreeToCpp(
+      "./benchmarks/oopsla2026/Collection-C/genwasym-test-input/bugs/",
+      Some("__original_main"),
+      Some("./benchmarks/oopsla2026/Collection-C/genwasym-test-artifacts/buggy")
+    )
+  }
   test("compile-quicksort-benchmark") {
     compileDirToCpp(
       "./benchmarks/oopsla2026/quicksort/genwasym-test-input",

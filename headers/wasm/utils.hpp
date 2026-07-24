@@ -69,6 +69,8 @@ inline bool GENSYM_IS_IN_ALLOCATED_RANGE(int32_t addr, size_t width) {
       return true;
     }
   }
+  std::cout << "Address " << addr << " with width " << width
+            << " is not in any allocated range." << std::endl;
   return false;
 }
 
