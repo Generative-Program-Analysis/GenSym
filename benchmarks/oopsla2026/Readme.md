@@ -21,6 +21,8 @@ The artifact has been tested on Ubuntu 22.04. The remainder of this document
 provides instructions for reviewers to evaluate the artifact and reproduce the
 paper's results.
 
+You can download the artifact from https://zenodo.org/uploads/21527163.
+
 ## 1. Overview of the Artifact
 
 The artifact is packaged as a Docker image. The image already contains all
@@ -252,7 +254,7 @@ of the speedups for all benchmark rows in the CSV files. (The `--cutoff`
 options exclude benchmarks for which WASP exceeded the two-hour timeout.)
 
 ```
-python3 benchmarks/oopsla2026/average_speedup.py --cutoff 10o3u --cutoff quicksort2.sym3.size10
+**python3 benchmarks/oopsla2026/average_speedup.py** --cutoff 10o3u --cutoff quicksort2.sym3.size10
 ```
 
 The command should produce output similar to the following. Exact values may
