@@ -141,7 +141,7 @@ GenWasym, and the corresponding `wasp-test-input/` directory contains the
 
 ## 4. Step-by-Step Evaluation Instructions 
 
-### Performance Evaluation (RQ1 and RQ2)
+### 4.1 Performance Evaluation (RQ1 and RQ2)
 
 **Expected Time: ~48 hours.** This experiment aims to answer RQ1 and RQ2 in the
 paper and produces the results in Table 1 and Figure 10. We will first examine
@@ -267,11 +267,13 @@ The produced CSV files contain the following columns:
 
 Reviewers can compare the results in these CSV files with Table 1 in the paper. 
 
-
 We consider the results reproduced if every `Speedup_NoConfig` value in the
 CSV files is greater than `1x`; that is, GenWasym without snapshot reuse is
 faster than WASP for every reported benchmark.
-For the geometric mean of the speedups, geometric mean is close to the `29.4x` reported in the paper. Run the following command to compute the geometric mean of the speedups for all benchmark rows in the CSV files. (The `--cutoff` options exclude benchmarks for which WASP exceeded the two-hour timeout.)
+For the geometric mean of the speedups, it should be close to the `29.4x`
+reported in the paper. Run the following command to compute the geometric mean
+of the speedups for all benchmark rows in the CSV files. (The `--cutoff`
+options exclude benchmarks for which WASP exceeded the two-hour timeout.)
 
 ```
 python3 benchmarks/oopsla2026/average_speedup.py --cutoff 10o3u --cutoff quicksort2.sym3.size10
@@ -297,9 +299,11 @@ Snapshot + Heuristic** bar. We consider the results reproduced when the
 the `Snapshot/Default` and `CostModel/Default` geometric means are both close
 to **1.0x**.
 
-### Bug Detection Experiments (RQ3)
+### 4.2 Bug Detection Experiments (RQ3)
 
 **Expected Time: < 30min**
+
+FIXME: explain how this correspond to paper table 2
 
 This part of the artifact tests whether GenWasym can detect bugs in Wasm programs, as WASP does.
 
