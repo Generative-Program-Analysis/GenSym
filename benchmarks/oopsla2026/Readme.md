@@ -1,24 +1,38 @@
 # Artifact Evaluation for OOPSLA 2026 Paper: "Compiling WebAssembly Concolic Execution with Staging, Continuations, and Snapshots"
 
-This document provides evaluation instructions for the OOPSLA 2026 paper "Compiling WebAssembly Concolic Execution with Staging, Continuations, and Snapshots." The paper resolves a dilemma in concolic execution: instrumentation-based implementations are efficient but struggle to support snapshot reuse, whereas interpretation-based techniques support snapshots but are slow. The technique proposed in the paper uses staging to achieve efficiency and CPS semantics to capture program control, thus enabling snapshot reuse. As a result, the paper brings the best of both worlds to concolic execution: efficient execution and snapshot reuse.
+This document provides evaluation instructions for the OOPSLA 2026 paper
+"Compiling WebAssembly Concolic Execution with Staging, Continuations, and Snapshots." 
+The paper resolves a dilemma in concolic execution:
+instrumentation-based implementations are efficient but struggle to support
+snapshot reuse, whereas interpretation-based techniques support snapshots but
+are slow. The technique proposed in the paper uses staging to achieve
+efficiency and CPS semantics to capture program control, thus enabling snapshot
+reuse. As a result, the paper brings the best of both worlds to concolic
+execution: efficient execution and snapshot reuse.
 
-This artifact contains the implementation of the approach proposed in the paper, GenWasym, and the baseline concolic execution engine WASP. The artifact also contains four benchmarks used in the paper: B-Tree, Collection-C, Arithmetic-Evaluator, and Quicksort. The artifact is self-contained and can be run in a Docker container. The artifact has been tested on Ubuntu 22.04. The remainder of this document provides instructions for reviewers to evaluate the artifact and reproduce the paper's results.
+This artifact contains 
 
+- GenWasym, a concolic-execution compiler implementing the proposed approach 
+- WASP, the baseline concolic execution engine
+- Four benchmark sets used in the paper: B-Tree, Collection-C, Arithmetic-Evaluator, and Quicksort. 
+
+The artifact is self-contained and can be run in a Docker container. 
+The artifact has been tested on Ubuntu 22.04. The remainder of this document
+provides instructions for reviewers to evaluate the artifact and reproduce the
+paper's results.
 
 ## 1. Overview of the Artifact
 
 The artifact is packaged as a Docker image. The image already contains all
-necessary dependencies and tools to run the experiments. Thus, reviewers can run
-the tests and experiments without installing any dependencies on the host.
+necessary dependencies and tools to run the experiments.
 
 In the Docker image, besides the source code of GenWasym and WASP, we also installed
 several third-party components required by GenWasym and WASP, including the LMS
 framework (`lms-clean`), SMT solver Z3, and the `immer` persistent data
 structure library.
 
-
-The GenWasym source code is located in `/ae/GenWasym` inside the container. Its
-relevant directory structure is:
+The GenWasym source code is located in `/ae/GenWasym` inside the container. 
+Its relevant directory structure is:
 
 - `src/` contains the GenWasym implementation and test suite:
   - `main/scala/wasm/` contains the WebAssembly AST, parser, interpreter, and
@@ -45,16 +59,14 @@ relevant directory structure is:
   - `immer/` contains the persistent C++ data-structure library used by the
     generated C++ programs.
 
-
-
 ## 2. Prerequisites (Kick the tires)
+
 **Expected Time: < 15 minutes**
 
 This step tests the artifact's basic functionality and verifies that the
-reviewer's hardware can run the tests and experiments. Our artifact requires a
-Linux environment with Docker installed. The artifact has been tested on 22.04,
-and should work on other Linux distributions as well. The supplied Docker image
-supports only the x86-64 (AMD64) architecture.
+hardware can run the tests and experiments. The supplied Docker image requires
+Linux and x86-64 (AMD64) CPUs. The artifact has been tested on Ubuntu 22.04,
+and should work on other Linux distributions as well. 
 
 The Docker image is distributed as a `.tar.gz` archive. Load it into Docker with:
 
@@ -69,8 +81,7 @@ image is available:
 docker image ls
 ```
 
-Then start a container using the loaded image. If the loaded tag is
-`ae:latest`, run:
+Then start a container using the loaded image. If the loaded tag is `ae:latest`, run:
 
 ```bash
 docker run --rm -it ae:latest bash
@@ -83,11 +94,7 @@ Run a simple test case to verify that GenWasym is working correctly:
 sbt 'testOnly gensym.wasm.TestStagedConcolicEval -- -z fib'
 ```
 
-Running the full experiment requires around 48 hours (tested on a machine
-with 32 GB RAM and 8 cores running Ubuntu 22.04). We suggest that reviewers do
-not exit the container until all experiments finish. Useful Docker commands for
-reviewers are listed below:
-
+Useful Docker commands for reviewers are listed below:
 
 ```sh
 # From inside of the container: detach without exiting it
@@ -134,16 +141,17 @@ GenWasym, and the corresponding `wasp-test-input/` directory contains the
 
 ## 4. Step-by-Step Evaluation Instructions 
 
-### Run Performance Experiments (RQ1 and RQ2)
+### Performance Evaluation (RQ1 and RQ2)
 
-**Expected Time: ~48 hours** This experiment aims to answer RQ1 and RQ2 in the
+**Expected Time: ~48 hours.** This experiment aims to answer RQ1 and RQ2 in the
 paper and produces the results in Table 1 and Figure 10. We will first examine
 the benchmark files, then run the performance comparison between GenWasym and
-WASP, and finally summarize the results to reproduce Table 1.
+WASP, and finally summarize the results to reproduce Table 1 and Figure 10.
 
 #### Examine the Benchmark Files
+
 The benchmark files are located in the `benchmarks/oopsla2026/` directory.
-Show the number of lines in the WAT files for each benchmark suite:
+To show the number of lines in the WAT files for each benchmark suite:
 
 ```bash
 find benchmarks/oopsla2026/btree/genwasym-test-input -name '*.wat' | xargs wc -l
@@ -152,8 +160,8 @@ find benchmarks/oopsla2026/crafted/genwasym-test-input -name '*.wat' | xargs wc 
 find benchmarks/oopsla2026/Collection-C/genwasym-test-input -name '*.wat' | xargs wc -l
 ```
 
-
 #### Use GenWasym to Compile the Benchmark Files
+
 From inside the container, use GenWasym to generate the C++ files from WAT:
 
 ```bash
@@ -176,6 +184,11 @@ python3 benchmarks/oopsla2026/compile.py --skip-newer \
 
 #### Compare the Performance of Compiled Executables with WASP
 
+In the paper, we run GenWasym and WASP on each benchmark both for 5 times. This
+requires around 48 hours (tested on a machine with 32 GB RAM and 8 cores
+running Ubuntu 22.04). 
+We suggest that reviewers do not exit the container until all experiments finish. 
+
 Then to compare the performance of GenWasym and WASP, run:
 
 ```bash
@@ -185,7 +198,8 @@ bash benchmarks/oopsla2026/run_crafted.sh
 bash benchmarks/oopsla2026/run_collection_c.sh
 ```
 
-To run each test case once instead of five times, use `--runs 1`:
+Note: To quickly verify a single-run result, it is possible to run each test
+case once instead of five times, use `--runs 1`:
 
 ```bash
 bash benchmarks/oopsla2026/run_btree.sh --runs 1
@@ -194,12 +208,13 @@ bash benchmarks/oopsla2026/run_crafted.sh --runs 1
 bash benchmarks/oopsla2026/run_collection_c.sh --runs 1
 ```
 
-Use `--quick --case CASE` for a single-case test; quick mode runs the
+Use option `--quick --case CASE` for a single-case test; quick mode runs the
 selected test case once.
+FIXME: what is CASE? how should one provide CASE?
 
 #### Summarize Results and Reproduce Table 1
 
-After the runs finish, first convert the raw WASP and GenWasym reports into
+After the runs finish, we first convert the raw WASP and GenWasym reports into
 per-suite CSV files, then summarize each suite for the compilation experiment:
 
 ```bash
@@ -224,7 +239,9 @@ python3 benchmarks/oopsla2026/summary.py \
   --rq compilation --suite Collection-C \
   -o benchmarks/oopsla2026/final_results_Collection-C.compilation.csv
 ```
-This step produces the following CSV files:
+
+The above step produces the following CSV files:
+
 ```
 benchmarks/oopsla2026/final_results_btree.compilation.csv
 benchmarks/oopsla2026/final_results_quicksort.compilation.csv
@@ -232,10 +249,11 @@ benchmarks/oopsla2026/final_results_crafted.compilation.csv
 benchmarks/oopsla2026/final_results_Collection-C.compilation.csv
 ```
 
-Reviewers can compare the results in these CSV files with Table 1 in the
-paper. We consider the results reproduced if the `Speedup_NoConfig` values in
-the CSV files are greater than `3x` for the reported benchmarks and their
-geometric mean is greater than `20x`. To compute the geometric mean of the
+Reviewers can compare the results in these CSV files with Table 1 in the paper. 
+FIXME: not sure how straightforward the comparison would be. Is that a one-to-one correspondence from the CSV to Table 1?
+We consider the results reproduced if the `Speedup_NoConfig` values in
+the CSV files are greater than `3x` (FIXME: what does that mean? what does that correspond in the paper?) for the reported benchmarks and their
+geometric mean is greater than `20x` (FIXME: same here). To compute the geometric mean of the
 speedups, run:
 
 ```
@@ -244,6 +262,7 @@ python3 benchmarks/oopsla2026/average_speedup.py --cutoff 3o1u --cutoff 10o3u --
 
 The command should produce output similar to the following. Exact values may
 vary across machines and runs:
+
 ```
 Average speedups across all selected benchmark rows:
   Default: arithmetic mean=100.6x, geomean=27.5x (51 data points; Collection-C: 8, btree: 26, crafted: 12, quicksort: 5)
@@ -258,16 +277,15 @@ The `Snapshot` geometric mean corresponds to the **Staging + Snapshot** bar in
 Figure 10b, and the `CostModel` geometric mean corresponds to the **Staging +
 Snapshot + Heuristic** bar. We consider the results reproduced when the
 `Default` geometric mean is close to the `29.4x` reported in the paper, the
-`Snapshot/Default` geometric mean is greater than `1.0x`, and the
+`Snapshot/Default` geometric mean is greater than `1.0x` (FIXME: close to?), and the
 `CostModel/Default` geometric mean is greater than the `Snapshot/Default`
 geometric mean.
 
+### Bug Detection Experiments (RQ3)
 
-### Run Bug Detection Experiments (RQ3)
 **Expected Time: < 30min**
 
 This part of the artifact tests whether GenWasym can detect bugs in Wasm programs, as WASP does.
-
 
 Use GenWasym to compile the buggy WebAssembly programs into C++ concolic execution programs:
 
@@ -287,14 +305,22 @@ Run the compiled executables:
 ./benchmarks/oopsla2026/Collection-C/genwasym-test-artifacts/buggy/array_test_remove/array_test_remove.wat.exe
 ./benchmarks/oopsla2026/Collection-C/genwasym-test-artifacts/buggy/list_test_zipIterAdd/list_test_zipIterAdd.wat.exe 
 ```
-The run logs for the two buggy programs are stored in `benchmarks/oopsla2026/Collection-C/genwasym-test-artifacts/buggy/array_test_remove/run-logs` and `benchmarks/oopsla2026/Collection-C/genwasym-test-artifacts/buggy/list_test_zipIterAdd/run-logs`, respectively. Check the logs to see whether GenWasym detected the bugs.
+
+The run logs for the two buggy programs are stored in
+`benchmarks/oopsla2026/Collection-C/genwasym-test-artifacts/buggy/array_test_remove/run-logs`
+and
+`benchmarks/oopsla2026/Collection-C/genwasym-test-artifacts/buggy/list_test_zipIterAdd/run-logs`,
+respectively. 
+
+To check the logs to see whether GenWasym detected the bugs:
 
 ```bash
 cat benchmarks/oopsla2026/Collection-C/genwasym-test-artifacts/buggy/array_test_remove/run-logs/array_test_remove.wat.exe.log
 cat benchmarks/oopsla2026/Collection-C/genwasym-test-artifacts/buggy/list_test_zipIterAdd/run-logs/list_test_zipIterAdd.wat.exe.log
 ```
 
-The expected output should contain the following message (specific values may vary):
+The expected output should contain the following message (specific values may vary due to FIXME: explain):
+
 ```
 ...
 Address 66621 with width 1 is not in any allocated range.
