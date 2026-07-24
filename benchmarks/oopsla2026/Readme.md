@@ -17,7 +17,7 @@ framework (`lms-clean`), SMT solver Z3, and the `immer` persistent data
 structure library.
 
 
-The GenWasym source code is located in `/ae/GenSym` inside the container. Its
+The GenWasym source code is located in `/ae/GenWasym` inside the container. Its
 relevant directory structure is:
 
 - `src/` contains the GenWasym implementation and test suite:
