@@ -8,6 +8,9 @@
 *.exe
 *.dot
 
+# Generated WASP launcher symlink; dune build recreates the executable.
+third-party/wasp/wasp/wasp
+
 .idea
 .metals
 .vscode

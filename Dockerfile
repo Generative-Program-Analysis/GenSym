@@ -96,11 +96,10 @@ RUN eval $(opam env) && \
 
 # 3. copy third party required by the retained build
 
-COPY third-party/immer \
-     third-party/lms-clean \
-     third-party/wasp \
-     third-party/z3 \
-     ./third-party/
+COPY third-party/immer/ ./third-party/immer/
+COPY third-party/lms-clean/ ./third-party/lms-clean/
+COPY third-party/wasp/ ./third-party/wasp/
+COPY third-party/z3/ ./third-party/z3/
 
 # 4. build wasp
 
