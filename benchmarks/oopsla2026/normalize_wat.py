@@ -204,7 +204,7 @@ def remove_trailing_invoke(text: str) -> str:
 
 
 def wat_to_wasp_wast(text: str) -> str:
-    # Older crafted modules contain an unused console.assert declaration after
+    # Older evaluator modules contain an unused console.assert declaration after
     # the function definitions.  That ordering is accepted by GenWasym's
     # parser but rejected by WASP's WebAssembly parser; dropping the unused
     # declaration preserves the executable module and makes the conversion
@@ -215,7 +215,7 @@ def wat_to_wasp_wast(text: str) -> str:
         text,
         flags=re.MULTILINE,
     )
-    # The crafted generator emits a result-valued start function.  WebAssembly
+    # The evaluator generator emits a result-valued start function.  WebAssembly
     # requires a start function with no result, so wrap it and retain startup
     # execution for WASP.
     text = re.sub(

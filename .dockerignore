@@ -48,8 +48,8 @@ Dockerfile
 !benchmarks/oopsla2026/btree/**
 !benchmarks/oopsla2026/quicksort/
 !benchmarks/oopsla2026/quicksort/**
-!benchmarks/oopsla2026/crafted/
-!benchmarks/oopsla2026/crafted/**
+!benchmarks/oopsla2026/evaluator/
+!benchmarks/oopsla2026/evaluator/**
 !benchmarks/oopsla2026/Collection-C/
 !benchmarks/oopsla2026/Collection-C/**
 

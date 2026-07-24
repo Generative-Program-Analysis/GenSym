@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-CASE="parse_expr1000-8"
+CASE="parse_expr2000-8"
 TOOL="all"
 WASP_TIMEOUT="7200"
 QUICK=0
@@ -10,9 +10,9 @@ COMPILE=0
 
 usage() {
   cat <<'USAGE'
-Usage: benchmarks/oopsla2026/run_crafted.sh [--quick] [--compile] [--case CASE] [--runs N] [--tool all|genwasym|wasp] [--timeout SECONDS]
+Usage: benchmarks/oopsla2026/run_evaluator.sh [--quick] [--compile] [--case CASE] [--runs N] [--tool all|genwasym|wasp] [--timeout SECONDS]
 
-Runs the crafted parse-expression benchmark through GenWasym, WASP, or both.
+Runs the evaluator parse-expression benchmark through GenWasym, WASP, or both.
 USAGE
 }
 
@@ -40,7 +40,7 @@ fi
 
 SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 REPO_ROOT=$(CDPATH= cd -- "$SCRIPT_DIR/../.." && pwd)
-SUITE_ROOT="$REPO_ROOT/benchmarks/oopsla2026/crafted"
+SUITE_ROOT="$REPO_ROOT/benchmarks/oopsla2026/evaluator"
 GENWASYM_ARTIFACTS="$SUITE_ROOT/genwasym-test-artifacts"
 WASP_INPUT="$SUITE_ROOT/wasp-test-input"
 WASP_OUTPUT="$SUITE_ROOT/wasp-test-output"

@@ -48,7 +48,7 @@ Its relevant directory structure is:
     paper's evaluation:
     - `btree/` for B-Tree;
     - `quicksort/` for Quicksort;
-    - `crafted/` for Arithmetic-Evaluator; and
+    - `evaluator/` for Arithmetic-Evaluator; and
     - `Collection-C/` for Collection-C.
 - `third-party/` contains external dependencies:
   - `wasp/` contains the WASP baseline source code.
@@ -122,12 +122,12 @@ The evaluation compares GenWasym's generated C++ concolic executables with the
 WASP baseline on four WebAssembly benchmark suites. For each suite, the
 `genwasym-test-input/` directory contains the `.wat` programs compiled by
 GenWasym, and the corresponding `wasp-test-input/` directory contains the
-`.wast` programs executed by WASP.
+`.wat` or `.wast` programs executed by WASP.
 
-- **B-Tree** contains 26 cases that vary the numbers of ordered and unordered
+- **B-Tree** contains 28 cases that vary the numbers of ordered and unordered
   symbolic inputs, providing a controlled setting for concolic execution of
   B-Tree operations.
-- **Collection-C** contains 8 modules and 143 cases in total. Its Wasm
+- **Collection-C** contains 8 modules and 144 cases in total. Its Wasm
   programs are compiled from C and exercise collection data structures,
   including arrays, lists, queues, deques, trees, and ring buffers. The normal
   programs are used for performance evaluation; the suite also includes buggy
@@ -156,7 +156,7 @@ To show the number of lines in the WAT files for each benchmark suite:
 ```bash
 find benchmarks/oopsla2026/btree/genwasym-test-input -name '*.wat' | xargs wc -l
 find benchmarks/oopsla2026/quicksort/genwasym-test-input -name '*.wat' | xargs wc -l
-find benchmarks/oopsla2026/crafted/genwasym-test-input -name '*.wat' | xargs wc -l
+find benchmarks/oopsla2026/evaluator/genwasym-test-input -name '*.wat' | xargs wc -l
 find benchmarks/oopsla2026/Collection-C/genwasym-test-input -name '*.wat' | xargs wc -l
 ```
 
@@ -168,7 +168,7 @@ From inside the container, use GenWasym to generate the C++ files from WAT:
 sbt \
   'testOnly gensym.wasm.TestBenchmark -- -z compile-btree-benchmarks' \
   'testOnly gensym.wasm.TestBenchmark -- -z compile-quicksort-benchmark' \
-  'testOnly gensym.wasm.TestBenchmark -- -z compile-crafted-benchmarks' \
+  'testOnly gensym.wasm.TestBenchmark -- -z compile-evaluator-benchmarks' \
   'testOnly gensym.wasm.TestBenchmark -- -z compile-collection-c-normal-benchmarks'
 ```
 
@@ -178,7 +178,7 @@ Compile the generated C++ files into executables:
 python3 benchmarks/oopsla2026/compile.py --skip-newer \
   benchmarks/oopsla2026/btree/genwasym-test-artifacts \
   benchmarks/oopsla2026/quicksort/genwasym-test-artifacts \
-  benchmarks/oopsla2026/crafted/genwasym-test-artifacts \
+  benchmarks/oopsla2026/evaluator/genwasym-test-artifacts \
   benchmarks/oopsla2026/Collection-C/genwasym-test-artifacts
 ```
 
@@ -194,7 +194,7 @@ Then to compare the performance of GenWasym and WASP, run:
 ```bash
 bash benchmarks/oopsla2026/run_btree.sh
 bash benchmarks/oopsla2026/run_quicksort.sh
-bash benchmarks/oopsla2026/run_crafted.sh
+bash benchmarks/oopsla2026/run_evaluator.sh
 bash benchmarks/oopsla2026/run_collection_c.sh
 ```
 
@@ -204,7 +204,7 @@ case once instead of five times, use `--runs 1`:
 ```bash
 bash benchmarks/oopsla2026/run_btree.sh --runs 1
 bash benchmarks/oopsla2026/run_quicksort.sh --runs 1
-bash benchmarks/oopsla2026/run_crafted.sh --runs 1
+bash benchmarks/oopsla2026/run_evaluator.sh --runs 1
 bash benchmarks/oopsla2026/run_collection_c.sh --runs 1
 ```
 
@@ -217,7 +217,7 @@ Arithmetic-Evaluator, `CASE` is the input-file basename without the `.wat` or
 ```bash
 bash benchmarks/oopsla2026/run_btree.sh --quick --case 2o1u
 bash benchmarks/oopsla2026/run_quicksort.sh --quick --case quicksort1.sym2.size20
-bash benchmarks/oopsla2026/run_crafted.sh --quick --case parse_expr2000-8
+bash benchmarks/oopsla2026/run_evaluator.sh --quick --case parse_expr2000-8
 bash benchmarks/oopsla2026/run_collection_c.sh --quick --case array/array_test_add
 ```
 
@@ -238,7 +238,7 @@ The above step produces the following CSV files:
 ```
 benchmarks/oopsla2026/final_results_btree.compilation.csv
 benchmarks/oopsla2026/final_results_quicksort.compilation.csv
-benchmarks/oopsla2026/final_results_crafted.compilation.csv
+benchmarks/oopsla2026/final_results_evaluator.compilation.csv
 benchmarks/oopsla2026/final_results_Collection-C.compilation.csv
 ```
 
@@ -247,7 +247,7 @@ The produced CSV files contain the following columns:
 | Column | Description |
 | --- | --- |
 | `Suite` | Benchmark suite name (e.g., B-Tree, Quicksort, Arithmetic-Evaluator, Collection-C). |
-| `Benchmark` | Name of single benchmark program program. |
+| `Benchmark` | Name of the benchmark program. |
 | `npaths` | Number of execution paths explored. |
 | `T_WASP_instr_exec(s)` | Mean WASP instruction-execution time, in seconds. |
 | `SD_WASP_instr_exec(s)` | Standard deviation of WASP instruction-execution time, in seconds. |
@@ -284,12 +284,12 @@ vary across machines and runs:
 
 ```
 Average speedups across all selected benchmark rows:
-  Default: arithmetic mean=100.6x, geomean=27.5x (51 data points; Collection-C: 8, btree: 26, crafted: 12, quicksort: 5)
-  Snapshot: arithmetic mean=109.0x, geomean=37.6x (51 data points; Collection-C: 8, btree: 26, crafted: 12, quicksort: 5)
-  CostModel: arithmetic mean=277.1x, geomean=44.4x (51 data points; Collection-C: 8, btree: 26, crafted: 12, quicksort: 5)
+  Default: arithmetic mean=100.6x, geomean=27.5x (49 data points; Collection-C: 8, btree: 27, evaluator: 9, quicksort: 5)
+  Snapshot: arithmetic mean=109.0x, geomean=37.6x (49 data points; Collection-C: 8, btree: 27, evaluator: 9, quicksort: 5)
+  CostModel: arithmetic mean=277.1x, geomean=44.4x (49 data points; Collection-C: 8, btree: 27, evaluator: 9, quicksort: 5)
 Relative GenWasym speedups:
-  Snapshot/Default: arithmetic mean=1.6x, geomean=1.4x (51 data points; Collection-C: 8, btree: 26, crafted: 12, quicksort: 5)
-  CostModel/Default: arithmetic mean=2.2x, geomean=1.6x (51 data points; Collection-C: 8, btree: 26, crafted: 12, quicksort: 5)
+  Snapshot/Default: arithmetic mean=1.6x, geomean=1.4x (49 data points; Collection-C: 8, btree: 27, evaluator: 9, quicksort: 5)
+  CostModel/Default: arithmetic mean=2.2x, geomean=1.6x (49 data points; Collection-C: 8, btree: 27, evaluator: 9, quicksort: 5)
 ```
 
 The `Snapshot` geometric mean corresponds to the **Staging + Snapshot** bar in
@@ -313,17 +313,11 @@ Use GenWasym to compile the buggy WebAssembly programs into C++ concolic executi
 sbt 'testOnly gensym.wasm.TestBenchmark -- -z compile-collection-c-buggy-benchmarks'
 ```
 
-Compile the generated C++ files into executables:
+Compile the generated C++ files, run the two GenWasym executables once, and run
+the corresponding WASP inputs once:
 
 ```bash
 bash benchmarks/oopsla2026/run_collection_c_buggy.sh --runs 1
-```
-
-Run the compiled executables:
-
-```bash
-./benchmarks/oopsla2026/Collection-C/genwasym-test-artifacts/buggy/array_test_remove/array_test_remove.wat.exe
-./benchmarks/oopsla2026/Collection-C/genwasym-test-artifacts/buggy/list_test_zipIterAdd/list_test_zipIterAdd.wat.exe 
 ```
 
 The run logs for the two buggy programs are stored in
@@ -335,8 +329,8 @@ respectively.
 To check the logs to see whether GenWasym detected the bugs:
 
 ```bash
-cat benchmarks/oopsla2026/Collection-C/genwasym-test-artifacts/buggy/array_test_remove/run-logs/array_test_remove.wat.exe.log
-cat benchmarks/oopsla2026/Collection-C/genwasym-test-artifacts/buggy/list_test_zipIterAdd/run-logs/list_test_zipIterAdd.wat.exe.log
+cat benchmarks/oopsla2026/Collection-C/genwasym-test-artifacts/buggy/array_test_remove/run-logs/array_test_remove.wat.exe.run_0.log
+cat benchmarks/oopsla2026/Collection-C/genwasym-test-artifacts/buggy/list_test_zipIterAdd/run-logs/list_test_zipIterAdd.wat.exe.run_0.log
 ```
 
 The output should contain a message similar to the following. More than one

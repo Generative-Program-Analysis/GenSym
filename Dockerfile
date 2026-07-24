@@ -115,6 +115,7 @@ RUN eval $(opam env) && \
 
 # 5. build GenWasym
 COPY build.sbt .
+COPY summarize_results.sh .
 COPY project/build.properties ./project/build.properties
 COPY project/plugins.sbt ./project/plugins.sbt
 COPY src ./src
@@ -144,10 +145,11 @@ COPY benchmarks/oopsla2026/compile.py \
      benchmarks/oopsla2026/run_exe.py \
      benchmarks/oopsla2026/normalize_wat.py \
      benchmarks/oopsla2026/collect_result.py \
+     benchmarks/oopsla2026/average_speedup.py \
      benchmarks/oopsla2026/summary.py \
      benchmarks/oopsla2026/run_btree.sh \
      benchmarks/oopsla2026/run_quicksort.sh \
-     benchmarks/oopsla2026/run_crafted.sh \
+     benchmarks/oopsla2026/run_evaluator.sh \
      benchmarks/oopsla2026/run_collection_c.sh \
      benchmarks/oopsla2026/run_collection_c_buggy.sh \
      ./benchmarks/oopsla2026/
@@ -178,19 +180,19 @@ COPY benchmarks/oopsla2026/quicksort/genwasym-test-input/*.wat \
 COPY benchmarks/oopsla2026/quicksort/wasp-test-input/*.wast \
      ./benchmarks/oopsla2026/quicksort/wasp-test-input/
 
-## 6.3 copy crafted benchmark
+## 6.3 copy evaluator benchmark
 
 RUN mkdir -p \
-    ./benchmarks/oopsla2026/crafted/genwasym-test-input \
-    ./benchmarks/oopsla2026/crafted/genwasym-test-artifacts \
-    ./benchmarks/oopsla2026/crafted/genwasym-test-output \
-    ./benchmarks/oopsla2026/crafted/wasp-test-input \
-    ./benchmarks/oopsla2026/crafted/wasp-test-output
+    ./benchmarks/oopsla2026/evaluator/genwasym-test-input \
+    ./benchmarks/oopsla2026/evaluator/genwasym-test-artifacts \
+    ./benchmarks/oopsla2026/evaluator/genwasym-test-output \
+    ./benchmarks/oopsla2026/evaluator/wasp-test-input \
+    ./benchmarks/oopsla2026/evaluator/wasp-test-output
 
-COPY benchmarks/oopsla2026/crafted/genwasym-test-input/*.wat \
-     ./benchmarks/oopsla2026/crafted/genwasym-test-input/
-COPY benchmarks/oopsla2026/crafted/wasp-test-input/*.wast \
-     ./benchmarks/oopsla2026/crafted/wasp-test-input/
+COPY benchmarks/oopsla2026/evaluator/genwasym-test-input/*.wat \
+     ./benchmarks/oopsla2026/evaluator/genwasym-test-input/
+COPY benchmarks/oopsla2026/evaluator/wasp-test-input/*.wast \
+     ./benchmarks/oopsla2026/evaluator/wasp-test-input/
 
 ## 6.4 copy Collection-C benchmark
 
