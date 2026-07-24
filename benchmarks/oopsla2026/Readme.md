@@ -208,9 +208,21 @@ bash benchmarks/oopsla2026/run_crafted.sh --runs 1
 bash benchmarks/oopsla2026/run_collection_c.sh --runs 1
 ```
 
-Use option `--quick --case CASE` for a single-case test; quick mode runs the
-selected test case once.
-FIXME: what is CASE? how should one provide CASE?
+Each benchmark wrapper supports `--quick --case CASE` for a single-case
+test; quick mode runs the selected case once. For B-Tree, Quicksort, and
+Arithmetic-Evaluator, `CASE` is the input-file basename without the `.wat` or
+`.wast` extension. For example, `2o1u` selects
+`btree/genwasym-test-input/2o1u.wat` and `btree/wasp-test-input/2o1u.wast`:
+
+```bash
+bash benchmarks/oopsla2026/run_btree.sh --quick --case 2o1u
+bash benchmarks/oopsla2026/run_quicksort.sh --quick --case quicksort1.sym2.size20
+bash benchmarks/oopsla2026/run_crafted.sh --quick --case parse_expr2000-8
+bash benchmarks/oopsla2026/run_collection_c.sh --quick --case array/array_test_add
+```
+
+For Collection-C, `CASE` is the path relative to its `normal/` input directory,
+in the form `MODULE/CASE` (for example, `array/array_test_add`).
 
 #### Summarize Results and Reproduce Table 1
 
@@ -218,26 +230,7 @@ After the runs finish, we first convert the raw WASP and GenWasym reports into
 per-suite CSV files, then summarize each suite for the compilation experiment:
 
 ```bash
-python3 benchmarks/oopsla2026/collect_result.py --suite btree --write-raw
-python3 benchmarks/oopsla2026/collect_result.py --suite quicksort --write-raw
-python3 benchmarks/oopsla2026/collect_result.py --suite crafted --write-raw
-python3 benchmarks/oopsla2026/collect_result.py --suite Collection-C --write-raw
-
-python3 benchmarks/oopsla2026/summary.py \
-  --rq compilation --suite btree \
-  -o benchmarks/oopsla2026/final_results_btree.compilation.csv
-
-python3 benchmarks/oopsla2026/summary.py \
-  --rq compilation --suite quicksort \
-  -o benchmarks/oopsla2026/final_results_quicksort.compilation.csv
-
-python3 benchmarks/oopsla2026/summary.py \
-  --rq compilation --suite crafted \
-  -o benchmarks/oopsla2026/final_results_crafted.compilation.csv
-
-python3 benchmarks/oopsla2026/summary.py \
-  --rq compilation --suite Collection-C \
-  -o benchmarks/oopsla2026/final_results_Collection-C.compilation.csv
+./summarize_results.sh
 ```
 
 The above step produces the following CSV files:
@@ -249,15 +242,39 @@ benchmarks/oopsla2026/final_results_crafted.compilation.csv
 benchmarks/oopsla2026/final_results_Collection-C.compilation.csv
 ```
 
+The produced CSV files contain the following columns:
+
+| Column | Description |
+| --- | --- |
+| `Suite` | Benchmark suite name (e.g., B-Tree, Quicksort, Arithmetic-Evaluator, Collection-C). |
+| `Benchmark` | Name of single benchmark program program. |
+| `npaths` | Number of execution paths explored. |
+| `T_WASP_instr_exec(s)` | Mean WASP instruction-execution time, in seconds. |
+| `SD_WASP_instr_exec(s)` | Standard deviation of WASP instruction-execution time, in seconds. |
+| `T_WASP_total(s)` | Mean total WASP execution time, in seconds. |
+| `T_GenWasym_NoConfig_instr_exec(s)` | Mean GenWasym instruction-execution time without snapshot reuse or the heuristic, in seconds. |
+| `SD_GenWasym_NoConfig_instr_exec(s)` | Standard deviation of that time, in seconds. |
+| `T_GenWasym_NoConfig_total(s)` | Mean total GenWasym execution time for the no snapshot reuse or the heuristic configuration, in seconds. |
+| `Speedup_NoConfig` | WASP instruction-execution time divided by GenWasym noreuse instruction-execution time. |
+| `T_GenWasym_Snapshot_instr_exec(s)` | Mean GenWasym instruction-execution time with snapshot reuse, in seconds. |
+| `SD_GenWasym_Snapshot_instr_exec(s)` | Standard deviation of that time, in seconds. |
+| `T_GenWasym_Snapshot_total(s)` | Mean total GenWasym execution time for the Snapshot configuration, in seconds. |
+| `T_GenWasym_CostModel_instr_exec(s)` | Mean GenWasym instruction-execution time with snapshot reuse and the cost model, in seconds. |
+| `SD_GenWasym_CostModel_instr_exec(s)` | Standard deviation of that time, in seconds. |
+| `T_GenWasym_CostModel_total(s)` | Mean total GenWasym execution time for the CostModel configuration, in seconds. |
+| `SpeedupSnapshot` | GenWasym NoConfig instruction-execution time divided by Snapshot instruction-execution time. |
+| `SpeedupHeuristic` | GenWasym NoConfig instruction-execution time divided by CostModel instruction-execution time. |
+
 Reviewers can compare the results in these CSV files with Table 1 in the paper. 
-FIXME: not sure how straightforward the comparison would be. Is that a one-to-one correspondence from the CSV to Table 1?
-We consider the results reproduced if the `Speedup_NoConfig` values in
-the CSV files are greater than `3x` (FIXME: what does that mean? what does that correspond in the paper?) for the reported benchmarks and their
-geometric mean is greater than `20x` (FIXME: same here). To compute the geometric mean of the
-speedups, run:
+
+
+We consider the results reproduced if every `Speedup_NoConfig` value in the
+CSV files is greater than `1x`; that is, GenWasym without snapshot reuse is
+faster than WASP for every reported benchmark.
+For the geometric mean of the speedups, geometric mean is close to the `29.4x` reported in the paper. Run the following command to compute the geometric mean of the speedups for all benchmark rows in the CSV files. (The `--cutoff` options exclude benchmarks for which WASP exceeded the two-hour timeout.)
 
 ```
-python3 benchmarks/oopsla2026/average_speedup.py --cutoff 3o1u --cutoff 10o3u --cutoff quicksort2.sym3.size10
+python3 benchmarks/oopsla2026/average_speedup.py --cutoff 10o3u --cutoff quicksort2.sym3.size10
 ```
 
 The command should produce output similar to the following. Exact values may
@@ -276,10 +293,9 @@ Relative GenWasym speedups:
 The `Snapshot` geometric mean corresponds to the **Staging + Snapshot** bar in
 Figure 10b, and the `CostModel` geometric mean corresponds to the **Staging +
 Snapshot + Heuristic** bar. We consider the results reproduced when the
-`Default` geometric mean is close to the `29.4x` reported in the paper, the
-`Snapshot/Default` geometric mean is greater than `1.0x` (FIXME: close to?), and the
-`CostModel/Default` geometric mean is greater than the `Snapshot/Default`
-geometric mean.
+`Default` geometric mean is close to the **29.4x** reported in the paper and
+the `Snapshot/Default` and `CostModel/Default` geometric means are both close
+to **1.0x**.
 
 ### Bug Detection Experiments (RQ3)
 
@@ -319,7 +335,10 @@ cat benchmarks/oopsla2026/Collection-C/genwasym-test-artifacts/buggy/array_test_
 cat benchmarks/oopsla2026/Collection-C/genwasym-test-artifacts/buggy/list_test_zipIterAdd/run-logs/list_test_zipIterAdd.wat.exe.log
 ```
 
-The expected output should contain the following message (specific values may vary due to FIXME: explain):
+The output should contain a message similar to the following. More than one
+error may be reported if the execution encounters multiple invalid memory
+accesses; the sequence of the reported address may vary due to the exploration
+order of execution paths.
 
 ```
 ...
