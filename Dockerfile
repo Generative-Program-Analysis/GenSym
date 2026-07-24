@@ -146,6 +146,8 @@ COPY benchmarks/oopsla2026/compile.py \
      benchmarks/oopsla2026/normalize_wat.py \
      benchmarks/oopsla2026/collect_result.py \
      benchmarks/oopsla2026/average_speedup.py \
+     benchmarks/oopsla2026/summarize_buggy.py \
+     benchmarks/oopsla2026/summarize_buggy.sh \
      benchmarks/oopsla2026/summary.py \
      benchmarks/oopsla2026/run_btree.sh \
      benchmarks/oopsla2026/run_quicksort.sh \

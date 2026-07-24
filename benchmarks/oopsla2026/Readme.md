@@ -345,10 +345,10 @@ Address 66621 with width 1 is not in any allocated range.
 
 This confirms that GenWasym can detect bugs in Wasm programs.
 
-Then check if the bug is also detected by WASP:
+Then check the WASP's output to see if the bug is also detected by WASP:
 
 ```bash
-cat benchmarks/oopsla2026/Collection-C/wasp-test-output/buggy/array_test_remove.out/report.json
+cat benchmarks/oopsla2026/Collection-C/wasp-test-output/buggy/array_test_remove.out/report_0.json
 ```
 
 The expected JSON output should contain the following fields:
@@ -363,3 +363,32 @@ This confirms that GenWasym effectively detects the bug as WASP does.
 
 FIXME: how to reproduce the table 2
 
+To summarize the GenWasym NoConfig running times in a table:
+
+```bash
+bash benchmarks/oopsla2026/summarize_buggy.sh
+```
+
+The table reports GenWasym and WASP path counts separately, whether each tool
+finds the bug, and instruction-execution and total times for both tools. Write
+the same table as CSV with:
+
+```bash
+bash benchmarks/oopsla2026/summarize_buggy.sh \
+  -o benchmarks/oopsla2026/Collection-C/buggy_runtime.csv
+```
+
+The output table columns are:
+
+| Column | Description |
+| --- | --- |
+| `Benchmark` | Name of the buggy benchmark. |
+| `n_GenWasymPaths` | Number of paths finished by GenWasym in the noreuse config. |
+| `n_WASP_paths` | Number of paths explored by WASP. This can differ from the GenWasym count. |
+| `Finds Bug` | Whether GenWasym and WASP each reported the invalid memory access. |
+| `T_GenWasym_instr_exec_s` | GenWas instruction-execution time, in seconds. |
+| `T_GenWasym_total_s` | GenWasym total wall-clock runtime, in seconds. |
+| `T_WASP_instr_exec_s` | WASP instruction-execution time, in seconds. |
+| `T_WASP_total_s` | WASP total loop runtime, in seconds. |
+
+Now reviewers can compare the results in this CSV file with Table 2 in the paper.
