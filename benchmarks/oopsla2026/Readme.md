@@ -165,21 +165,13 @@ find benchmarks/oopsla2026/Collection-C/genwasym-test-input -name '*.wat' | xarg
 From inside the container, use GenWasym to generate the C++ files from WAT:
 
 ```bash
-sbt \
-  'testOnly gensym.wasm.TestBenchmark -- -z compile-btree-benchmarks' \
-  'testOnly gensym.wasm.TestBenchmark -- -z compile-quicksort-benchmark' \
-  'testOnly gensym.wasm.TestBenchmark -- -z compile-evaluator-benchmarks' \
-  'testOnly gensym.wasm.TestBenchmark -- -z compile-collection-c-normal-benchmarks'
+bash benchmarks/oopsla2026/compile_wats.sh
 ```
 
 Compile the generated C++ files into executables:
 
 ```bash
-python3 benchmarks/oopsla2026/compile.py --skip-newer \
-  benchmarks/oopsla2026/btree/genwasym-test-artifacts \
-  benchmarks/oopsla2026/quicksort/genwasym-test-artifacts \
-  benchmarks/oopsla2026/evaluator/genwasym-test-artifacts \
-  benchmarks/oopsla2026/Collection-C/genwasym-test-artifacts
+bash benchmarks/oopsla2026/compile_cpp.sh
 ```
 
 #### Compare the Performance of Compiled Executables with WASP

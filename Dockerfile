@@ -154,6 +154,8 @@ COPY benchmarks/oopsla2026/compile.py \
      benchmarks/oopsla2026/run_evaluator.sh \
      benchmarks/oopsla2026/run_collection_c.sh \
      benchmarks/oopsla2026/run_collection_c_buggy.sh \
+     benchmarks/oopsla2026/compile_wats.sh \
+     benchmarks/oopsla2026/compile_cpp.sh \
      ./benchmarks/oopsla2026/
 
 COPY benchmarks/oopsla2026/btree/normalize_all_wat.sh benchmarks/oopsla2026/btree/run_exe.py \
