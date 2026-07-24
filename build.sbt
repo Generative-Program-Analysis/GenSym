@@ -16,10 +16,6 @@ libraryDependencies += "org.scalaz" %% "scalaz-core" % "7.2.27"
 libraryDependencies += "org.antlr" % "antlr4-runtime" % "4.13.0"
 libraryDependencies += "org.atnos" %% "eff" % "5.7.0"
 
-Compile / unmanagedJars += {
-  baseDirectory.value / "third-party" / s"scalaz3_2.12-4.7.1.jar"
-}
-
 scalacOptions ++= Seq(
   "-Xcheckinit",
   "-deprecation",
@@ -63,4 +59,3 @@ lazy val gensym = (project in file(".")).dependsOn(lms % "test->test; compile->c
                                         .configs(Bench)
                                         .settings(inConfig(Bench)(Defaults.testSettings))
                                         .settings(assembly / mainClass := Some("gensym.RunGenSym"))
-

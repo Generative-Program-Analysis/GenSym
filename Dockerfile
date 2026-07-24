@@ -94,9 +94,13 @@ RUN eval $(opam env) && \
     cd "${WASP_HOME}/wasp" && \
     opam install -y . --deps-only --no-depexts --jobs=$(nproc)
 
-# 3. copy third party
+# 3. copy third party required by the retained build
 
-COPY third-party ./third-party
+COPY third-party/immer \
+     third-party/lms-clean \
+     third-party/wasp \
+     third-party/z3 \
+     ./third-party/
 
 # 4. build wasp
 

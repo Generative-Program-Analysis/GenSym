@@ -1,7 +1,6 @@
 package gensym.wasm.symbolic
 import gensym.wasm.ast._
 
-import z3.scala._
 import scala.collection.mutable.HashMap
 
 case class SymV(name: String) extends SymVal
@@ -25,10 +24,6 @@ case class InitMem(min: Int, max: Option[Int]) extends SymVal
 case class MemConcat(lhs: SymVal, rhs: SymVal) extends SymVal
 case class MemExtract(mem: SymVal, offset: Int, size: Int) extends SymVal
 abstract class SymVal {
-  def toZ3AST(implicit ctx: Z3Context): Z3AST = this match {
-    case SymV(name) => ctx.mkConst(ctx.mkStringSymbol(name), ctx.mkIntSort())
-    case _          => ???
-  }
 }
 
 // consider using zipper to simplify mutations
@@ -139,4 +134,3 @@ case class Finished() extends Node {
 case class Fail(env: HashMap[Int, Value]) extends Node {
   def cond = None
 }
-
