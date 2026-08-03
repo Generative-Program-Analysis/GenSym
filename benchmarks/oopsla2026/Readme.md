@@ -1,7 +1,7 @@
-# Artifact Evaluation for OOPSLA 2026 Paper: "Compiling WebAssembly Concolic Execution with Staging, Continuations, and Snapshots"
+# Artifact Evaluation for the OOPSLA 2026 Paper: "Compiling WebAssembly Concolic Execution with Staging, Continuations, and Snapshots"
 
 This document provides evaluation instructions for the OOPSLA 2026 paper
-"Compiling WebAssembly Concolic Execution with Staging, Continuations, and Snapshots." 
+"Compiling WebAssembly Concolic Execution with Staging, Continuations, and Snapshots."
 The paper resolves a dilemma in concolic execution:
 instrumentation-based implementations are efficient but struggle to support
 snapshot reuse, whereas interpretation-based techniques support snapshots but
@@ -10,13 +10,13 @@ efficiency and CPS semantics to capture program control, thus enabling snapshot
 reuse. As a result, the paper brings the best of both worlds to concolic
 execution: efficient execution and snapshot reuse.
 
-This artifact contains 
+This artifact contains:
 
-- GenWasym, a concolic-execution compiler implementing the proposed approach 
-- WASP, the baseline concolic execution engine
-- Four benchmark sets used in the paper: B-Tree, Collection-C, Arithmetic-Evaluator, and Quicksort. 
+- GenWasym, a concolic-execution compiler implementing the proposed approach;
+- WASP, the baseline concolic execution engine; and
+- four benchmark sets used in the paper: B-Tree, Collection-C, Arithmetic-Evaluator, and Quicksort.
 
-The artifact is self-contained and can be run in a Docker container. 
+The artifact is self-contained and can be run in a Docker container.
 The artifact has been tested on Ubuntu 22.04. The remainder of this document
 provides instructions for reviewers to evaluate the artifact and reproduce the
 paper's results.
@@ -28,12 +28,12 @@ You can download the artifact from https://zenodo.org/uploads/21527163.
 The artifact is packaged as a Docker image. The image already contains all
 necessary dependencies and tools to run the experiments.
 
-In the Docker image, besides the source code of GenWasym and WASP, we also installed
+In addition to the GenWasym and WASP source code, the Docker image includes
 several third-party components required by GenWasym and WASP, including the LMS
-framework (`lms-clean`), SMT solver Z3, and the `immer` persistent data
+framework (`lms-clean`), the Z3 SMT solver, and the `immer` persistent data
 structure library.
 
-The GenWasym source code is located in `/ae/GenWasym` inside the container. 
+The GenWasym source code is located in `/ae/GenWasym` inside the container.
 Its relevant directory structure is:
 
 - `src/` contains the GenWasym implementation and test suite:
@@ -61,14 +61,20 @@ Its relevant directory structure is:
   - `immer/` contains the persistent C++ data-structure library used by the
     generated C++ programs.
 
-## 2. Prerequisites (Kick the tires)
+## 2. Prerequisites (Kick the Tires)
 
 **Expected Time: < 15 minutes**
 
 This step tests the artifact's basic functionality and verifies that the
 hardware can run the tests and experiments. The supplied Docker image requires
-Linux and x86-64 (AMD64) CPUs. The artifact has been tested on Ubuntu 22.04,
-and should work on other Linux distributions as well. 
+Linux and an x86-64 (AMD64) CPU. The artifact has been tested on Ubuntu 22.04
+and should work on other Linux distributions as well.
+
+For the kick-the-tires test, first load the Docker image and start a container.
+Then, run a few simple commands to verify that the container provides the
+environment and tools required to run the experiments.
+
+### 2.1 Load the Docker Image
 
 The Docker image is distributed as a `.tar.gz` archive. Load it into Docker with:
 
@@ -76,30 +82,62 @@ The Docker image is distributed as a `.tar.gz` archive. Load it into Docker with
 docker load --input genwasym-oopsla2026.tar.gz
 ```
 
-The command prints the image name and tag that were loaded. Verify that the
-image is available:
+A successful load ends with:
+
+```text
+Loaded image: genwasym:latest
+```
+
+Verify that the image is available:
 
 ```bash
 docker image ls
 ```
 
-Then start a container using the loaded image. If the loaded tag is `ae:latest`, run:
+The listed images should include the image that was just loaded.
+
+Then, start a container using the loaded image:
 
 ```bash
-docker run --rm -it ae:latest bash
-cd /ae/GenWasym
+sudo docker run --name genwasym-artifact-evaluation -it genwasym:latest bash
 ```
 
-Run a simple test case to verify that GenWasym is working correctly:
+### 2.2 Run the Smoke Test
+
+Run a small GenWasym smoke test. It first builds GenWasym, then uses GenWasym to
+compile and run `benchmarks/wasm/fib.wat`, and verifies that the result:
 
 ```bash
 sbt 'testOnly gensym.wasm.TestStagedConcolicEval -- -z fib'
 ```
 
-Useful Docker commands for reviewers are listed below:
+A successful run includes the following output:
+
+```text
+Stack contents:
+144
+...
+[info] Tests: succeeded 1, failed 0, canceled 0, ignored 0, pending 0
+[info] All tests passed.
+```
+
+Run the complete GenWasym test suite:
+
+```bash
+sbt 'testOnly gensym.wasm.TestStagedConcolicEval'
+```
+
+A successful run ends with `[info] All tests passed.`
+
+
+### 2.3 Other Useful Docker Commands
+
+
+Since running all the experiments takes more than 48 hours, we list some useful
+commands for reviewers' reference.
 
 ```sh
-# From inside of the container: detach without exiting it
+# From inside the container: detach without exiting it
 Ctrl-p Ctrl-q
 ```
 
@@ -109,12 +147,12 @@ docker ps -a
 ```
 
 ```sh
-# Stop it from another terminal
+# Stop the container from another terminal
 docker stop <container-name>
 ```
 
 ```sh
-# Resume it from another terminal
+# Resume the container from another terminal
 docker start -ai <container-name>
 ```
 
@@ -141,7 +179,7 @@ GenWasym, and the corresponding `wasp-test-input/` directory contains the
   input-array size, the number of symbolic elements, and the complexity of
   their symbolic expressions.
 
-## 4. Step-by-Step Evaluation Instructions 
+## 4. Step-by-Step Evaluation Instructions
 
 ### 4.1 Performance Evaluation (RQ1 and RQ2)
 
@@ -150,10 +188,34 @@ paper and produces the results in Table 1 and Figure 10. We will first examine
 the benchmark files, then run the performance comparison between GenWasym and
 WASP, and finally summarize the results to reproduce Table 1 and Figure 10.
 
+**Expected Results:** This evaluation runs GenWasym and WASP on the benchmark
+suites presented in the paper and summarizes their performance.
+Before running the experiments, verify that no results are present:
+
+```bash
+bash benchmarks/oopsla2026/summarize_results.sh
+```
+
+The script creates one CSV file per benchmark suite to summarize the
+performance-evaluation results:
+
+```text
+benchmarks/oopsla2026/final_results_btree.compilation.csv
+benchmarks/oopsla2026/final_results_quicksort.compilation.csv
+benchmarks/oopsla2026/final_results_evaluator.compilation.csv
+benchmarks/oopsla2026/final_results_Collection-C.compilation.csv
+```
+
+At this point, each CSV file should contain only its header and no data rows.
+The same command is used after the experiments to summarize the collected
+results.
+
+
 #### Examine the Benchmark Files
 
-The benchmark files are located in the `benchmarks/oopsla2026/` directory.
-To show the number of lines in the WAT files for each benchmark suite:
+The benchmark files are located in the `benchmarks/oopsla2026/` directory. Run
+the following commands to show the number of lines in the WAT files for each
+benchmark suite:
 
 ```bash
 find benchmarks/oopsla2026/btree/genwasym-test-input -name '*.wat' | xargs wc -l
@@ -164,26 +226,59 @@ find benchmarks/oopsla2026/Collection-C/genwasym-test-input -name '*.wat' | xarg
 
 #### Use GenWasym to Compile the Benchmark Files
 
+In this step, we will compile the benchmark WAT files into C++ concolic-execution
+programs using GenWasym and then use `clang++` to compile the generated C++ files
+into executables.
+
 From inside the container, use GenWasym to generate the C++ files from WAT:
 
 ```bash
 bash benchmarks/oopsla2026/compile_wats.sh
 ```
 
-Compile the generated C++ files into executables:
+This step uses `sbt` to run the GenWasym compiler on the benchmark WAT files.
+The command succeeds when it prints `All tests passed.`
+
+Verify that GenWasym generated one C++ file for every performance benchmark:
 
 ```bash
-bash benchmarks/oopsla2026/compile_cpp.sh
+find benchmarks/oopsla2026/{btree,quicksort,evaluator}/genwasym-test-artifacts benchmarks/oopsla2026/Collection-C/genwasym-test-artifacts/normal -type f -name '*.wat.cpp' | wc -l
 ```
+
+The expected count is `187`.
+
+Then, compile the generated C++ files into executables:
+
+```bash
+python3 benchmarks/oopsla2026/compile.py --skip-newer \
+  benchmarks/oopsla2026/btree/genwasym-test-artifacts
+python3 benchmarks/oopsla2026/compile.py --skip-newer \
+  benchmarks/oopsla2026/quicksort/genwasym-test-artifacts
+python3 benchmarks/oopsla2026/compile.py --skip-newer \
+  benchmarks/oopsla2026/evaluator/genwasym-test-artifacts
+python3 benchmarks/oopsla2026/compile.py --skip-newer \
+  benchmarks/oopsla2026/Collection-C/genwasym-test-artifacts
+```
+
+During this step, the compilation commands will be printed in the terminal.
+The resulting executables are stored in the same directories as the C++ files.
+Verify them with this command:
+
+```bash
+find benchmarks/oopsla2026/{btree,quicksort,evaluator}/genwasym-test-artifacts benchmarks/oopsla2026/Collection-C/genwasym-test-artifacts/normal -type f -name '*.exe' | wc -l
+```
+
+The expected count is `561` (`3 * 187`), because each benchmark is compiled for
+three GenWasym configurations.
 
 #### Compare the Performance of Compiled Executables with WASP
 
-In the paper, we run GenWasym and WASP on each benchmark both for 5 times. This
+In the paper, we run each benchmark five times with both GenWasym and WASP. This
 requires around 48 hours (tested on a machine with 32 GB RAM and 8 cores
-running Ubuntu 22.04). 
-We suggest that reviewers do not exit the container until all experiments finish. 
+running Ubuntu 22.04).
+We suggest that reviewers do not exit the container until all experiments finish.
 
-Then to compare the performance of GenWasym and WASP, run:
+To compare the performance of GenWasym and WASP, run:
 
 ```bash
 bash benchmarks/oopsla2026/run_btree.sh
@@ -192,8 +287,17 @@ bash benchmarks/oopsla2026/run_evaluator.sh
 bash benchmarks/oopsla2026/run_collection_c.sh
 ```
 
-Note: To quickly verify a single-run result, it is possible to run each test
-case once instead of five times, use `--runs 1`:
+While running, these scripts print the execution command for each benchmark case.
+
+For each benchmark, both GenWasym and WASP record the execution-time metrics in
+a file. These reports are stored in the
+`benchmarks/oopsla2026/<suite>/genwasym-test-output/` and
+`benchmarks/oopsla2026/<suite>/wasp-test-output/` directories. In the next
+section, we will use these reports to compare the performance of GenWasym and
+WASP.
+
+Note: To quickly verify a single-run result, run each test case once instead of
+five times by using `--runs 1`:
 
 ```bash
 bash benchmarks/oopsla2026/run_btree.sh --runs 1
@@ -205,13 +309,14 @@ bash benchmarks/oopsla2026/run_collection_c.sh --runs 1
 #### Summarize Results and Reproduce Table 1 and Figure 10
 
 After the runs finish, we first convert the raw WASP and GenWasym reports into
-per-suite CSV files, then summarize each suite for the compilation experiment:
+per-suite CSV files and then summarize each suite for the compilation
+experiment:
 
 ```bash
 bash benchmarks/oopsla2026/summarize_results.sh
 ```
 
-The above step produces the following CSV files:
+This step produces the following CSV files:
 
 ```
 benchmarks/oopsla2026/final_results_btree.compilation.csv
@@ -220,7 +325,7 @@ benchmarks/oopsla2026/final_results_evaluator.compilation.csv
 benchmarks/oopsla2026/final_results_Collection-C.compilation.csv
 ```
 
-The produced CSV files contain the following columns:
+The CSV files contain the following columns:
 
 | Column | Description |
 | --- | --- |
@@ -243,7 +348,7 @@ The produced CSV files contain the following columns:
 | `SpeedupSnapshot` | GenWasym NoConfig instruction-execution time divided by Snapshot instruction-execution time. |
 | `SpeedupHeuristic` | GenWasym NoConfig instruction-execution time divided by CostModel instruction-execution time. |
 
-Reviewers can compare the results in these CSV files with Table 1 in the paper. 
+Reviewers can compare the results in these CSV files with Table 1 in the paper.
 
 We consider the results reproduced if every `Speedup_NoConfig` value in the
 CSV files is greater than `1x`; that is, GenWasym without snapshot reuse is
@@ -277,7 +382,9 @@ Snapshot + Heuristic** bar. We consider the results reproduced when the
 the `Snapshot/Default` and `CostModel/Default` geometric means are both close
 to **1.0x**.
 
-To reproduce two panel of Figure 10, run the following command to generate the svg files:
+To reproduce the two panels of Figure 10, run the following command to generate
+the SVG files:
+
 ```bash
 python3 benchmarks/oopsla2026/plot_speedup.py
 ```
@@ -291,14 +398,19 @@ across all available benchmark rows.
 
 ### 4.2 Bug Detection Experiments (RQ3)
 
-**Expected Time: < 30min**
+**Expected Time: < 30 minutes.** This experiment aims to answer RQ3 and
+reproduces the results in Table 2. We will compile two buggy Collection-C
+programs, run them with GenWasym and WASP, and summarize whether each tool
+detects the bugs.
 
-This part of the artifact tests whether GenWasym can detect bugs in Wasm
-programs, as WASP does, and reproduce the results in Table 2.
+**Expected Results:** Both GenWasym and WASP should detect the invalid memory
+accesses in the two buggy Collection-C programs. The summary table should show
+that both tools find each bug and report their path counts and execution times.
 
-#### Use GenWasym and WASP to Detect Bugs in 2 Buggy Collection-C Programs
+#### Use GenWasym and WASP to Detect Bugs in Two Buggy Collection-C Programs
 
-Use GenWasym to compile the buggy WebAssembly programs into C++ concolic execution programs:
+Use GenWasym to compile the buggy WebAssembly programs into C++
+concolic-execution programs:
 
 ```bash
 sbt 'testOnly gensym.wasm.TestBenchmark -- -z compile-collection-c-buggy-benchmarks'
@@ -343,7 +455,8 @@ Then check the WASP's output to see if the bug is also detected by WASP:
 cat benchmarks/oopsla2026/Collection-C/wasp-test-output/buggy/array_test_remove.out/report_0.json
 ```
 
-The expected JSON output should contain the following fields:
+The JSON output should contain the following fields:
+
 ```
 ...
 "specification": false,
@@ -353,15 +466,16 @@ The expected JSON output should contain the following fields:
 
 This confirms that GenWasym effectively detects the bug as WASP does.
 
-To summarize the GenWasym NoConfig running times in a table:
+Run the following command to summarize the GenWasym NoConfig execution times in
+a table:
 
 ```bash
 bash benchmarks/oopsla2026/summarize_buggy.sh
 ```
 
-The table reports GenWasym and WASP path counts separately, whether each tool
+The table reports separate GenWasym and WASP path counts, whether each tool
 finds the bug, and instruction-execution and total times for both tools. Write
-the same table as CSV with:
+the same table as a CSV file with:
 
 ```bash
 bash benchmarks/oopsla2026/summarize_buggy.sh \
@@ -376,7 +490,7 @@ The output table columns are:
 | `n_GenWasymPaths` | Number of paths finished by GenWasym in the noreuse config. |
 | `n_WASP_paths` | Number of paths explored by WASP. This can differ from the GenWasym count. |
 | `Finds Bug` | Whether GenWasym and WASP each reported the invalid memory access. |
-| `T_GenWasym_instr_exec_s` | GenWas instruction-execution time, in seconds. |
+| `T_GenWasym_instr_exec_s` | GenWasym instruction-execution time, in seconds. |
 | `T_GenWasym_total_s` | GenWasym total wall-clock runtime, in seconds. |
 | `T_WASP_instr_exec_s` | WASP instruction-execution time, in seconds. |
 | `T_WASP_total_s` | WASP total loop runtime, in seconds. |
