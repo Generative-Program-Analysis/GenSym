@@ -1,6 +1,5 @@
 #include <gensym/runtime.hpp>
 
-#define IMPURE_STATE
 #include <gensym.hpp>
 
 namespace gensym::runtime::v1 {

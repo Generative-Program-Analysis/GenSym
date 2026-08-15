@@ -209,6 +209,8 @@ class Playground extends TestGS {
   val gs = new ImpCPSGS
   val rtOpt = "--thread=1 --solver=z3"
 
-  val cases = TestCases.symbolicLarge
+  val cases = TestCases.coreutils.map { t =>
+    t.copy(runOpt = t.runOpt ++ Seq("--solver=z3"))
+  }
   testGS(gs, cases)
 }
