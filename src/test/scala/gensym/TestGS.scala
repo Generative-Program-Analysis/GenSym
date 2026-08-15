@@ -148,6 +148,7 @@ class TestImpCPSGS extends TestGS {
   testGS(gs, TestPrg(assumeTest, "assumeTestSymUninit", "@main", noArg, rtOpt, nPath(1)++status(0)))
   testGS(gs, TestPrg(flexAddr, "flexAddrSymUninit", "@main", noArg, rtOpt, nPath(1)++status(0)))
   testGS(gs, TestPrg(printfTest, "printfTestSymUninit", "@main", noArg, rtOpt, nPath(1)++status(0)))
+
   // FIXME: faultyBstTestSymUninit on CI produces 176 paths (vs 642)
   // testGS(gs, TestPrg(faultyBst, "faultyBstTestSymUninit", "@main", noArg, rtOpt, nPath(642)))
   Global.config.symbolicUninit = false
@@ -206,12 +207,8 @@ class Playground extends TestGS {
   import gensym.llvm.parser.Parser._
   Global.config.enableOpt
   val gs = new ImpCPSGS
-
   val rtOpt = "--thread=1 --solver=z3"
-  testGS(gs, TestPrg(kleefsminiTest, "kleefsmini", "@main", noArg, rtOpt, nPath(2)++status(0)))
 
-  // FIXME:
-  testGS(gs, TestPrg(kleefsminiPackedTest, "kleefsminiPackedTest", "@main", noArg, rtOpt, nPath(2)++status(0)))
-  testGS(gs, TestPrg(kleefsglobalTest, "kleefsminiglobal", "@main", noArg, rtOpt, nPath(2)++status(0)))
-  testGS(gs, TestPrg(kleefslib64Test, "kleelib64", "@main", noArg, rtOpt, nPath(10)++status(0)))
+  val cases = TestCases.symbolicLarge
+  testGS(gs, cases)
 }

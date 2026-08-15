@@ -58,6 +58,9 @@ object TestPrg {
 import TestPrg._
 
 object TestCases {
+  val arch = System.getProperty("os.arch")
+  val isX86_64 = arch == "x86_64" || arch == "amd64"
+
   val concrete: List[TestPrg] = List(
     //TestPrg(add, "addTest", "@main", noArg, noOpt, nPath(1)),
     //TestPrg(power, "powerTest", "@main", noArg, noOpt, nPath(1)),
@@ -146,6 +149,8 @@ object TestCases {
     TestPrg(printfTest, "printfTest", "@main", noArg, noOpt, nPath(1)++status(0))
   )
 
+  val kleefs: List[TestPrg] =
+    if (isX86_64) List(TestPrg(kleefslib64Test, "kleelib64", "@main", noArg, noOpt, nPath(10)++status(0))) else List()
   val filesys: List[TestPrg] = List(
     TestPrg(openTest, "openTest", "@main", noArg, "--add-sym-file A", nPath(1)++status(0)),
     TestPrg(openSymTest, "openSymTest", "@main", noArg, "--add-sym-file A --add-sym-file B", nPath(3)++status(0)),
@@ -170,8 +175,7 @@ object TestCases {
     TestPrg(kleefsminiTest, "kleefsmini", "@main", noArg, noOpt, nPath(2)++status(0)),
     TestPrg(kleefsminiPackedTest, "kleefsminiPackedTest", "@main", noArg, noOpt, nPath(2)++status(0)),
     TestPrg(kleefsglobalTest, "kleefsminiglobal", "@main", noArg, noOpt, nPath(2)++status(0)),
-    TestPrg(kleefslib64Test, "kleelib64", "@main", noArg, noOpt, nPath(10)++status(0)),
-  )
+  ) ++ kleefs
 
   lazy val coreutils: List[TestPrg] = List(
     TestPrg(echo_linked,    "echo_linked_posix",    "@main",  noMainFileOpt, "--argv=./echo.bc     --sym-stdout --sym-arg 2 --sym-arg 7", nPath(216136)++status(0)),
