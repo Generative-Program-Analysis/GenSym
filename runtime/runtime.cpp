@@ -183,6 +183,7 @@ Value bv_zext(Value value, std::size_t bw) { return Bridge::wrap(::bv_zext(Bridg
 Value trunc(Value value, int from, int to) { return Bridge::wrap(::trunc(Bridge::unwrap(value), from, to)); }
 Value ite(Value condition, Value then_value, Value else_value) { return Bridge::wrap(::ite(Bridge::unwrap(condition), Bridge::unwrap(then_value), Bridge::unwrap(else_value))); }
 Value ptr_add(Value pointer, Value offset) { return Bridge::wrap(::ptr_add(Bridge::unwrap(pointer), Bridge::unwrap(offset))); }
+Value structV_at(Value value, std::size_t index) { return Bridge::wrap(::structV_at(Bridge::unwrap(value), static_cast<int>(index))); }
 
 struct PublicCPSValue final : ::LocV {
   CPSFunc function;

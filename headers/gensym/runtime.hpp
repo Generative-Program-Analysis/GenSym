@@ -189,6 +189,7 @@ Value bv_zext(Value, std::size_t);
 Value trunc(Value, int, int);
 Value ite(Value, Value, Value);
 Value ptr_add(Value, Value);
+Value structV_at(Value, std::size_t);
 
 Value make_CPSFunV(CPSFunc);
 std::monostate cps_apply(Value, State, Args, Cont);

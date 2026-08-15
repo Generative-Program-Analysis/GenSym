@@ -71,8 +71,8 @@ jobs:
       run: |
         cd third-party/wasmfx-tools
         cargo build --release
-    #- name: Generate models
-    #  run: sbt 'runMain gensym.GenerateExternal'
+    - name: Generate models
+      run: sbt 'runMain gensym.GenerateExternal'
     - name: Run tests
       run: |
         sbt 'testOnly gensym.TestImpCPSGS'

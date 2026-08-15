@@ -6,6 +6,7 @@ import lms.core.virtualize
 import lms.macros.SourceContext
 import lms.core.stub.{While => _, _}
 
+import gensym.imp._
 import gensym.llvm._
 import gensym.llvm.IR._
 import gensym.IRUtils._
@@ -19,9 +20,8 @@ import scala.collection.mutable.{Map => MutableMap, Set => MutableSet}
 // external/intrinsic functions with only slightly backend difference.
 // Can we generate them from our Scala DSL?
 
-/*
 @virtualize
-trait GenExternal extends ImpSymExeDefs {
+trait GenExternal extends ImpSymExeDefs with FileSysDefs {
   trait Auto
   def info(msg: String) = unchecked("INFO(\"[FS] \" << \"" + msg + "\")")
   def info_obj(p: Rep[_], l: String = ""): Rep[Unit] = unchecked("INFO(\"", if (l == "") "" else l + ": ", "\" << ", p, ")")
@@ -51,24 +51,26 @@ trait GenExternal extends ImpSymExeDefs {
     tk: (Rep[SS], Rep[FS]) => Rep[T], fk: (Rep[SS], Rep[FS]) => Rep[T]) = {
       unchecked("INFO(\"symExecBrFs: tCond is symbolic: \" << ", tCond, "->toString())")
       val ssf = ss.fork
-      val tpcSat = checkPC(ss.addPC(tCond).pc)
-      val fpcSat = checkPC(ssf.addPC(fCond).pc)
+      ss.addPC(tCond)
+      ssf.addPC(fCond)
+      val tpcSat = checkPC(ss.pc)
+      val fpcSat = checkPC(ssf.pc)
       if (tpcSat && fpcSat) {
         unchecked("INFO(\"symExecBrFs: both satisfiable\")")
         Coverage.incPath(1)
         // false branch
-        fk(ssf.addPC(fCond), FS.dcopy(fs))
+        fk(ssf, FS.dcopy(fs))
         // true branch
-        tk(ss.addPC(tCond), fs)
+        tk(ss, fs)
         // TODO: add second stage ++ operation <2022-08-19, David Deng> //
         // This version would lose result on non CPS versions
         // resF ++ resT
       } else if (tpcSat) {
         unchecked("INFO(\"symExecBrFs: only true satisfiable\")")
-        tk(ss.addPC(tCond), fs)
+        tk(ss, fs)
       } else {
         unchecked("INFO(\"symExecBrFs: only false satisfiable\")")
-        fk(ssf.addPC(fCond), fs)
+        fk(ssf, fs)
       }
   }
 
@@ -622,7 +624,6 @@ trait GenExternal extends ImpSymExeDefs {
     res
   }
 }
-*/
 
 @virtualize
 trait ExternalUtil { self: BasicDefs with ValueDefs with SAIOps =>
@@ -650,7 +651,6 @@ trait ExternalUtil { self: BasicDefs with ValueDefs with SAIOps =>
   }
 }
 
-/*
 class ExternalGSDriver(folder: String = "./headers/gensym") extends SAISnippet[Int, Unit]
     with SAIOps with GenExternal { q =>
   import java.io.{File, PrintStream}
@@ -734,13 +734,10 @@ class ExternalGSDriver(folder: String = "./headers/gensym") extends SAISnippet[I
     ()
   }
 }
-*/
 
-/*
 object GenerateExternal {
   def main(args: Array[String]): Unit = {
     val code = new ExternalGSDriver
     code.genHeader
   }
 }
-*/

@@ -155,8 +155,7 @@ class TestImpCPSGS extends TestGS {
 
 class TestImpCPSGS_Z3 extends TestGS {
   val gs = new ImpCPSGS
-  //val cases =  (TestCases.all ++ filesys ++ varArg).map { t =>
-  val cases =  (TestCases.all).map { t =>
+  val cases =  (TestCases.all ++ filesys ++ varArg).map { t =>
     t.copy(runOpt = t.runOpt ++ Seq("--solver=z3"))
   }
   testGS(gs, cases)
@@ -209,9 +208,15 @@ class Playground extends TestGS {
   val gs = new ImpCPSGS
 
   val rtOpt = "--thread=1 --solver=z3"
-  //testGS(gs, TestPrg(branch, "branch1", "@f", symArg(2), rtOpt,
-  //  nPath(4) ++ expectBlocks(7, 7) ++ branches(0, 3, 3) ++ threads(1) ++ queuedTasks(0) ++ queries(6, 4, 3)))
 
-  testGS(gs, TestPrg(structReturnLong, "structReturnLongTest", "@main", noArg, rtOpt, nPath(1)))
-  testGS(gs, TestPrg(heapFunptr, "heapFunptr", "@main", noArg, rtOpt, nPath(1)++status(0))),
+  val cases =  (TestCases.filesys).map { t =>
+    t.copy(runOpt = t.runOpt ++ Seq("--solver=z3"))
+  }
+  testGS(gs, cases)
+
+  // FIXME:
+  //testGS(gs, TestPrg(kleefsminiTest, "kleefsmini", "@main", noArg, noOpt, nPath(2)++status(0)))
+  //testGS(gs, TestPrg(kleefsminiPackedTest, "kleefsminiPackedTest", "@main", noArg, noOpt, nPath(2)++status(0)))
+  //testGS(gs, TestPrg(kleefsglobalTest, "kleefsminiglobal", "@main", noArg, noOpt, nPath(2)++status(0)))
+  //testGS(gs, TestPrg(kleefslib64Test, "kleelib64", "@main", noArg, noOpt, nPath(10)++status(0)))
 }

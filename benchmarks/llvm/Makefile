@@ -1,6 +1,6 @@
 SRC_FILES := $(wildcard ./*.c)
 
-CC := clang-11
+CC := clang-11 --target=x86_64-unknown-linux-gnu
 
 FLAGS := -emit-llvm -O0 -Xclang -disable-O0-optnone -c
 KLEE_FLAGS := -D KLEE -g -I $(KLEE_INCL)
