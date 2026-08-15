@@ -209,10 +209,7 @@ class Playground extends TestGS {
 
   val rtOpt = "--thread=1 --solver=z3"
 
-  val cases =  (TestCases.filesys).map { t =>
-    t.copy(runOpt = t.runOpt ++ Seq("--solver=z3"))
-  }
-  testGS(gs, cases)
+  testGS(gs, TestPrg(aliasing, "aliasingTest", "@main", noArg, rtOpt, nPath(1)))
 
   // FIXME:
   //testGS(gs, TestPrg(kleefsminiTest, "kleefsmini", "@main", noArg, noOpt, nPath(2)++status(0)))

@@ -1,7 +1,6 @@
 SRC_FILES := $(wildcard ./*.c)
 
-# Keep input IR on the x86-64 Linux ABI even when the devcontainer runs on ARM.
-CC := clang-11 --target=x86_64-unknown-linux-gnu --sysroot=/usr/x86_64-linux-gnu
+include ../llvm-toolchain.mk
 
 FLAGS := -emit-llvm -O0 -Xclang -disable-O0-optnone -c
 KLEE_FLAGS := -D KLEE -g -I $(KLEE_INCL)
@@ -22,13 +21,13 @@ klee: $(KLEE_TARGET)
 klee-exe: $(KLEE_REPLAY_TARGET)
 
 $(KLEE_TARGET): %.bc : %.c
-	$(CC) $(KLEE_FLAGS) $(FLAGS) -o $@ $<
+	$(LLVM_CC) $(KLEE_FLAGS) $(FLAGS) -o $@ $<
 
 $(KLEE_REPLAY_TARGET): %-replay : %.c
 	$(CC) $(KLEE_FLAGS) -o $@ $< -lkleeRuntest
 
 $(GS_TARGET): %.ll : %.c
-	$(CC) $(GS_FLAGS) $(FLAGS) -o $@ $<
+	$(LLVM_CC) $(GS_FLAGS) $(FLAGS) -o $@ $<
 
 clean:
 	$(RM) -rf $(KLEE_TARGET) $(KLEE_REPLAY_TARGET) $(KLEE_GEN) $(GS_TARGET) *.ll

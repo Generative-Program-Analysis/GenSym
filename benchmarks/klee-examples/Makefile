@@ -1,13 +1,14 @@
 SRC_FILES := $(wildcard ./*.c)
+include ../llvm-toolchain.mk
 
 all:
 	for SRC in $(SRC_FILES) ; do \
-	  clang-11 $$SRC -O0 -emit-llvm -S -fno-discard-value-names ; \
+	  $(LLVM_CC) $$SRC -O0 -emit-llvm -S -fno-discard-value-names ; \
 	done
 
 allO1:
 	for SRC in $(SRC_FILES) ; do \
-	  clang-11 $$SRC -O1 -emit-llvm -S -fno-discard-value-names -D__NO_STRING_INLINES  -D_FORTIFY_SOURCE=0 -U__OPTIMIZE__ ; \
+	  $(LLVM_CC) $$SRC -O1 -emit-llvm -S -fno-discard-value-names -D__NO_STRING_INLINES  -D_FORTIFY_SOURCE=0 -U__OPTIMIZE__ ; \
 	done
 
 clean:
