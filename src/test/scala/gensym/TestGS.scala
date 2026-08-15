@@ -208,12 +208,10 @@ class Playground extends TestGS {
   val gs = new ImpCPSGS
 
   val rtOpt = "--thread=1 --solver=z3"
-
-  testGS(gs, TestPrg(aliasing, "aliasingTest", "@main", noArg, rtOpt, nPath(1)))
+  testGS(gs, TestPrg(kleefsminiTest, "kleefsmini", "@main", noArg, rtOpt, nPath(2)++status(0)))
 
   // FIXME:
-  //testGS(gs, TestPrg(kleefsminiTest, "kleefsmini", "@main", noArg, noOpt, nPath(2)++status(0)))
-  //testGS(gs, TestPrg(kleefsminiPackedTest, "kleefsminiPackedTest", "@main", noArg, noOpt, nPath(2)++status(0)))
-  //testGS(gs, TestPrg(kleefsglobalTest, "kleefsminiglobal", "@main", noArg, noOpt, nPath(2)++status(0)))
-  //testGS(gs, TestPrg(kleefslib64Test, "kleelib64", "@main", noArg, noOpt, nPath(10)++status(0)))
+  testGS(gs, TestPrg(kleefsminiPackedTest, "kleefsminiPackedTest", "@main", noArg, rtOpt, nPath(2)++status(0)))
+  testGS(gs, TestPrg(kleefsglobalTest, "kleefsminiglobal", "@main", noArg, rtOpt, nPath(2)++status(0)))
+  testGS(gs, TestPrg(kleefslib64Test, "kleelib64", "@main", noArg, rtOpt, nPath(10)++status(0)))
 }

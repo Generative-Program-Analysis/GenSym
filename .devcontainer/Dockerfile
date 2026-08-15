@@ -57,6 +57,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         perl \
         minisat \
         clang-11 \
+        llvm-11 \
         unzip \
         build-essential \
     && if [ "$(dpkg --print-architecture)" != "amd64" ]; then \
