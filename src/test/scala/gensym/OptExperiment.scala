@@ -55,7 +55,7 @@ class Optimization extends TestGS {
 // Test algorithm benchmarks
 class TestImpCPSOpt extends Optimization {
   val gs = new ImpCPSGS
-  Config.enableOpt
+  Global.config.enableOpt
   testGS(N, gs, TestPrg(parseFile("benchmarks/opt-experiments/kmpmatcher.ll"), "kmp_Opt", "@main", noArg, "--cons-indep --solver=z3", nPath(4181)))
   testGS(N, gs, TestPrg(parseFile("benchmarks/opt-experiments/mergesort.ll"), "mergeSort_Opt", "@main", noArg, "--cons-indep --solver=z3", nPath(5040)))
   testGS(N, gs, TestPrg(parseFile("benchmarks/opt-experiments/bubblesort.ll"), "bubbleSort_Opt", "@main", noArg, "--cons-indep --solver=z3", nPath(720)))
@@ -66,7 +66,7 @@ class TestImpCPSOpt extends Optimization {
 
 class TestImpCPSNoOpt extends Optimization {
   val gs = new ImpCPSGS
-  Config.disableOpt
+  Global.config.disableOpt
   testGS(N, gs, TestPrg(parseFile("benchmarks/opt-experiments/mergesort.ll"), "mergeSort_NoOpt", "@main", noArg, noOpt, nPath(5040)))
   testGS(N, gs, TestPrg(parseFile("benchmarks/opt-experiments/bubblesort.ll"), "bubbleSort_NoOpt", "@main", noArg, noOpt, nPath(720)))
   testGS(N, gs, TestPrg(parseFile("benchmarks/opt-experiments/knapsack.ll"), "knapsack_NoOpt", "@main", noArg, noOpt, nPath(1666)))
