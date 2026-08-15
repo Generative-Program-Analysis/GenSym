@@ -100,6 +100,9 @@ abstract class GenericGSDriver[A: Manifest, B: Manifest]
     |runtime:
     |\t$$(MAKE) -C $$(RUNTIME_DIR)
     |
+    |$$(RUNTIME_LIB): | runtime
+    |\t@test -f $$@ || { echo "runtime build did not produce $$@" >&2; exit 1; }
+    |
     |.SECONDEXPANSION:
     |
     |$$(OBJECTS): $$$$(patsubst $$(BUILD_DIR)/%.o,$$(SRC_DIR)/%.cpp,$$$$@) | runtime
@@ -110,7 +113,7 @@ abstract class GenericGSDriver[A: Manifest, B: Manifest]
     |\tmkdir -p $$(@D)
     |\t$$(CC) -${config.mainFileOpt} -c -o $$@ $$< $$(CXXFLAGS)
     |
-    |$$(TARGET): $$(OBJECTS) $$(BUILD_DIR)/$${TARGET}.o $$(RUNTIME_LIB) | runtime
+    |$$(TARGET): $$(OBJECTS) $$(BUILD_DIR)/$${TARGET}.o $$(RUNTIME_LIB)
     |\t$$(CC) $$(OPT) -o $$@ $$(OBJECTS) $$(BUILD_DIR)/$${TARGET}.o $$(LDFLAGS) -Wl,--start-group $$(LDLIBS) $$(RUNTIME_LIB) -Wl,--end-group
     |
     |clean:
