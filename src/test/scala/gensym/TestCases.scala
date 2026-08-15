@@ -33,11 +33,21 @@ object TestPrg {
   val minPath = "minPath" // minimal number of paths
   val minTest = "minTest" // minimal number of generated tests
   val status = "status"   // the return status of executable
+  val blockCounts = "blockCounts"
+  val branches = "branches"
+  val threads = "threads"
+  val queuedTasks = "queuedTasks"
+  val queries = "queries"
   def nPath(n: Int): Map[String, Any] = Map(nPath -> n)
   def nTest(n: Int): Map[String, Any] = Map(nTest -> n)
   def minTest(n: Int): Map[String, Any] = Map(minTest -> n)
   def minPath(n: Int): Map[String, Any] = Map(minPath -> n)
   def status(n: Int): Map[String, Any] = Map(status -> n)
+  def expectBlocks(covered: Int, total: Int): Map[String, Any] = Map(blockCounts -> ((covered, total)))
+  def branches(partial: Int, full: Int, total: Int): Map[String, Any] = Map(branches -> ((partial, full, total)))
+  def threads(n: Int): Map[String, Any] = Map(threads -> n)
+  def queuedTasks(n: Int): Map[String, Any] = Map(queuedTasks -> n)
+  def queries(branch: Int, tests: Int, cacheHits: Int): Map[String, Any] = Map(queries -> ((branch, tests, cacheHits)))
 
   def noOpt: Seq[String] = Seq()
 

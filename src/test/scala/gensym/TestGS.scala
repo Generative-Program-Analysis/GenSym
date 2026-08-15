@@ -29,10 +29,29 @@ import TestCases._
 abstract class TestGS extends FunSuite {
   import java.time.LocalDateTime
 
+  private val forbiddenGeneratedRuntimeTokens = Seq("immer", "parallel_hashmap", "gensym.hpp", "gensym/state_", "gensym/value_ops")
+  private def generatedSources(root: java.io.File): Seq[java.io.File] =
+    Option(root.listFiles).toSeq.flatten.flatMap { file =>
+      if (file.isDirectory) generatedSources(file)
+      else if (file.getName.endsWith(".cpp") || file.getName == "common.h") Seq(file)
+      else Seq.empty
+    }
+  private def assertThinGeneratedSources(root: java.io.File): Unit = generatedSources(root).foreach { file =>
+    val source = scala.io.Source.fromFile(file)
+    val text = try source.mkString finally source.close()
+    forbiddenGeneratedRuntimeTokens.foreach { token =>
+      assert(!text.contains(token), s"Generated file ${file.getPath} leaked private runtime token '$token'")
+    }
+  }
+
   case class TestResult(time: LocalDateTime, commit: String, engine: String, testName: String,
-    extSolverTime: Double, intSolverTime: Double, wholeTime: Double, blockCov: Double,
-    partialBrCov: Double, fullBrCov: Double, pathNum: Int, brQueryNum: Int,
-    testQueryNum: Int, cexCacheHit: Int) {
+    extSolverTime: Double, intSolverTime: Double, wholeTime: Double,
+    blockCount: Int, blockTotal: Int, partialBranchCount: Int, fullBranchCount: Int,
+    totalBranchCount: Int, pathNum: Int, threadCount: Int, queuedTaskCount: Int,
+    brQueryNum: Int, testQueryNum: Int, cexCacheHit: Int) {
+    val blockCov = blockCount.toDouble / blockTotal.toDouble
+    val partialBrCov = partialBranchCount.toDouble / totalBranchCount.toDouble
+    val fullBrCov = fullBranchCount.toDouble / totalBranchCount.toDouble
     override def toString() =
       s"$time,$commit,$engine,$testName,$extSolverTime,$intSolverTime,$wholeTime,$partialBrCov,$fullBrCov,$blockCov,$pathNum,$brQueryNum,$testQueryNum,$cexCacheHit"
   }
@@ -42,14 +61,14 @@ abstract class TestGS extends FunSuite {
   def parseOutput(engine: String, testName: String, output: String): TestResult = {
     // example:
     // [43.4s/43.5s/46.0s] #blocks: 12/12; #br: 0/1/2; #paths: 1666; #threads: 1; #task-in-q: 0; #queries: 7328/1666 (1996)
-    val pattern = raw"\[([^s]+)s/([^s]+)s/([^s]+)s/([^s]+)s\] #blocks: (\d+)/(\d+); #br: (\d+)/(\d+)/(\d+); #paths: (\d+); .+; #queries: (\d+)/(\d+) \((\d+)\)".r
+    val pattern = raw"\[([^s]+)s/([^s]+)s/([^s]+)s/([^s]+)s\] #blocks: (\d+)/(\d+); #br: (\d+)/(\d+)/(\d+); #paths: (\d+); #threads: (\d+); #task-in-q: (\d+); #queries: (\d+)/(\d+) \((\d+)\)".r
     output.split("\n").last match {
       case pattern(extSolverTime, intSolverTime, _/*fsTime ignored*/, wholeTime, blockCnt, blockAll,
-        partialBr, fullBr, totalBr, pathNum, brQuerynum, testQueryNum, cexCacheHit) =>
+        partialBr, fullBr, totalBr, pathNum, threadNum, queuedTaskNum, brQuerynum, testQueryNum, cexCacheHit) =>
         TestResult(LocalDateTime.now(), gitCommit, engine, testName,
           extSolverTime.toDouble, intSolverTime.toDouble, wholeTime.toDouble,
-          blockCnt.toDouble/blockAll.toDouble, partialBr.toDouble/totalBr.toDouble,
-          fullBr.toDouble/totalBr.toDouble, pathNum.toInt, brQuerynum.toInt,
+          blockCnt.toInt, blockAll.toInt, partialBr.toInt, fullBr.toInt, totalBr.toInt,
+          pathNum.toInt, threadNum.toInt, queuedTaskNum.toInt, brQuerynum.toInt,
           testQueryNum.toInt, cexCacheHit.toInt)
     }
   }
@@ -71,6 +90,7 @@ abstract class TestGS extends FunSuite {
 
     testWithGlobalConfig(name) {
       val code = gs.run(m, outname, f, config, libPath)
+      assertThinGeneratedSources(new java.io.File(s"$outputDir/$outname"))
       val mkRet = code.makeWithAllCores
       assert(mkRet == 0, "make failed")
       if (runCode) {
@@ -93,6 +113,11 @@ abstract class TestGS extends FunSuite {
         if (exp.contains(minTest)) {
           assert(resStat.testQueryNum >= exp(minTest).asInstanceOf[Int], "Unexpected number of least test cases")
         }
+        if (exp.contains(blockCounts)) assert((resStat.blockCount, resStat.blockTotal) == exp(blockCounts), "Unexpected block counts")
+        if (exp.contains(branches)) assert((resStat.partialBranchCount, resStat.fullBranchCount, resStat.totalBranchCount) == exp(branches), "Unexpected branch counts")
+        if (exp.contains(threads)) assert(resStat.threadCount == exp(threads), "Unexpected thread count")
+        if (exp.contains(queuedTasks)) assert(resStat.queuedTaskCount == exp(queuedTasks), "Unexpected queued task count")
+        if (exp.contains(queries)) assert((resStat.brQueryNum, resStat.testQueryNum, resStat.cexCacheHit) == exp(queries), "Unexpected query counts")
       }
     }
   }
@@ -184,5 +209,9 @@ class Playground extends TestGS {
   val gs = new ImpCPSGS
 
   val rtOpt = "--thread=1 --solver=z3"
-  testGS(gs, TestPrg(branch, "branch1", "@f", symArg(2), rtOpt, nPath(4)))
+  //testGS(gs, TestPrg(branch, "branch1", "@f", symArg(2), rtOpt,
+  //  nPath(4) ++ expectBlocks(7, 7) ++ branches(0, 3, 3) ++ threads(1) ++ queuedTasks(0) ++ queries(6, 4, 3)))
+
+  testGS(gs, TestPrg(structReturnLong, "structReturnLongTest", "@main", noArg, rtOpt, nPath(1)))
+  testGS(gs, TestPrg(heapFunptr, "heapFunptr", "@main", noArg, rtOpt, nPath(1)++status(0))),
 }

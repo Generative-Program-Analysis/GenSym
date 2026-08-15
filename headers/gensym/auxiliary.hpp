@@ -22,15 +22,15 @@
 #   define ASSERT(condition, message) do { } while (false)
 #endif
 
-#ifdef DEBUG
-#   define INFO(message) \
-    do { \
+inline bool runtime_debug = false;
+#undef INFO
+#define INFO(message) \
+  do { \
+    if (runtime_debug) { \
       std::cout << "[Info] " << __FILE__ << " line " << __LINE__ \
                 << ": " << message << std::endl; \
-    } while (false)
-#else
-#   define INFO(message) do { } while (false)
-#endif
+    } \
+  } while (false)
 
 #define MAX(a, b) ((a) > (b)) ? (a) : (b)
 #define MIN(a, b) ((a) < (b)) ? (a) : (b)
@@ -129,9 +129,7 @@ inline uint32_t rand_uint32() {
 
 inline int rand_int(int ub) {
   int r =  (rng32() % ub) + 1; // [1, ub]
-#ifdef DEBUG
-  std::cout << "Generate a rand number: " << r << std::endl;
-#endif
+  if (runtime_debug) std::cout << "Generate a rand number: " << r << std::endl;
   return r;
 }
 
