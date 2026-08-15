@@ -382,12 +382,6 @@ trait GenSym {
   }
 }
 
-/*
-trait PureState { self: GenSym =>
-  override def extraFlags = "-D PURE_STATE"
-}
-*/
-
 trait ImpureState { self: GenSym =>
   override def extraFlags = "-D IMPURE_STATE"
 }

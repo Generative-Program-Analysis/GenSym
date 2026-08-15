@@ -209,6 +209,8 @@ class Playground extends TestGS {
   val gs = new ImpCPSGS
   val rtOpt = "--thread=1 --solver=z3"
 
-  val cases = TestCases.symbolicLarge
-  testGS(gs, cases)
+  //val cases = TestCases.symbolicLarge
+  //testGS(gs, cases)
+  Global.config.symbolicUninit = true
+  testGS(gs, TestPrg(symPtr, "symPtrTest", "@main", noArg, rtOpt, nPath(2)))
 }
