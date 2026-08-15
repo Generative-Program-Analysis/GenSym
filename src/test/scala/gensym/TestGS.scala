@@ -182,4 +182,7 @@ class Playground extends TestGS {
   import gensym.llvm.parser.Parser._
   Global.config.enableOpt
   val gs = new ImpCPSGS
+
+  val rtOpt = "--thread=1 --solver=z3"
+  testGS(gs, TestPrg(branch, "branch1", "@f", symArg(2), rtOpt, nPath(4)))
 }
