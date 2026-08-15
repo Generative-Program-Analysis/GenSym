@@ -1,6 +1,7 @@
 SRC_FILES := $(wildcard ./*.c)
 
-CC := clang-11
+# GenSym's filesystem model follows the x86-64 Linux ABI (not the container host ABI).
+CC := clang-11 --target=x86_64-unknown-linux-gnu --sysroot=/usr/x86_64-linux-gnu
 
 FLAGS := -emit-llvm -O0 -Xclang -disable-O0-optnone -c -S
 KLEE_FLAGS := -D KLEE -g

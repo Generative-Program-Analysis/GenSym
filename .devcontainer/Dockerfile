@@ -57,6 +57,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         perl \
         minisat \
         clang-11 \
+        libc6-dev-amd64-cross \
         unzip \
         build-essential \
     && rm -rf /var/lib/apt/lists/*
