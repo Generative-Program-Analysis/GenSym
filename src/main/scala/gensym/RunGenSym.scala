@@ -13,8 +13,8 @@ object SwitchType extends Enumeration {
 import SwitchType._
 
 case class Config(
-  nSym: Int, 
-  useArgv: Boolean, 
+  nSym: Int,
+  useArgv: Boolean,
   mainFileOpt: String,
   var opt: Boolean = true,
   var iteSelect: Boolean = true,
@@ -72,9 +72,8 @@ object RunGenSym {
     |--randomUninit          - model uninitialized variables as a random value instead of a symbolic one
     |--engine=<string>       - compiler/backend variant (default=ImpCPS)
     |  =ImpCPS               -   generate code in CPS with impure data structures, can run in parallel
-    |  =ImpDirect            -   generate code in direct-style with impure data structures, cannot run in parallel
-    |  =PureCPS              -   generate code in CPS with pure data structures, can run in parallel
-    |  =PureDirect           -   generate code in direct-style with pure data structures, cannot run in parallel
+    |  =app
+    |  =lib
     |--main-opt=<string>     - g++ optimization level when compiling the main file containing the initial heap object
     |--emit-block-id-map     - emit a map from block names to id in common.h
     |--emit-var-id-map       - emit a map from variable names to id in common.h
@@ -117,9 +116,6 @@ object RunGenSym {
 
     val gensym = engine match {
       case "ImpCPS" => new ImpCPSGS
-      case "ImpDirect" => new ImpGS
-      case "PureCPS" => new PureCPSGS
-      case "PureDirect" => new PureGS
       case "lib" => new ImpCPSGS_lib
       case "app" => new ImpCPSGS_app
     }

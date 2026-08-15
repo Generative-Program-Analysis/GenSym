@@ -12,7 +12,6 @@ import gensym.llvm.parser.Parser._
 import gensym.lmsx._
 import gensym.utils.Utils.time
 import gensym.imp.Mut
-import gensym.imp.ImpGSEngine
 import gensym.imp.ImpCPSGSEngine
 import gensym.Constants._
 
@@ -72,6 +71,59 @@ abstract class GenericGSDriver[A: Manifest, B: Manifest]
       codegen.extractAllStatics
     }
     mainStream.close
+  }
+
+  def genRuntimeMakefile: Unit = {
+    val out = new PrintStream(s"$folder/$appName/Makefile")
+    val curDir = new File(".").getCanonicalPath
+    val libraries = codegen.libraryFlags.mkString(" ")
+    val includes = codegen.includePaths.map(s"-I $curDir/" + _).mkString(" ")
+    val libraryPaths = codegen.libraryPaths.map(p => s"-L $curDir/$p -Wl,-rpath $curDir/$p").mkString(" ")
+    val debugFlags = if (Global.config.genDebug) "-g" else ""
+
+    out.println(s"""|BUILD_DIR = build
+    |TARGET = $appName
+    |SRC_DIR = .
+    |SOURCES = $$(shell find $$(SRC_DIR)/ -name "*.cpp" ! -name "$${TARGET}.cpp")
+    |OBJECTS = $$(SOURCES:$$(SRC_DIR)/%.cpp=$$(BUILD_DIR)/%.o)
+    |OPT = -O3
+    |CC = g++ -std=c++17 -Wno-format-security
+    |RUNTIME_DIR = $curDir/runtime
+    |RUNTIME_LIB = $$(RUNTIME_DIR)/build/libgensym_runtime.a
+    |PERFFLAGS = -fno-omit-frame-pointer $debugFlags
+    |CXXFLAGS = $includes $$(PERFFLAGS)
+    |LDFLAGS = $libraryPaths
+    |LDLIBS = $libraries -lpthread
+    |
+    |default: $$(TARGET)
+    |
+    |runtime:
+    |\t$$(MAKE) -C $$(RUNTIME_DIR)
+    |
+    |$$(RUNTIME_LIB): | runtime
+    |\t@test -f $$@ || { echo "runtime build did not produce $$@" >&2; exit 1; }
+    |
+    |.SECONDEXPANSION:
+    |
+    |$$(OBJECTS): $$$$(patsubst $$(BUILD_DIR)/%.o,$$(SRC_DIR)/%.cpp,$$$$@) | runtime
+    |\tmkdir -p $$(@D)
+    |\t$$(CC) $$(OPT) -c -o $$@ $$< $$(CXXFLAGS)
+    |
+    |$$(BUILD_DIR)/$${TARGET}.o : $${TARGET}.cpp | runtime
+    |\tmkdir -p $$(@D)
+    |\t$$(CC) -${config.mainFileOpt} -c -o $$@ $$< $$(CXXFLAGS)
+    |
+    |$$(TARGET): $$(OBJECTS) $$(BUILD_DIR)/$${TARGET}.o $$(RUNTIME_LIB)
+    |\t$$(CC) $$(OPT) -o $$@ $$(OBJECTS) $$(BUILD_DIR)/$${TARGET}.o $$(LDFLAGS) -Wl,--start-group $$(LDLIBS) $$(RUNTIME_LIB) -Wl,--end-group
+    |
+    |clean:
+    |\t@rm $${TARGET} 2>/dev/null || true
+    |\t@rm build -rf 2>/dev/null || true
+    |\t@rm tests -rf 2>/dev/null || true
+    |
+    |.PHONY: default runtime clean
+    |""".stripMargin)
+    out.close
   }
 
   def genMakefile: Unit = {
@@ -149,6 +201,7 @@ abstract class GenericGSDriver[A: Manifest, B: Manifest]
   }
 }
 
+/*
 abstract class PureEngineDriver[A: Manifest, B: Manifest] extends GenericGSDriver[A, B] {
   q: EngineBase =>
   override lazy val codegen: GenericGSCodeGen = new PureGSCodeGen {
@@ -166,6 +219,7 @@ abstract class PureEngineDriver[A: Manifest, B: Manifest] extends GenericGSDrive
     } else g0
   }
 }
+*/
 
 abstract class ImpureEngineDriver[A: Manifest, B: Manifest] extends GenericGSDriver[A, B] {
   q: EngineBase =>
@@ -237,6 +291,7 @@ abstract class ImpureEngineDriver[A: Manifest, B: Manifest] extends GenericGSDri
 
 }
 
+/*
 // Using immer data structures for
 //   1) internal state/memory representation
 //   2) function call argument list
@@ -270,12 +325,21 @@ abstract class ImpVecGSDriver[A: Manifest, B: Manifest](
     setBlockMap(q.nodeBlockMap)
   }
 }
+*/
 
 // Generting CPS code with C++ containers for internal state/memory representation.
 // Function call argument lists and result lists still use immer containers.
 abstract class ImpCPSGSDriver[A: Manifest, B: Manifest](
   val m: Module, val appName: String, val folder: String , val config: Config)
-    extends ImpureEngineDriver[A, B] with ImpCPSGSEngine
+    extends ImpureEngineDriver[A, B] with ImpCPSGSEngine { q =>
+  override lazy val codegen: GenericGSCodeGen = new ImpCPSRuntimeCodeGen {
+    val IR: q.type = q
+    val codegenFolder = s"$folder/$appName/"
+    setFunMap(q.funNameMap)
+    setBlockMap(q.nodeBlockMap)
+  }
+  override def genMakefile: Unit = genRuntimeMakefile
+}
 
 trait GenSym {
   val insName: String
@@ -286,8 +350,17 @@ trait GenSym {
     libdef = libPath match {
       case Some(p) =>  // linking with external library - load its manifest
         import java.io._
-        val ois = new ObjectInputStream(new FileInputStream(s"$p/Manifest"))
-        try { Some(ois.readObject().asInstanceOf[ModDef]) } finally { ois.close }
+        val manifestPath = s"$p/Manifest"
+        val ois = new ObjectInputStream(new FileInputStream(manifestPath))
+        val loaded = try { ois.readObject().asInstanceOf[ModDef] }
+        catch {
+          case e: Exception => throw new IllegalArgumentException(
+            s"Incompatible GenSym symbolic-library manifest at $manifestPath; regenerate the library with runtime API v${RuntimeABI.Version}.", e)
+        } finally { ois.close }
+        if (loaded.runtimeApiVersion != RuntimeABI.Version)
+          throw new IllegalArgumentException(
+            s"GenSym symbolic-library manifest uses runtime API v${loaded.runtimeApiVersion}; regenerate it for v${RuntimeABI.Version}.")
+        Some(loaded)
       case None => None
     }
     libdef match {
@@ -309,14 +382,17 @@ trait GenSym {
   }
 }
 
+/*
 trait PureState { self: GenSym =>
   override def extraFlags = "-D PURE_STATE"
 }
+*/
 
 trait ImpureState { self: GenSym =>
   override def extraFlags = "-D IMPURE_STATE"
 }
 
+/*
 class PureGS extends GenSym with PureState {
   val insName = "PureGS"
   def newInstance(m: Module, name: String, fname: String, config: Config): GenericGSDriver[Int, Unit] =
@@ -329,7 +405,9 @@ class PureGS extends GenSym with PureState {
       }
     }
 }
+*/
 
+/*
 class PureCPSGS extends GenSym with PureState {
   val insName = "PureCPSGS"
   def newInstance(m: Module, name: String, fname: String, config: Config): GenericGSDriver[Int, Unit] =
@@ -340,7 +418,9 @@ class PureCPSGS extends GenSym with PureState {
       }
     }
 }
+*/
 
+/*
 class ImpGS extends GenSym with ImpureState {
   val insName = "ImpGS"
   def newInstance(m: Module, name: String, fname: String, config: Config): GenericGSDriver[Int, Unit] =
@@ -364,6 +444,7 @@ class ImpVecGS extends GenSym with ImpureState {
       }
     }
 }
+*/
 
 class ImpCPSGS extends GenSym with ImpureState {
   val insName = "ImpCPSGS"
@@ -382,7 +463,7 @@ class ImpCPSGS_lib extends GenSym with ImpureState {
     new ImpCPSGSDriver[Int, Unit](m, name, outputDir, config) { q =>
       import java.io.{File,PrintStream}
       implicit val me: this.type = this
-      override lazy val codegen: GenericGSCodeGen = new ImpureGSCodeGen {
+      override lazy val codegen: GenericGSCodeGen = new ImpCPSRuntimeCodeGen {
         val IR: q.type = q
         val codegenFolder = s"$folder/$appName/"
         setFunMap(q.funNameMap)
@@ -394,14 +475,9 @@ class ImpCPSGS_lib extends GenSym with ImpureState {
           withStream(out) {
             emitln("/* Emitting header file */")
             emitHeaders(stream)
-            emitln("using namespace immer;")
+            emitln("using namespace gensym::runtime::v1;")
             emitFunctionDecls(stream)
             emitDatastructures(stream)
-            emitln(s"""
-            |inline Monitor& cov() {
-            |  static Monitor m;
-            |  return m;
-            |}""".stripMargin)
             emitln("/* End of header file */")
           }
           out.close
@@ -429,7 +505,7 @@ class ImpCPSGS_lib extends GenSym with ImpureState {
         val out = new PrintStream(s"$folder/$appName/Makefile")
         val curDir = new File(".").getCanonicalPath
         val includes = codegen.includePaths.map(s"-I $curDir/" + _).mkString(" ")
-        val debugFlags = if (Global.config.genDebug) "-g -DDEBUG" else ""
+        val debugFlags = if (Global.config.genDebug) "-g" else ""
 
         out.println(s"""|BUILD_DIR = build
         |TARGET = $appName.a
@@ -440,18 +516,22 @@ class ImpCPSGS_lib extends GenSym with ImpureState {
         |OPT = -O3
         |CC = g++ -std=c++17 -Wno-format-security
         |AR = ar cvq
+        |RUNTIME_DIR = $curDir/runtime
         |PERFFLAGS = -fno-omit-frame-pointer $debugFlags
-        |CXXFLAGS = $includes $extraFlags $$(PERFFLAGS)
+        |CXXFLAGS = $includes $$(PERFFLAGS)
         |
         |default: $$(TARGET)
         |
+        |runtime:
+        |\t$$(MAKE) -C $$(RUNTIME_DIR)
+        |
         |.SECONDEXPANSION:
         |
-        |$$(OBJECTS): $$$$(patsubst $$(BUILD_DIR)/%.o,$$(SRC_DIR)/%.cpp,$$$$@)
+        |$$(OBJECTS): $$$$(patsubst $$(BUILD_DIR)/%.o,$$(SRC_DIR)/%.cpp,$$$$@) | runtime
         |\tmkdir -p $$(@D)
         |\t$$(CC) $$(OPT) -c -o $$@ $$< $$(CXXFLAGS)
         |
-        |$$(BUILD_DIR)/$$(INITFILE).o : $$(INITFILE).cpp
+        |$$(BUILD_DIR)/$$(INITFILE).o : $$(INITFILE).cpp | runtime
         |\tmkdir -p $$(@D)
         |\t$$(CC) -${config.mainFileOpt} -c -o $$@ $$< $$(CXXFLAGS)
         |
@@ -463,7 +543,7 @@ class ImpCPSGS_lib extends GenSym with ImpureState {
         |\t@rm build -rf 2>/dev/null || true
         |\t@rm tests -rf 2>/dev/null || true
         |
-        |.PHONY: default clean
+        |.PHONY: default runtime clean
         |""".stripMargin)
         out.close
       }
@@ -527,7 +607,8 @@ class ImpCPSGS_lib extends GenSym with ImpureState {
           varlist.toList,
           folder,
           appName,
-          CntInfo(Counter.variable.count, Counter.block.count))
+          CntInfo(Counter.variable.count, Counter.block.count),
+          RuntimeABI.Version)
         val oos = new ObjectOutputStream(new FileOutputStream(s"$folder/$appName/Manifest"))
         oos.writeObject(module)
         oos.close
@@ -542,7 +623,7 @@ class ImpCPSGS_app extends GenSym with ImpureState {
       override val mainRename = "app_main"
       val libcdef = libdef.get
       implicit val me: this.type = this
-      override lazy val codegen: GenericGSCodeGen = new ImpureGSCodeGen {
+      override lazy val codegen: GenericGSCodeGen = new ImpCPSRuntimeCodeGen {
         val IR: q.type = q
         val codegenFolder = s"$folder/$appName/"
         setFunMap(q.funNameMap)
@@ -554,7 +635,7 @@ class ImpCPSGS_app extends GenSym with ImpureState {
           withStream(out) {
             emitln("/* Emitting header file */")
             emitHeaders(stream)
-            emitln("using namespace immer;")
+            emitln("using namespace gensym::runtime::v1;")
             emitFunctionDecls(stream)
             emitDatastructures(stream)
             emitln("/* End of header file */")
@@ -577,10 +658,10 @@ class ImpCPSGS_app extends GenSym with ImpureState {
           emit(src)
           emitln(s"""
           |int main(int argc, char *argv[]) {
-          |  prelude(argc, argv);
+          |  prelude(argc, argv, ProgramConfig{${Counter.block.count}, ${Counter.printBranchStat}, ${Global.config.symbolicUninit}, ${Global.config.genDebug}});
           |  $name(0);
           |  epilogue();
-          |  return exit_code.load().value_or(0);
+          |  return runtime_exit_code();
           |} """.stripMargin)
         }
         registerHeader(libcdef.folder, s"<${libcdef.libName}/common.h>")

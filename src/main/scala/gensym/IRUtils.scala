@@ -241,4 +241,6 @@ case class CFG(funMap: Map[String, FunctionDef]) {
 case class FuncDef(ref: String, name: String)
 case class VarDef(name: String, off: Int, size: Int)
 case class CntInfo(vars: Int, blks: Int)
-case class ModDef(funlist: List[FuncDef], varlist: List[VarDef], folder: String, libName: String, counters: CntInfo)
+object RuntimeABI { final val Version = 1 }
+case class ModDef(funlist: List[FuncDef], varlist: List[VarDef], folder: String,
+                  libName: String, counters: CntInfo, runtimeApiVersion: Int)

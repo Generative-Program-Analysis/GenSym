@@ -1,6 +1,6 @@
 SRC_FILES := $(wildcard ./fd_init.c ./fd.c ./fd_64.c  ./gensym.c  ./test.c)
 
-CC := clang-11
+include ../llvm-toolchain.mk
 
 FLAGS := -emit-llvm -O0 -disable-O0-optnone -c
 #FLAGS := -emit-llvm -Os -c
@@ -24,7 +24,7 @@ gensym: $(GS_LINK_TARGET)
 #klee-exe: $(KLEE_REPLAY_TARGET)
 
 $(GS_TARGET): %.ll : %.c
-	$(CC) $(GS_FLAGS) $(FLAGS) -o $@ $<
+	$(LLVM_CC) $(GS_FLAGS) $(FLAGS) -o $@ $<
 
 $(GS_LINK_TARGET): $(GS_TARGET)
 	llvm-link-11 -S $(GS_TARGET) -o klee_lib_64.ll

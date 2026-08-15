@@ -90,6 +90,8 @@ trait ImpSymExeDefs extends SAIOps with BasicDefs with ValueDefs with Opaques wi
       if (isStruct == 0) reflectRead[Value]("ss-lookup-addr", ss, addr, size)(ss)
       else reflectRead[Value]("ss-lookup-addr-struct", ss, addr, size)(ss)
     }
+    def lookupSeq(addr: Rep[Value], count: Rep[Int]): Rep[List[Value]] =
+      reflectRead[List[Value]]("ss-lookup-addr-seq", ss, addr, count)(ss)
 
     //def arrayLookup(base: Rep[Value], offset: Rep[Value], eSize: Int, k: Rep[Cont]): Rep[Unit] =
     //  "ss-array-lookup".reflectWith[Unit](ss, base, offset, eSize, k)
@@ -99,6 +101,8 @@ trait ImpSymExeDefs extends SAIOps with BasicDefs with ValueDefs with Opaques wi
     def update(a: Rep[Value], v: Rep[Value], sz: Int): Rep[Unit] = reflectCtrl[Unit]("ss-update", ss, a, v, sz)
     @deprecated("Use update with size", "now and forever")
     def update(a: Rep[Value], v: Rep[Value]): Rep[Unit] = reflectCtrl[Unit]("ss-update", ss, a, v)
+    def updateSeq(a: Rep[Value], vs: Rep[List[Value]]): Rep[SS] =
+      reflectCtrl[SS]("ss-update-seq", ss, a, vs)
     def allocStack(n: Int, align: Int): Rep[Unit] =
       reflectWrite[Unit]("ss-alloc-stack", ss, new Mut[Int](n))(ss)
 
@@ -121,7 +125,10 @@ trait ImpSymExeDefs extends SAIOps with BasicDefs with ValueDefs with Opaques wi
     def updateArg: Rep[Unit] = reflectWrite[Unit]("ss-arg", ss)(ss)
     def initErrorLoc: Rep[Unit] = reflectWrite[Unit]("ss-init-error-loc", ss)(ss)
     def getErrorLoc: Rep[Value] = reflectRead[Value]("ss-get-error-loc", ss)(ss)
-    def setErrorLoc(v: Rep[IntV]): Rep[Unit] = ss.update(ss.getErrorLoc, v, 4)
+    def setErrorLoc(v: Rep[IntV]): Rep[SS] = reflectCtrl[SS]("ss-update", ss, ss.getErrorLoc, v, 4)
+
+    def getFs: Rep[FS] = reflectRead[FS]("ss-get-fs", ss)(ss)
+    def setFs(fs: Rep[FS]): Rep[Unit] = reflectWrite[Unit]("ss-set-fs", ss, fs)(ss)
 
     def addIncomingBlock(ctx: Ctx): Rep[Unit] =
       reflectWrite[Unit]("ss-add-incoming-block", ss, Counter.block.get(ctx.toString))(ss)

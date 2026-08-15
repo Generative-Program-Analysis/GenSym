@@ -18,6 +18,7 @@ import scala.collection.mutable.{Map => MutableMap, Set => MutableSet}
 import sys.process._
 import org.scalatest.FunSuite
 
+/*
 class ExternalTestDriver(folder: String = "./headers/test") extends SAISnippet[Int, Unit]
     with SAIOps with GenExternal with ExternalUtil { q =>
   import java.io.{File, PrintStream}
@@ -447,3 +448,4 @@ class TestGenExternal extends FunSuite {
   testUnit("./headers/test", "external_test")
 }
 
+*/

@@ -161,7 +161,9 @@ public:
 
   solver_result check_model_internal() {
     ExprHandle fls = vc_falseExpr(vc);
+    INFO("Start solver call");
     int retcode = vc_query(vc, fls.get());
+    INFO("Finish solver call");
     static solver_result mapping[4] = {sat, unsat, unknown, unknown};
     return mapping[retcode];
   }

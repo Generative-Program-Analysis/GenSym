@@ -127,6 +127,26 @@ This steps generates the executable `branch`, then running the executable file p
 ```
 
 The generated executable file also has several runtime options.
+
+### Precompiled native runtime
+
+The active LLVM ImpCPS backend links generated programs with
+`runtime/build/libgensym_runtime.a`.  The public generated-code interface is the
+standard-library-only header `headers/gensym/runtime.hpp`; Immer, solver details,
+the filesystem model, scheduler, and monitor implementation are compiled once
+inside the runtime archive.
+
+Build the runtime explicitly with:
+
+```sh
+make -C runtime
+```
+
+Generated Makefiles also invoke this incremental build automatically.  If the
+runtime sources and private headers are unchanged, subsequent generated programs
+reuse the existing archive without recompiling it.  `make clean` in a generated
+program removes only that program.  To force a runtime rebuild, run
+`make -C runtime clean all` from the repository root.
 For most of users, it suffices to use the default options. However if you would like to
 play with it, you can check those options by `./branch --help`.
 

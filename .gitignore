@@ -12,6 +12,7 @@
 .vscode
 .bsp
 target
+runtime/build/
 klee-out-*
 gs_gen
 output
