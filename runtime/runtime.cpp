@@ -179,6 +179,10 @@ Value int_op_3(iOP op, Value a, Value b, Value c) { return Bridge::wrap(::int_op
 Value float_op_2(fOP op, Value lhs, Value rhs) { return Bridge::wrap(::float_op_2(static_cast<::fOP>(op), Bridge::unwrap(lhs), Bridge::unwrap(rhs))); }
 Value bv_sext(Value value, std::size_t bw) { return Bridge::wrap(::bv_sext(Bridge::unwrap(value), bw)); }
 Value bv_zext(Value value, std::size_t bw) { return Bridge::wrap(::bv_zext(Bridge::unwrap(value), bw)); }
+Value fp_toui(Value value, std::size_t bw) { return Bridge::wrap(::fp_toui(Bridge::unwrap(value), bw)); }
+Value fp_tosi(Value value, std::size_t bw) { return Bridge::wrap(::fp_tosi(Bridge::unwrap(value), bw)); }
+Value ui_tofp(Value value) { return Bridge::wrap(::ui_tofp(Bridge::unwrap(value))); }
+Value si_tofp(Value value) { return Bridge::wrap(::si_tofp(Bridge::unwrap(value))); }
 Value trunc(Value value, int from, int to) { return Bridge::wrap(::trunc(Bridge::unwrap(value), from, to)); }
 Value ite(Value condition, Value then_value, Value else_value) { return Bridge::wrap(::ite(Bridge::unwrap(condition), Bridge::unwrap(then_value), Bridge::unwrap(else_value))); }
 Value ptr_add(Value pointer, Value offset) { return Bridge::wrap(::ptr_add(Bridge::unwrap(pointer), Bridge::unwrap(offset))); }

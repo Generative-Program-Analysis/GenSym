@@ -173,6 +173,25 @@ object Coreutils {
   lazy val trueWithLib = parseFile("benchmarks/coreutils/trueWithLib.ll")
 }
 
+object CoreutilsPOSIX {
+  val prefix = "benchmarks/coreutils/gensym_posix"
+  lazy val echo = parseFile(s"$prefix/echo.ll")
+  lazy val cat = parseFile(s"$prefix/cat.ll")
+  lazy val tru = parseFile(s"$prefix/true.ll")
+  lazy val fls = parseFile(s"$prefix/false.ll")
+  lazy val base32 = parseFile(s"$prefix/base32.ll")
+  lazy val base64 = parseFile(s"$prefix/base64.ll")
+  lazy val comm = parseFile(s"$prefix/comm.ll")
+  lazy val cut = parseFile(s"$prefix/cut.ll")
+  lazy val dirname = parseFile(s"$prefix/dirname.ll")
+  lazy val expand = parseFile(s"$prefix/expand.ll")
+  lazy val fold = parseFile(s"$prefix/fold.ll")
+  lazy val join = parseFile(s"$prefix/join.ll")
+  lazy val link = parseFile(s"$prefix/link.ll")
+  lazy val paste = parseFile(s"$prefix/paste.ll")
+  lazy val pathchk = parseFile(s"$prefix/pathchk.ll")
+}
+
 object OOPSLA20Benchmarks {
   lazy val maze = parseFile("benchmarks/oopsla20/maze_test.ll")
   lazy val mp1024 = parseFile("benchmarks/oopsla20/multipath_1024_sym.ll")

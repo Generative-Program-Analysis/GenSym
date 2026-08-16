@@ -10,6 +10,7 @@
 #include <utility>
 #include <variant>
 #include <vector>
+#include <unistd.h>
 
 namespace gensym::runtime::v1 {
 
@@ -186,6 +187,10 @@ Value int_op_3(iOP, Value, Value, Value);
 Value float_op_2(fOP, Value, Value);
 Value bv_sext(Value, std::size_t);
 Value bv_zext(Value, std::size_t);
+Value fp_toui(Value, std::size_t);
+Value fp_tosi(Value, std::size_t);
+Value ui_tofp(Value);
+Value si_tofp(Value);
 Value trunc(Value, int, int);
 Value ite(Value, Value, Value);
 Value ptr_add(Value, Value);

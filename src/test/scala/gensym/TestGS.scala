@@ -209,8 +209,12 @@ class Playground extends TestGS {
   val gs = new ImpCPSGS
   val rtOpt = "--thread=1 --solver=z3"
 
-  val cases = TestCases.coreutils.map { t =>
-    t.copy(runOpt = t.runOpt ++ Seq("--solver=z3"))
-  }
+  //val cases = CoreutilsPOSIX.coreutils
+
+  val cases = List(TestPrg(
+    CoreutilsPOSIX.echo,
+    "echo_linked_posix", "@main",  noMainFileOpt,
+    "--argv=./echo.bc --sym-stdout --sym-arg 2 --sym-arg 7 --solver=z3",
+    nPath(216136)++status(0)))
   testGS(gs, cases)
 }
