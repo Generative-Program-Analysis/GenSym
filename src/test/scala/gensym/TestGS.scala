@@ -184,20 +184,6 @@ class TestImpCPSGS_Z3 extends TestGS {
   Global.config.symbolicUninit = false
 }
 
-/*
-class Coreutils extends TestGS {
-  import gensym.llvm.parser.Parser._
-  Global.config.enableOpt
-  val runtimeOptions = "--output-tests-cov-new  --thread=1  --search=random-path  --solver=z3   --output-ktest  --cons-indep".split(" +").toList.toSeq
-  val cases = TestCases.coreutils.map { t =>
-    t.copy(runOpt = runtimeOptions ++ t.runOpt, runCode = false)
-  }
-  testGS(new ImpCPSGS, cases)
-
-  //testGS(new ImpCPSGS, TestPrg(cat_linked, "cat_linked_posix", "@main", noMainFileOpt, "--argv=./cat.bc --sym-stdout --sym-stdin 2 --sym-arg 2", nPath(28567)++status(0)))
-}
-*/
-
 class TestLibrary extends TestGS {
   testGS(new ImpCPSGS_lib, TestPrg(linkLib, "libtest", "@main", useArgv, noOpt, nPath(1)++status(0), false))
   testGS(new ImpCPSGS_app, TestPrg(linkApp, "libapp", "@main", useArgv, "--argv=''", nPath(1)++status(0)), s"${outputDir}/libtest")
