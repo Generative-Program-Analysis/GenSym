@@ -214,7 +214,7 @@ class Playground extends TestGS {
   val cases = List(TestPrg(
     CoreutilsPOSIX.echo,
     "echo_linked_posix", "@main",  noMainFileOpt,
-    "--argv=./echo.bc --sym-stdout --sym-arg 2 --sym-arg 7 --solver=z3",
+    "--output-tests-cov-new --thread=1 --search=random-path --solver=z3 --output-ktest --argv=./echo.bc --sym-stdout --sym-arg 2 --sym-arg 7",
     nPath(216136)++status(0)))
   testGS(gs, cases)
 }
