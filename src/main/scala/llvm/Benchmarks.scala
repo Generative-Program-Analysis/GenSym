@@ -83,6 +83,7 @@ object Benchmarks {
   lazy val binSearch = parseFile("benchmarks/demo-benchmarks/bin_search.ll")
   lazy val knapsack = parseFile("benchmarks/demo-benchmarks/knapsack.ll")
   lazy val nqueen = parseFile("benchmarks/demo-benchmarks/nqueen.ll")
+  lazy val coverageGuidedAssert = parseFile("benchmarks/demo-benchmarks/coverage_guided_assert.ll")
 
   lazy val simple0 = parseFile("benchmarks/ccbse/simple_0.ll")
   lazy val simple1 = parseFile("benchmarks/ccbse/simple_1.ll")

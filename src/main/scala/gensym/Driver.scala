@@ -226,6 +226,7 @@ abstract class ImpureEngineDriver[A: Manifest, B: Manifest] extends GenericGSDri
   override lazy val codegen: GenericGSCodeGen = new ImpureGSCodeGen {
     val IR: q.type = q
     val codegenFolder = s"$folder/$appName/"
+    override def coverageGraphInfo = q.coverageGraphInfo
     setFunMap(q.funNameMap)
     setBlockMap(q.nodeBlockMap)
   }
@@ -335,6 +336,7 @@ abstract class ImpCPSGSDriver[A: Manifest, B: Manifest](
   override lazy val codegen: GenericGSCodeGen = new ImpCPSRuntimeCodeGen {
     val IR: q.type = q
     val codegenFolder = s"$folder/$appName/"
+    override def coverageGraphInfo = q.coverageGraphInfo
     setFunMap(q.funNameMap)
     setBlockMap(q.nodeBlockMap)
   }
@@ -460,6 +462,7 @@ class ImpCPSGS_lib extends GenSym with ImpureState {
       override lazy val codegen: GenericGSCodeGen = new ImpCPSRuntimeCodeGen {
         val IR: q.type = q
         val codegenFolder = s"$folder/$appName/"
+        override def coverageGraphInfo = q.coverageGraphInfo
         setFunMap(q.funNameMap)
         setBlockMap(q.nodeBlockMap)
         override def emitHeaderFile: Unit = {
@@ -602,6 +605,7 @@ class ImpCPSGS_lib extends GenSym with ImpureState {
           folder,
           appName,
           CntInfo(Counter.variable.count, Counter.block.count),
+          coverageGraphInfo,
           RuntimeABI.Version)
         val oos = new ObjectOutputStream(new FileOutputStream(s"$folder/$appName/Manifest"))
         oos.writeObject(module)
@@ -620,6 +624,7 @@ class ImpCPSGS_app extends GenSym with ImpureState {
       override lazy val codegen: GenericGSCodeGen = new ImpCPSRuntimeCodeGen {
         val IR: q.type = q
         val codegenFolder = s"$folder/$appName/"
+        override def coverageGraphInfo = libcdef.coverageGraph.merge(q.coverageGraphInfo)
         setFunMap(q.funNameMap)
         setBlockMap(q.nodeBlockMap)
         override def emitHeaderFile: Unit = {
@@ -652,7 +657,7 @@ class ImpCPSGS_app extends GenSym with ImpureState {
           emit(src)
           emitln(s"""
           |int main(int argc, char *argv[]) {
-          |  prelude(argc, argv, ProgramConfig{${Counter.block.count}, ${Counter.printBranchStat}, ${Global.config.symbolicUninit}, ${Global.config.genDebug}});
+          |  prelude(argc, argv, ProgramConfig{${Counter.block.count}, ${Counter.printBranchStat}, ${coverageGraphInfo.cppSuccessors}, ${Global.config.symbolicUninit}, ${Global.config.genDebug}});
           |  $name(0);
           |  epilogue();
           |  return runtime_exit_code();
@@ -679,7 +684,8 @@ class ImpCPSGS_app extends GenSym with ImpureState {
           ss.updateArg
           ss.initErrorLoc
           val k: Rep[Cont] = fun { case sv => checkPCToFile(sv._1) }
-          "start_gs_main".reflectReadWith[Unit](ss, config.args, k)(fv)
+          val gsMainEntry = libcdef.coverageGraph.entries.getOrElse("gs_main", -1)
+          "start_gs_main".reflectReadWith[Unit](ss, config.args, k, gsMainEntry)(fv)
         }
         val ss0 = initState
         "initlib".reflectWith[Unit](ss0, List[Value](), initmain)

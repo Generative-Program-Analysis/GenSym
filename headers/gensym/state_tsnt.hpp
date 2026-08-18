@@ -431,6 +431,7 @@ class SS {
     }
     PtrVal heap_lookup(size_t addr) { return heap.at(addr); }
     uint64_t get_ssid() { return meta.ssid; }
+    BlockLabel current_block() { return meta.current_bb; }
     BlockLabel incoming_block() { return meta.bb; }
     bool has_cover_new() {return meta.has_cover_new; }
     List<SymObj> get_sym_objs() { return meta.sym_objs + fs.sym_objs; }

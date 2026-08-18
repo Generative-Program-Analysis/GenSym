@@ -29,8 +29,10 @@ trait ImpCPSGSEngine extends ImpSymExeDefs with EngineBase {
     val tBrFunName = getRealBlockFunName(Ctx(ctx.funName, tBlockLab))
     val fBrFunName = getRealBlockFunName(Ctx(ctx.funName, fBlockLab))
     val curBlockId = Counter.block.get(ctx.toString)
+    val tBlockId = Counter.block.get(Ctx(ctx.funName, tBlockLab).toString)
+    val fBlockId = Counter.block.get(Ctx(ctx.funName, fBlockLab).toString)
     "sym_exec_br_k".reflectWriteWith[Unit](ss, curBlockId, tCond, fCond,
-      unchecked[String](tBrFunName), unchecked[String](fBrFunName), k)(Adapter.CTRL)
+      tBlockId, fBlockId, unchecked[String](tBrFunName), unchecked[String](fBrFunName), k)(Adapter.CTRL)
   }
 
   def branch(ss: Rep[SS], tCond: Rep[Value], fCond: Rep[Value],
@@ -40,10 +42,11 @@ trait ImpCPSGSEngine extends ImpSymExeDefs with EngineBase {
     "br_k".reflectWriteWith[Unit](ss, tCond, fCond, unchecked[String](tBrFunName), unchecked[String](fBrFunName), k)(Adapter.CTRL)
   }
 
+  @deprecated
   def asyncExecBlock(funName: String, lab: String, ss: Rep[SS], k: Rep[Cont]): Rep[Unit] = {
-    // execBlock(funName, lab, ss, k) //TODO: phantom application
     val realBlockFunName = getRealBlockFunName(Ctx(funName, lab))
-    "async_exec_block".reflectWriteWith[Unit](unchecked[String](realBlockFunName), ss, k)(Adapter.CTRL)
+    val blockId = Counter.block.get(Ctx(funName, lab).toString)
+    "async_exec_block".reflectWriteWith[Unit](unchecked[String](realBlockFunName), blockId, ss, k)(Adapter.CTRL)
   }
 
   def contApply(cont: Rep[Cont], ss: Rep[SS], v: Rep[Value]): Rep[Unit] = {

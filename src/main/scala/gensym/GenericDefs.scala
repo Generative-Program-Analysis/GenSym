@@ -27,6 +27,7 @@ case class Counter() {
     require(s.contains("_"))
     if (map.contains(s)) map(s) else try { fresh } finally { map(s) = count-1 }
   }
+  def getOption(s: String): Option[Int] = map.get(s)
 }
 
 object Counter {

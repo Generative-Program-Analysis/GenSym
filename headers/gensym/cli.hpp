@@ -55,6 +55,8 @@ inline void set_searcher(std::string& searcher) {
     searcher_kind = SearcherKind::randomPath;
   } else if ("random-weight" == searcher) {
     searcher_kind = SearcherKind::randomWeight;
+  } else if ("coverage-guided" == searcher) {
+    searcher_kind = SearcherKind::coverageGuided;
   } else {
     ABORT("unknown searcher");
   }
@@ -97,6 +99,8 @@ inline void print_help(char* main_name) {
           printf("={stp,z3,disable}");
         } else if (key == "symloc-strategy") {
           printf("={one,feasible,all}");
+        } else if (key == "search-strategy") {
+          printf("={random-path,random-weight,coverage-guided}");
         } else {
           // TODO: doc for other options
           printf("=<value>");

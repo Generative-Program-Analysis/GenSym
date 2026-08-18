@@ -1,6 +1,9 @@
 #ifndef GS_MON_HEADER
 #define GS_MON_HEADER
 
+#include <limits>
+#include <queue>
+
 /* Coverage information */
 
 struct Monitor {
@@ -11,6 +14,14 @@ struct Monitor {
     uint64_t num_blocks;
     // The number of execution for each block
     std::vector<std::atomic_uint64_t> block_cov;
+    // Static interprocedural block graph and its reverse, emitted by the compiler.
+    std::vector<std::vector<BlockId>> block_succ;
+    std::vector<std::vector<BlockId>> block_pred;
+    // Distances are rebuilt lazily after a block is covered for the first time.
+    std::atomic_uint64_t coverage_epoch{0};
+    uint64_t distance_epoch = std::numeric_limits<uint64_t>::max();
+    std::vector<uint64_t> distance_to_uncovered;
+    std::mutex distance_lock;
     // The number of execution for each branch
     std::map<BlockId, std::map<BranchId, std::atomic_uint64_t>> branch_cov;
     // Number of discovered paths
@@ -26,15 +37,31 @@ struct Monitor {
 
   public:
     Monitor() : num_blocks(0), num_paths(0), num_states(1), start(steady_clock::now()) {}
-    Monitor(uint64_t num_blocks, const std::vector<std::pair<unsigned, unsigned>> &branch_num) :
+    Monitor(uint64_t num_blocks, const std::vector<std::pair<unsigned, unsigned>> &branch_num,
+            const std::vector<std::vector<uint64_t>> &successors = {}) :
       num_blocks(num_blocks), num_paths(0), num_states(1),
       block_cov(num_blocks),
       start(steady_clock::now()) {
-      extend_blocks(num_blocks, branch_num);
+      extend_blocks(num_blocks, branch_num, successors);
     }
 
-    void extend_blocks(uint64_t nblks, const std::vector<std::pair<unsigned, unsigned>> &branch_num) {
+    void extend_blocks(uint64_t nblks, const std::vector<std::pair<unsigned, unsigned>> &branch_num,
+                       const std::vector<std::vector<uint64_t>> &successors = {}) {
       if (num_blocks != nblks) block_cov = std::move(decltype(block_cov)(num_blocks = nblks));
+      if (!successors.empty() || block_succ.size() != num_blocks) {
+        block_succ.assign(num_blocks, {});
+        for (size_t from = 0; from < std::min<size_t>(num_blocks, successors.size()); ++from) {
+          for (auto to : successors[from]) {
+            if (to < num_blocks) block_succ[from].push_back(to);
+          }
+        }
+        block_pred.assign(num_blocks, {});
+        for (BlockId from = 0; from < block_succ.size(); ++from) {
+          for (auto to : block_succ[from]) block_pred[to].push_back(from);
+        }
+        distance_to_uncovered.assign(num_blocks, std::numeric_limits<uint64_t>::max());
+        distance_epoch = std::numeric_limits<uint64_t>::max();
+      }
       // `branch_num` contains the ids of blocks whose terminator is br/switch,
       // for each of such block, `br_arity` is the number of branches.
       for (const auto& [blk_id, br_arity] : branch_num) {
@@ -46,11 +73,45 @@ struct Monitor {
       }
     }
 
-    void inc_block(BlockId b) {
-      block_cov[b]++;
+    bool inc_block(BlockId b) {
+      ASSERT(b < block_cov.size(), "Invalid block id");
+      bool first_visit = block_cov[b].fetch_add(1) == 0;
+      if (first_visit) coverage_epoch.fetch_add(1);
+      return first_visit;
     }
     bool is_uncovered(BlockId b) {
       return 0 == block_cov[b];
+    }
+    uint64_t coverage_priority(BlockLabel block, uint64_t random_tie) {
+      if (block < 0 || static_cast<uint64_t>(block) >= num_blocks) return random_tie;
+      const auto epoch = coverage_epoch.load();
+      std::scoped_lock lock(distance_lock);
+      if (distance_epoch != epoch) {
+        const auto infinity = std::numeric_limits<uint64_t>::max();
+        distance_to_uncovered.assign(num_blocks, infinity);
+        std::queue<BlockId> work;
+        for (BlockId id = 0; id < num_blocks; ++id) {
+          if (block_cov[id].load() == 0) {
+            distance_to_uncovered[id] = 0;
+            work.push(id);
+          }
+        }
+        while (!work.empty()) {
+          auto current = work.front();
+          work.pop();
+          for (auto pred : block_pred[current]) {
+            if (distance_to_uncovered[pred] == infinity) {
+              distance_to_uncovered[pred] = distance_to_uncovered[current] + 1;
+              work.push(pred);
+            }
+          }
+        }
+        distance_epoch = epoch;
+      }
+      auto distance = distance_to_uncovered[block];
+      if (distance == std::numeric_limits<uint64_t>::max()) return random_tie;
+      uint64_t rank = num_blocks - std::min<uint64_t>(distance, num_blocks) + 1;
+      return rank * 1024 + random_tie;
     }
     void inc_branch(BlockId b, BranchId x) {
       branch_cov[b][x]++;
@@ -202,5 +263,9 @@ struct Monitor {
 /* Declare the function to get monitor; will be emited by the front-end in common.h */
 
 inline Monitor& cov();
+
+inline uint64_t coverage_guided_priority(BlockLabel block) {
+  return cov().coverage_priority(block, rand_uint32() % 1024);
+}
 
 #endif

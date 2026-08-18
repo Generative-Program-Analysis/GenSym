@@ -19,6 +19,7 @@ trait GenericGSCodeGen extends CppSAICodeGenBase {
   registerHeader("third-party/parallel-hashmap", "<parallel_hashmap/phmap.h>")
 
   val codegenFolder: String
+  def coverageGraphInfo: CoverageGraphInfo = CoverageGraphInfo.empty(Counter.block.count)
   var funMap = new HashMap[Sym, String]()
   var blockMap = new HashMap[Sym, String]()
 
@@ -189,7 +190,7 @@ trait GenericGSCodeGen extends CppSAICodeGenBase {
     case Node(s, "print-branch-map", _, _) => es"cov().extend_blocks(${Counter.block.count}, ${Counter.printBranchStat})"
 
     case Node(s, "add_tp_task", List(ssid, b: Block), _) =>
-      es"tp.add_task($ssid"
+      es"tp.add_task($ssid, unknown_block_id"
       quoteTypedBlock(b, false, true, capture = "=")
       es")"
     case Node(s, "async_exec_block", List(ssid, b: Block), _) =>
@@ -254,7 +255,7 @@ trait GenericGSCodeGen extends CppSAICodeGenBase {
       }
       emitln(s"""
       |inline Monitor& cov() {
-      |  static Monitor m(${Counter.block.count}, ${branchStatStr});
+      |  static Monitor m(${Counter.block.count}, ${branchStatStr}, ${coverageGraphInfo.cppSuccessors});
       |  return m;
       |}""".stripMargin)
       emitln("/* End of header file */")
@@ -303,7 +304,7 @@ trait GenericGSCodeGen extends CppSAICodeGenBase {
     |int main(int argc, char *argv[]) {
     |  prelude(argc, argv);
     |  if (can_par_tp()) {
-    |    tp.add_task(1, []() { return $name(0); });
+    |    tp.add_task(1, ${coverageGraphInfo.initialBlock}, []() { return $name(0); });
     |  } else {
     |    $name(0);
     |  }
@@ -382,7 +383,7 @@ trait ImpCPSRuntimeCodeGen extends ImpureGSCodeGen {
     case Node(s, "list-size", List(xs), _) => es"$xs.size()"
     case Node(s, "list-isEmpty", List(xs), _) => es"$xs.empty()"
     case Node(s, "add_tp_task", List(ssid, b: Block), _) =>
-      es"add_task($ssid"
+      es"add_task($ssid, unknown_block_id"
       quoteTypedBlock(b, false, true, capture = "=")
       es")"
     case _ => super.shallow(n)
@@ -421,9 +422,9 @@ trait ImpCPSRuntimeCodeGen extends ImpureGSCodeGen {
     emit(src)
     emitln(s"""
     |int main(int argc, char *argv[]) {
-    |  prelude(argc, argv, ProgramConfig{${Counter.block.count}, ${Counter.printBranchStat}, ${Global.config.symbolicUninit}, ${Global.config.genDebug}});
+    |  prelude(argc, argv, ProgramConfig{${Counter.block.count}, ${Counter.printBranchStat}, ${coverageGraphInfo.cppSuccessors}, ${Global.config.symbolicUninit}, ${Global.config.genDebug}});
     |  if (can_par_tp()) {
-    |    add_task(1, []() { return $name(0); });
+    |    add_task(1, ${coverageGraphInfo.initialBlock}, []() { return $name(0); });
     |  } else {
     |    $name(0);
     |  }

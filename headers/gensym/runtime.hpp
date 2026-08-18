@@ -14,7 +14,7 @@
 
 namespace gensym::runtime::v1 {
 
-inline constexpr std::uint32_t api_version = 1;
+inline constexpr std::uint32_t api_version = 2;
 
 enum class iOP {
   op_add, op_sub, op_mul, op_sdiv, op_udiv,
@@ -44,6 +44,7 @@ using PC = PathCondition;
 using String = std::string;
 using Addr = std::uint32_t;
 using BlockLabel = int;
+inline constexpr BlockLabel unknown_block_id = -1;
 using IntData = std::int64_t;
 using UIntData = std::uint64_t;
 using Args = std::vector<Value>;
@@ -109,6 +110,7 @@ public:
   State fork();
   State copy() const;
   std::uint64_t get_ssid() const;
+  BlockLabel current_block() const;
   int incoming_block() const;
   Value env_lookup(int);
   std::size_t heap_size() const;
@@ -141,6 +143,7 @@ public:
 struct ProgramConfig {
   std::size_t block_count = 0;
   std::vector<std::pair<unsigned, unsigned>> branch_arity;
+  std::vector<std::vector<std::uint64_t>> block_successors;
   bool symbolic_uninitialized = false;
   bool debug = false;
 };
@@ -148,7 +151,8 @@ struct ProgramConfig {
 class Coverage {
 public:
   void set_num_blocks(std::size_t);
-  void extend_blocks(std::size_t, const std::vector<std::pair<unsigned, unsigned>>&);
+  void extend_blocks(std::size_t, const std::vector<std::pair<unsigned, unsigned>>&,
+                     const std::vector<std::vector<std::uint64_t>>& = {});
   void inc_block(std::size_t);
   void inc_branch(std::size_t, std::size_t);
   void inc_path(std::size_t);
@@ -166,7 +170,7 @@ void prelude(int argc, char** argv, const ProgramConfig&);
 void epilogue();
 int runtime_exit_code();
 bool can_par_tp();
-void add_task(std::uint64_t, std::function<std::monostate()>);
+void add_task(std::uint64_t, BlockLabel, std::function<std::monostate()>);
 
 State make_initial_state(const Args& heap = {});
 extern Value g_argc;
@@ -199,7 +203,7 @@ Value structV_at(Value, std::size_t);
 Value make_CPSFunV(CPSFunc);
 std::monostate cps_apply(Value, State, Args, Cont);
 std::monostate cont_apply(Cont, State&, Value);
-std::monostate sym_exec_br_k(State&, unsigned, Value, Value, Block, Block, Cont);
+std::monostate sym_exec_br_k(State&, unsigned, Value, Value, BlockLabel, BlockLabel, Block, Block, Cont);
 std::vector<std::pair<State, Value>> array_lookup(State&, Value, Value, std::size_t);
 std::monostate array_lookup_k(State&, Value, Value, std::size_t, Cont);
 bool check_pc(PathCondition);

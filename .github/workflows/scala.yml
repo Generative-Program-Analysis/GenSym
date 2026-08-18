@@ -78,6 +78,7 @@ jobs:
         sbt 'testOnly gensym.TestImpCPSGS'
         sbt 'testOnly gensym.TestImpCPSGS_Z3'
         sbt 'testOnly gensym.TestLibrary'
+        sbt 'testOnly gensym.CoverageGraphTest'
         sbt 'testOnly gensym.wasm.TestEval'
         sbt 'testOnly gensym.wasm.TestScriptRun'
         sbt 'testOnly gensym.wasm.TestConcolic'
