@@ -365,6 +365,7 @@ trait GenSym {
         Some(loaded)
       case None => None
     }
+    Counter.branchStat.clear()
     libdef match {
       case Some(modref) =>  // library linking mode - set counters to specified values
         Counter.block.reset(modref.counters.blks)
