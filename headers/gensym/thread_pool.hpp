@@ -29,12 +29,13 @@ using TaskFun = std::function<std::monostate()>;
 inline void ptree_add_task(uint64_t ssid, const TaskFun& f);
 inline bool ptree_pop_task(TaskFun& task);
 inline void check_pc_to_file(const SS& state);
+inline uint64_t coverage_guided_priority(BlockLabel block);
 
 // The Task structure stored in task pool
 
 struct Task {
   TaskFun f;
-  int weight;
+  uint64_t weight;
 };
 
 template<>
@@ -107,7 +108,7 @@ public:
     for (size_t i = 0; i < thread_num; i++) { f(thread_ids[i]); }
   }
 
-  void queue_add_task(const TaskFun& f, int w) {
+  void queue_add_task(const TaskFun& f, uint64_t w) {
     INFO("Adding task into queue with weight " << w);
     unsigned id = rand_int(queue_num)-1;
     {
@@ -116,14 +117,18 @@ public:
     }
   }
 
-  void add_task(uint64_t ssid, const TaskFun& f) {
+  void add_task(uint64_t ssid, BlockLabel block, const TaskFun& f) {
     {
       const std::scoped_lock lock(scheduler_lock);
       if (SearcherKind::randomPath == searcher_kind) {
         ptree_add_task(ssid, f);
       } else {
-        ASSERT(SearcherKind::randomWeight == searcher_kind, "unknown searcher");
-        queue_add_task(f, rand_int(1024));
+        ASSERT(SearcherKind::randomWeight == searcher_kind ||
+               SearcherKind::coverageGuided == searcher_kind, "unknown searcher");
+        auto weight = SearcherKind::coverageGuided == searcher_kind
+          ? coverage_guided_priority(block)
+          : static_cast<uint64_t>(rand_int(1024));
+        queue_add_task(f, weight);
       }
       ++queued_tasks;
       ++tasks_num_total;
@@ -153,7 +158,8 @@ public:
         if (SearcherKind::randomPath == searcher_kind) {
           get = ptree_pop_task(task.f);
         } else {
-          ASSERT(SearcherKind::randomWeight == searcher_kind, "unknown searcher");
+          ASSERT(SearcherKind::randomWeight == searcher_kind ||
+                 SearcherKind::coverageGuided == searcher_kind, "unknown searcher");
           for (size_t i = id; i < id+queue_num; i++) {
             if (queue_pop_task(i % queue_num, task)) { get = true; break; }
           }

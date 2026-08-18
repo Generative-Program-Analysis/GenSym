@@ -131,6 +131,10 @@ object TestCases {
     TestPrg(binSearch, "binSearch", "@main", noArg, noOpt, nPath(92)),
     TestPrg(knapsack, "knapsackTest", "@main", noArg, noOpt, nPath(1666)),
     TestPrg(nqueen, "nQueens", "@main", noArg, noOpt, nPath(1363)),
+    TestPrg(coverageGuidedAssert, "coverageGuidedAssert", "@main", noArg,
+      "--thread=1 --search-strategy=coverage-guided --timeout=1",
+      // If not using coverage-guided search, it cannot find the assertion violation in 1 sec
+      nPath(11) ++ nTest(1) ++ expectBlocks(148, 148) ++ branches(0, 35, 35)),
     // The oopsla20 version of maze
     TestPrg(maze, "mazeTest", "@main", noArg, noOpt, nPath(309)),
     TestPrg(mp1024, "mp1024Test", "@f", symArg(10), noOpt, nPath(1024)),

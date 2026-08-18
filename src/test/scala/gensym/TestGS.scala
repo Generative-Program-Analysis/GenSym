@@ -197,10 +197,20 @@ class Playground extends TestGS {
 
   //val cases = CoreutilsPOSIX.coreutils
 
+  /*
   val cases = List(TestPrg(
     CoreutilsPOSIX.echo,
     "echo_linked_posix", "@main",  noMainFileOpt,
     "--output-tests-cov-new --thread=1 --search-strategy=random-path --solver=z3 --output-ktest --argv=./echo.bc --sym-stdout --sym-arg 2 --sym-arg 7",
     nPath(216136)++status(0)))
+  */
+  val cases = List(
+    TestPrg(coverageGuidedAssert, "coverageGuidedAssert", "@main", noArg,
+      "--thread=1 --search-strategy=coverage-guided --timeout=1",
+      // If not using coverage-guided search, it cannot find the assertion violation in 1 sec
+      nPath(11) ++ nTest(1) ++ expectBlocks(148, 148) ++ branches(0, 35, 35)),
+  )
   testGS(gs, cases)
+
+
 }

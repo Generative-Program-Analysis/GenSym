@@ -7,6 +7,7 @@ inline std::mutex dt_lock;
 inline duration<double, std::micro> debug_time = microseconds::zero();
 
 using BlockLabel = int;
+inline constexpr BlockLabel unknown_block_id = -1;
 using Id = int;
 using Addr = unsigned int;
 using IntData = int64_t;
@@ -128,7 +129,7 @@ inline std::ofstream gs_log;
 // Disable output log in stdout
 inline bool stdout_log = true;
 
-enum class SearcherKind { randomPath, randomWeight };
+enum class SearcherKind { randomPath, randomWeight, coverageGuided };
 // The path searcher to be used
 inline SearcherKind searcher_kind = SearcherKind::randomWeight;
 

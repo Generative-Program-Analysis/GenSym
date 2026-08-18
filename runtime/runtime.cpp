@@ -91,6 +91,7 @@ State::~State() { if (owned_) delete static_cast<::SS*>(impl_); }
 State State::fork() { return Bridge::own(Bridge::unwrap(*this).fork()); }
 State State::copy() const { return State(*this); }
 std::uint64_t State::get_ssid() const { return const_cast<::SS&>(Bridge::unwrap(*this)).get_ssid(); }
+BlockLabel State::current_block() const { return const_cast<::SS&>(Bridge::unwrap(*this)).current_block(); }
 int State::incoming_block() const { return const_cast<::SS&>(Bridge::unwrap(*this)).incoming_block(); }
 Value State::env_lookup(int id) { return Bridge::wrap(Bridge::unwrap(*this).env_lookup(id)); }
 std::size_t State::heap_size() const { return const_cast<::SS&>(Bridge::unwrap(*this)).heap_size(); }
@@ -126,7 +127,10 @@ static Coverage public_coverage;
 Coverage& cov() { return public_coverage; }
 bool debug_enabled() { return ::runtime_debug; }
 void Coverage::set_num_blocks(std::size_t n) { ::cov().extend_blocks(n, {}); }
-void Coverage::extend_blocks(std::size_t n, const std::vector<std::pair<unsigned, unsigned>>& branches) { ::cov().extend_blocks(n, branches); }
+void Coverage::extend_blocks(std::size_t n, const std::vector<std::pair<unsigned, unsigned>>& branches,
+                             const std::vector<std::vector<std::uint64_t>>& successors) {
+  ::cov().extend_blocks(n, branches, successors);
+}
 void Coverage::inc_block(std::size_t id) { ::cov().inc_block(id); }
 void Coverage::inc_branch(std::size_t id, std::size_t branch) { ::cov().inc_branch(id, branch); }
 void Coverage::inc_path(std::size_t n) { ::cov().inc_path(n); }
@@ -139,7 +143,7 @@ void Coverage::print_path_cov() { ::cov().print_path_cov(std::cout); }
 void configure(const ProgramConfig& config) {
   ::symbolic_uninit = config.symbolic_uninitialized;
   ::runtime_debug = config.debug;
-  ::cov().extend_blocks(config.block_count, config.branch_arity);
+  ::cov().extend_blocks(config.block_count, config.branch_arity, config.block_successors);
 }
 Value g_argc;
 Value g_argv;
@@ -152,7 +156,9 @@ void prelude(int argc, char** argv, const ProgramConfig& config) {
 void epilogue() { ::epilogue(); }
 int runtime_exit_code() { return ::exit_code.load().value_or(0); }
 bool can_par_tp() { return ::can_par_tp(); }
-void add_task(std::uint64_t id, std::function<std::monostate()> task) { ::tp.add_task(id, std::move(task)); }
+void add_task(std::uint64_t id, BlockLabel block, std::function<std::monostate()> task) {
+  ::tp.add_task(id, block, std::move(task));
+}
 
 State make_initial_state(const Args& heap) {
   if (heap.empty()) return Bridge::own(::mt_ss);
@@ -215,8 +221,9 @@ static std::function<std::monostate(::SS&, ::Cont)> unwrap_block(Block block) {
     return block(view, wrap_cont(std::move(cont)));
   };
 }
-std::monostate sym_exec_br_k(State& state, unsigned id, Value t, Value f, Block tb, Block fb, Cont cont) {
-  return ::sym_exec_br_k(Bridge::unwrap(state), id, Bridge::unwrap(t), Bridge::unwrap(f),
+std::monostate sym_exec_br_k(State& state, unsigned id, Value t, Value f,
+                             BlockLabel t_id, BlockLabel f_id, Block tb, Block fb, Cont cont) {
+  return ::sym_exec_br_k(Bridge::unwrap(state), id, Bridge::unwrap(t), Bridge::unwrap(f), t_id, f_id,
                          unwrap_block(std::move(tb)), unwrap_block(std::move(fb)), unwrap_cont(std::move(cont)));
 }
 std::vector<std::pair<State, Value>> array_lookup(State& state, Value base, Value offset, std::size_t size) {

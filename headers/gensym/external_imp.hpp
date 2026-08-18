@@ -347,7 +347,9 @@ inline std::monostate __llvm_memcpy(SS& state, List<PtrVal>& args, __Cont<std::m
         non_positive_num = 1;
         SS neg_ss = state.copy().add_PC(neg_cond);
         if (can_par_tp()) {
-          tp.add_task(neg_ss.get_ssid(), [neg_ss=std::move(neg_ss), dest, k]{ return k((SS&)neg_ss, dest); });
+          auto task_block = neg_ss.current_block();
+          auto task_id = neg_ss.get_ssid();
+          tp.add_task(task_id, task_block, [neg_ss=std::move(neg_ss), dest, k]{ return k((SS&)neg_ss, dest); });
         } else {
           k(neg_ss, dest);
         }
@@ -361,7 +363,9 @@ inline std::monostate __llvm_memcpy(SS& state, List<PtrVal>& args, __Cont<std::m
         auto conc_args = List<PtrVal>{dest, src, conc_size};
         SS conc_state = curr_state.copy().add_PC(result[i].first);
         if (can_par_tp()) {
-          tp.add_task(conc_state.get_ssid(), [conc_state=std::move(conc_state), conc_args=std::move(conc_args), k]{ return __llvm_memcpy((SS&)conc_state, (List<PtrVal>&)conc_args, k); });
+          auto task_block = conc_state.current_block();
+          auto task_id = conc_state.get_ssid();
+          tp.add_task(task_id, task_block, [conc_state=std::move(conc_state), conc_args=std::move(conc_args), k]{ return __llvm_memcpy((SS&)conc_state, (List<PtrVal>&)conc_args, k); });
         } else {
           __llvm_memcpy(conc_state, conc_args, k);
         }
@@ -412,7 +416,9 @@ inline std::monostate __llvm_memcpy(SS& state, List<PtrVal>& args, __Cont<std::m
       SS conc_state = curr_state.copy().add_PC(result[i].first);
 
       if (can_par_tp()) {
-        tp.add_task(conc_state.get_ssid(), [conc_state=std::move(conc_state), conc_args=std::move(conc_args), k]{ return __llvm_memcpy((SS&)conc_state, (List<PtrVal>&)conc_args, k); });
+        auto task_block = conc_state.current_block();
+        auto task_id = conc_state.get_ssid();
+        tp.add_task(task_id, task_block, [conc_state=std::move(conc_state), conc_args=std::move(conc_args), k]{ return __llvm_memcpy((SS&)conc_state, (List<PtrVal>&)conc_args, k); });
       } else {
         __llvm_memcpy(conc_state, conc_args, k);
       }
@@ -485,7 +491,9 @@ inline std::monostate __llvm_memcpy(SS& state, List<PtrVal>& args, __Cont<std::m
       SS conc_state = curr_state.copy().add_PC(result[i].first);
 
       if (can_par_tp()) {
-        tp.add_task(conc_state.get_ssid(), [conc_state=std::move(conc_state), conc_args=std::move(conc_args), k]{ return __llvm_memcpy((SS&)conc_state, (List<PtrVal>&)conc_args, k); });
+        auto task_block = conc_state.current_block();
+        auto task_id = conc_state.get_ssid();
+        tp.add_task(task_id, task_block, [conc_state=std::move(conc_state), conc_args=std::move(conc_args), k]{ return __llvm_memcpy((SS&)conc_state, (List<PtrVal>&)conc_args, k); });
       } else {
         __llvm_memcpy(conc_state, conc_args, k);
       }
