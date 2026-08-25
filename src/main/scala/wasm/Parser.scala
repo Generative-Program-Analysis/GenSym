@@ -161,7 +161,7 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
     name match {
       case Some(realName) => fnMap(realName) = fnMap.size
       case _ =>
-        System.err.println(s"[Parser] Warning: unnamed function at ${fnMap.size}")
+        println(s"[Parser] Warning: unnamed function at ${fnMap.size}")
         fnMap(s"UNNAMED_${fnMap.size}") = fnMap.size
     }
     val funcField = visit(ctx.funcFields).asInstanceOf[FuncField]

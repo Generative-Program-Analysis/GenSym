@@ -115,6 +115,8 @@ RUN eval $(opam env) && \
 
 # 5. build GenWasym
 COPY build.sbt .
+COPY build-genwasym-release.sh .
+COPY distribution ./distribution
 COPY benchmarks/oopsla2026/summarize_results.sh ./benchmarks/oopsla2026/
 COPY project/build.properties ./project/build.properties
 COPY project/plugins.sbt ./project/plugins.sbt
@@ -122,10 +124,18 @@ COPY src ./src
 COPY grammar ./grammar
 COPY headers ./headers
 COPY benchmarks/wasm ./benchmarks/wasm
+COPY genwasym-library-demo /ae/genwasym-library-demo
 
 RUN sbt update
 
 RUN sbt compile
+
+RUN ./build-genwasym-release.sh && \
+    cp -a dist/genwasym /opt/genwasym
+
+ENV GENWASYM_HOME=/opt/genwasym
+ENV PATH="${GENWASYM_HOME}/bin:${PATH}"
+ENV GENWASYM_JAVA_OPTS="-Xms4G -Xmx32G -Xss1024M -XX:MaxMetaspaceSize=8G -XX:ReservedCodeCacheSize=2048M"
 
 
 # 6. copy benchmarks
@@ -141,6 +151,8 @@ RUN mkdir -p \
     ./benchmarks/oopsla2026/btree/wasp-test-output
 
 COPY benchmarks/oopsla2026/compile.py \
+     benchmarks/oopsla2026/Readme.md \
+     benchmarks/oopsla2026/Reusability.md \
      benchmarks/oopsla2026/run.py \
      benchmarks/oopsla2026/run_exe.py \
      benchmarks/oopsla2026/normalize_wat.py \
@@ -223,5 +235,7 @@ COPY benchmarks/oopsla2026/Collection-C/wasp-test-input/buggy/*.wat \
      ./benchmarks/oopsla2026/Collection-C/wasp-test-input/buggy/
 COPY benchmarks/oopsla2026/Collection-C/wasp-test-output/run.sh \
      ./benchmarks/oopsla2026/Collection-C/wasp-test-output/run.sh
+
+RUN ln -s ./benchmarks/oopsla2026/Reusability.md ./REUSABILITY.md
 
 CMD ["bash"]

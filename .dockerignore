@@ -63,3 +63,4 @@ benchmarks/oopsla2026/**/result_0*
 benchmarks/oopsla2026/**/result_*/
 benchmarks/oopsla2026/**/run-logs/
 benchmarks/oopsla2026/**/*.log
+genwasym-library-demo/target/

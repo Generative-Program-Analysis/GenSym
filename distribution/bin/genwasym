@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+GENWASYM_HOME=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+
+if ! command -v java >/dev/null 2>&1; then
+  echo "GenWasym requires Java 8 or newer." >&2
+  exit 1
+fi
+
+JAVA_ARGS=(-Xmx4G -Xss64M)
+if [ -n "${GENWASYM_JAVA_OPTS:-}" ]; then
+  read -r -a JAVA_ARGS <<< "$GENWASYM_JAVA_OPTS"
+fi
+
+exec java "${JAVA_ARGS[@]}" -jar "$GENWASYM_HOME/lib/genwasym.jar" "$@"
