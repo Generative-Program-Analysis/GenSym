@@ -19,6 +19,7 @@ trait GenericGSCodeGen extends CppSAICodeGenBase {
   registerHeader("third-party/parallel-hashmap", "<parallel_hashmap/phmap.h>")
 
   val codegenFolder: String
+  def coverageGraphInfo: CoverageGraphInfo = CoverageGraphInfo.empty(Counter.block.count)
   var funMap = new HashMap[Sym, String]()
   var blockMap = new HashMap[Sym, String]()
 
@@ -189,7 +190,7 @@ trait GenericGSCodeGen extends CppSAICodeGenBase {
     case Node(s, "print-branch-map", _, _) => es"cov().extend_blocks(${Counter.block.count}, ${Counter.printBranchStat})"
 
     case Node(s, "add_tp_task", List(ssid, b: Block), _) =>
-      es"tp.add_task($ssid"
+      es"tp.add_task($ssid, unknown_block_id"
       quoteTypedBlock(b, false, true, capture = "=")
       es")"
     case Node(s, "async_exec_block", List(ssid, b: Block), _) =>
@@ -254,7 +255,7 @@ trait GenericGSCodeGen extends CppSAICodeGenBase {
       }
       emitln(s"""
       |inline Monitor& cov() {
-      |  static Monitor m(${Counter.block.count}, ${branchStatStr});
+      |  static Monitor m(${Counter.block.count}, ${branchStatStr}, ${coverageGraphInfo.cppSuccessors});
       |  return m;
       |}""".stripMargin)
       emitln("/* End of header file */")
@@ -303,7 +304,7 @@ trait GenericGSCodeGen extends CppSAICodeGenBase {
     |int main(int argc, char *argv[]) {
     |  prelude(argc, argv);
     |  if (can_par_tp()) {
-    |    tp.add_task(1, []() { return $name(0); });
+    |    tp.add_task(1, ${coverageGraphInfo.initialBlock}, []() { return $name(0); });
     |  } else {
     |    $name(0);
     |  }
@@ -340,6 +341,96 @@ trait ImpureGSCodeGen extends GenericGSCodeGen {
   override def shallow(n: Node): Unit = n match {
     case Node(s, "ss-copy", List(ss), _) => es"$ss.copy()"
     case _ => super.shallow(n)
+  }
+}
+
+trait ImpCPSRuntimeCodeGen extends ImpureGSCodeGen {
+  unregisterHeader("<gensym.hpp>", "<parallel_hashmap/phmap.h>",
+    "<immer/flex_vector.hpp>", "<immer/algorithm.hpp>", "<immer/map.hpp>",
+    "<gensym/immeralgo.hpp>")
+  includePaths -= "third-party/immer"
+  includePaths -= "third-party/parallel-hashmap"
+  registerHeader("headers", "<gensym/runtime.hpp>")
+
+  override def remap(m: Manifest[_]): String = {
+    if (m.runtimeClass.getName == "scala.collection.immutable.List")
+      s"std::vector<${remap(m.typeArguments(0))}>"
+    else super.remap(m)
+  }
+
+  override def quote(s: Def): String = s match {
+    case Const(xs: List[_]) =>
+      val mA = Adapter.typeMap(s.asInstanceOf[Backend.Exp])
+      s"std::vector<${remap(mA.typeArguments(0))}>{${xs.map(x => quote(Const(x))).mkString(", ")}}"
+    case _ => super.quote(s)
+  }
+
+  override def shallow(n: Node): Unit = n match {
+    case Node(s, "init-ss", List(), _) => es"make_initial_state()"
+    case Node(s, "init-ss", List(m), _) => es"make_initial_state($m)"
+    case Node(s, "list-new", Const(mA: Manifest[_])::xs, _) =>
+      es"std::vector<${remap(mA)}>{"
+      if (xs.nonEmpty) {
+        shallow(xs.head)
+        xs.tail.foreach { x => emit(", "); shallow(x) }
+      }
+      es"}"
+    case Node(s, "list-fill", List(Const(mA: Manifest[_]), x, e), _) =>
+      es"std::vector<${remap(mA)}>("; shallow(x); es", "; shallow(e); es")"
+    case Node(s, "list-apply", List(xs, i), _) => es"$xs.at($i)"
+    case Node(s, "list-head", List(xs), _) => es"$xs.front()"
+    case Node(s, "list-last", List(xs), _) => es"$xs.back()"
+    case Node(s, "list-size", List(xs), _) => es"$xs.size()"
+    case Node(s, "list-isEmpty", List(xs), _) => es"$xs.empty()"
+    case Node(s, "add_tp_task", List(ssid, b: Block), _) =>
+      es"add_task($ssid, unknown_block_id"
+      quoteTypedBlock(b, false, true, capture = "=")
+      es")"
+    case _ => super.shallow(n)
+  }
+
+  override def emitHeaderFile: Unit = {
+    val filename = codegenFolder + "/common.h"
+    val out = new java.io.PrintStream(filename)
+    withStream(out) {
+      emitln("/* Emitting header file */")
+      emitHeaders(stream)
+      emitln("using namespace gensym::runtime::v1;")
+      emitFunctionDecls(stream)
+      emitDatastructures(stream)
+      if (Global.config.emitVarIdMap) emitln(s"""
+        |/* variable-id map:
+        |${Counter.variable.toString}
+        |*/""".stripMargin)
+      if (Global.config.emitBlockIdMap) emitln(s"""
+        |/* block-id map:
+        |${Counter.block.toString}
+        |*/""".stripMargin)
+      emitln("/* End of header file */")
+    }
+    out.close
+  }
+
+  override def emitAll(g: Graph, name: String)(m1: Manifest[_], m2: Manifest[_]): Unit = {
+    val ng = init(g)
+    val src = run(name, ng)
+    emitHeaderFile
+    emitFunctionFiles
+    emitInit(stream)
+    emitln(s"/* Generated main file: $name */")
+    emitln("#include \"common.h\"")
+    emit(src)
+    emitln(s"""
+    |int main(int argc, char *argv[]) {
+    |  prelude(argc, argv, ProgramConfig{${Counter.block.count}, ${Counter.printBranchStat}, ${coverageGraphInfo.cppSuccessors}, ${Global.config.symbolicUninit}, ${Global.config.genDebug}});
+    |  if (can_par_tp()) {
+    |    add_task(1, ${coverageGraphInfo.initialBlock}, []() { return $name(0); });
+    |  } else {
+    |    $name(0);
+    |  }
+    |  epilogue();
+    |  return runtime_exit_code();
+    |} """.stripMargin)
   }
 }
 

@@ -1,4 +1,4 @@
-FROM ubuntu:22.04
+FROM --platform=linux/amd64 ubuntu:22.04
 
 ARG DEBIAN_FRONTEND=noninteractive
 
@@ -57,8 +57,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         perl \
         minisat \
         clang-11 \
+        llvm-11 \
         unzip \
         build-essential \
+    && if [ "$(dpkg --print-architecture)" != "amd64" ]; then \
+         apt-get install -y --no-install-recommends libc6-dev-amd64-cross; \
+       fi \
     && rm -rf /var/lib/apt/lists/*
 
 # ── Rust (required for third-party/wasmfx-tools) ─────────────────────────────

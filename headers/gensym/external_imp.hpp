@@ -347,7 +347,9 @@ inline std::monostate __llvm_memcpy(SS& state, List<PtrVal>& args, __Cont<std::m
         non_positive_num = 1;
         SS neg_ss = state.copy().add_PC(neg_cond);
         if (can_par_tp()) {
-          tp.add_task(neg_ss.get_ssid(), [neg_ss=std::move(neg_ss), dest, k]{ return k((SS&)neg_ss, dest); });
+          auto task_block = neg_ss.current_block();
+          auto task_id = neg_ss.get_ssid();
+          tp.add_task(task_id, task_block, [neg_ss=std::move(neg_ss), dest, k]{ return k((SS&)neg_ss, dest); });
         } else {
           k(neg_ss, dest);
         }
@@ -361,7 +363,9 @@ inline std::monostate __llvm_memcpy(SS& state, List<PtrVal>& args, __Cont<std::m
         auto conc_args = List<PtrVal>{dest, src, conc_size};
         SS conc_state = curr_state.copy().add_PC(result[i].first);
         if (can_par_tp()) {
-          tp.add_task(conc_state.get_ssid(), [conc_state=std::move(conc_state), conc_args=std::move(conc_args), k]{ return __llvm_memcpy((SS&)conc_state, (List<PtrVal>&)conc_args, k); });
+          auto task_block = conc_state.current_block();
+          auto task_id = conc_state.get_ssid();
+          tp.add_task(task_id, task_block, [conc_state=std::move(conc_state), conc_args=std::move(conc_args), k]{ return __llvm_memcpy((SS&)conc_state, (List<PtrVal>&)conc_args, k); });
         } else {
           __llvm_memcpy(conc_state, conc_args, k);
         }
@@ -412,7 +416,9 @@ inline std::monostate __llvm_memcpy(SS& state, List<PtrVal>& args, __Cont<std::m
       SS conc_state = curr_state.copy().add_PC(result[i].first);
 
       if (can_par_tp()) {
-        tp.add_task(conc_state.get_ssid(), [conc_state=std::move(conc_state), conc_args=std::move(conc_args), k]{ return __llvm_memcpy((SS&)conc_state, (List<PtrVal>&)conc_args, k); });
+        auto task_block = conc_state.current_block();
+        auto task_id = conc_state.get_ssid();
+        tp.add_task(task_id, task_block, [conc_state=std::move(conc_state), conc_args=std::move(conc_args), k]{ return __llvm_memcpy((SS&)conc_state, (List<PtrVal>&)conc_args, k); });
       } else {
         __llvm_memcpy(conc_state, conc_args, k);
       }
@@ -485,7 +491,9 @@ inline std::monostate __llvm_memcpy(SS& state, List<PtrVal>& args, __Cont<std::m
       SS conc_state = curr_state.copy().add_PC(result[i].first);
 
       if (can_par_tp()) {
-        tp.add_task(conc_state.get_ssid(), [conc_state=std::move(conc_state), conc_args=std::move(conc_args), k]{ return __llvm_memcpy((SS&)conc_state, (List<PtrVal>&)conc_args, k); });
+        auto task_block = conc_state.current_block();
+        auto task_id = conc_state.get_ssid();
+        tp.add_task(task_id, task_block, [conc_state=std::move(conc_state), conc_args=std::move(conc_args), k]{ return __llvm_memcpy((SS&)conc_state, (List<PtrVal>&)conc_args, k); });
       } else {
         __llvm_memcpy(conc_state, conc_args, k);
       }
@@ -572,7 +580,7 @@ inline void copy_native2state(SS& state, PtrVal ptr, char* buf, int size) {
       ASSERT(bytes_num > 0, "Invalid bytes");
       // Do not over-write symbolic variable
       if (old_val->to_SymV()) {
-        #ifdef GENSYM_SYMBOLIC_UNINIT
+        if (symbolic_uninit) {
             // add constraint on symbolic variable to be equal to concrete
             for (int j = 0; j < bytes_num; j++) {
               auto eq_constraint = int_op_2(iOP::op_eq, state.at_simpl(ptr + i), make_IntV(buf[i], 8));
@@ -580,9 +588,9 @@ inline void copy_native2state(SS& state, PtrVal ptr, char* buf, int size) {
               i++;
               if (i >= size) break;
             }
-        #else
+        } else {
             i += bytes_num;
-        #endif
+        }
       } else {
         for (int j = 0; j < bytes_num; j++) {
           state.update_simpl(ptr + i, make_IntV(buf[i], 8));
@@ -636,6 +644,7 @@ inline T __syscall(SS& state, List<PtrVal>& args, __Cont<T> k) {
   errno = proj_IntV(state.at(state.error_loc(), 4));
 
   switch (syscall_number) {
+#if defined(__x86_64__) || defined(__i386__)
     case __NR_read: {
       int fd = get_int_arg(state, args.at(1));
       ASSERT(0 == fd, "syscall read can only read from stdin, other fd should use pread64\n");
@@ -765,6 +774,7 @@ inline T __syscall(SS& state, List<PtrVal>& args, __Cont<T> k) {
     case __NR_openat:
     case __NR_futimesat:
     case __NR_newfstatat:
+#endif
     default:
       ABORT("Unsupported system call");
       break;

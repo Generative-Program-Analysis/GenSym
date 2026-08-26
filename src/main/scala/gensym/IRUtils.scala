@@ -237,8 +237,64 @@ case class CFG(funMap: Map[String, FunctionDef]) {
     }
 }
 
+case class CoverageCallSite(block: Int, callee: String, continuation: List[Int]) extends Serializable
+
+case class CoverageGraphInfo(
+  successors: Vector[Vector[Int]],
+  entries: Map[String, Int],
+  returns: Map[String, List[Int]],
+  calls: List[CoverageCallSite]
+) extends Serializable {
+  def blockCount: Int = successors.size
+  def initialBlock: Int = if (entries.isEmpty) -1 else entries.values.min
+
+  def resolved: CoverageGraphInfo = {
+    val graph = successors.map(_.toSet).toArray
+    calls.foreach { call =>
+      entries.get(call.callee).foreach { entry =>
+        if (call.block >= 0 && call.block < graph.length) graph(call.block) += entry
+        returns.getOrElse(call.callee, Nil).foreach { ret =>
+          if (ret >= 0 && ret < graph.length) graph(ret) ++= call.continuation
+        }
+      }
+    }
+    copy(
+      successors = graph.map(_.toVector.sorted).toVector,
+      calls = calls.filterNot(call => entries.contains(call.callee))
+    )
+  }
+
+  def merge(other: CoverageGraphInfo): CoverageGraphInfo = {
+    val size = blockCount max other.blockCount
+    val graph = Array.fill(size)(Set.empty[Int])
+    successors.indices.foreach(i => graph(i) ++= successors(i))
+    other.successors.indices.foreach(i => graph(i) ++= other.successors(i))
+    val keys = returns.keySet ++ other.returns.keySet
+    val mergedReturns = keys.map { key =>
+      key -> (returns.getOrElse(key, Nil) ++ other.returns.getOrElse(key, Nil)).distinct.sorted
+    }.toMap
+    CoverageGraphInfo(
+      graph.map(_.toVector.sorted).toVector,
+      entries ++ other.entries,
+      mergedReturns,
+      (calls ++ other.calls).distinct
+    ).resolved
+  }
+
+  def cppSuccessors: String =
+    "{" + successors.map(xs => "{" + xs.mkString(",") + "}").mkString(",") + "}"
+}
+
+object CoverageGraphInfo {
+  def empty(blockCount: Int): CoverageGraphInfo =
+    CoverageGraphInfo(Vector.fill(blockCount)(Vector.empty), Map.empty, Map.empty, Nil)
+}
+
 // Definitions used for generating manifest in separation compilation
 case class FuncDef(ref: String, name: String)
 case class VarDef(name: String, off: Int, size: Int)
 case class CntInfo(vars: Int, blks: Int)
-case class ModDef(funlist: List[FuncDef], varlist: List[VarDef], folder: String, libName: String, counters: CntInfo)
+object RuntimeABI { final val Version = 2 }
+case class ModDef(funlist: List[FuncDef], varlist: List[VarDef], folder: String,
+                  libName: String, counters: CntInfo, coverageGraph: CoverageGraphInfo,
+                  runtimeApiVersion: Int)

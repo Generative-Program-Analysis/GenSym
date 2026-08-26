@@ -7,13 +7,7 @@
  * behavior of `SS`, then it probably should be put here.
  */
 
-#ifdef PURE_STATE
-using Cont = std::function<std::monostate(SS, PtrVal)>;
-#endif
-
-#ifdef IMPURE_STATE
 using Cont = std::function<std::monostate(SS&, PtrVal)>;
-#endif
 
 template<typename T> using __Cont = std::function<T(SS, PtrVal)>;
 template<typename T> using __Halt = std::function<T(SS, List<PtrVal>)>;

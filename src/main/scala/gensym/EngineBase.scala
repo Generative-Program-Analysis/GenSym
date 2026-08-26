@@ -21,7 +21,7 @@ case class Ctx(funName: String, blockLab: String) {
 }
 
 trait EngineBase extends SAIOps { self: BasicDefs with ValueDefs =>
-  import scala.collection.immutable.{List => StaticList, Map => StaticMap}
+  import scala.collection.immutable.{List => StaticList, Map => StaticMap, Set => StaticSet}
   import collection.mutable.{HashMap, HashSet}
   import Constants._
 
@@ -47,6 +47,70 @@ trait EngineBase extends SAIOps { self: BasicDefs with ValueDefs =>
   val typeDefMap: StaticMap[String, LLVMType] = m.typeDefMap
   val symDefMap: StaticMap[String, IndirectSymbolDef] = m.symDefMap
   lazy val cfg: CFG = CFG(funMap)
+
+  private def functionAliases(f: FunctionDef): StaticSet[String] =
+    StaticSet(f.id, f.id.stripPrefix("@"), getRealFunName(f.id), "@" + getRealFunName(f.id))
+
+  private def directCallee(value: LLVMValue): Option[String] = value match {
+    case GlobalId(id) if symDefMap.contains(id) => directCallee(symDefMap(id).const)
+    case GlobalId(id) => Some(id)
+    case BitCastExpr(_, value, _) => directCallee(value)
+    case _ => None
+  }
+
+  def coverageGraphInfo: CoverageGraphInfo = {
+    val graph = Array.fill(Counter.block.count)(StaticSet.empty[Int])
+    var entries = StaticMap.empty[String, Int]
+    var returns = StaticMap.empty[String, List[Int]]
+    var calls = StaticList.empty[CoverageCallSite]
+
+    funMap.values.foreach { f =>
+      val aliases = functionAliases(f)
+      f.blocks.headOption.flatMap { block =>
+        Counter.block.getOption(Ctx(f.id, block.label.get).toString)
+      }.foreach(id => entries ++= aliases.map(_ -> id))
+
+      val returnIds = f.blocks.collect {
+        case block if block.term.isInstanceOf[RetTerm] =>
+          Counter.block.getOption(Ctx(f.id, block.label.get).toString)
+      }.flatten
+      aliases.foreach(alias => returns += alias -> returnIds)
+
+      f.blocks.foreach { block =>
+        Counter.block.getOption(Ctx(f.id, block.label.get).toString).foreach { from =>
+          val continuationLabels = block.term match {
+            case BrTerm(label) => StaticList(label)
+            case CondBrTerm(_, _, thn, els) => StaticList(thn, els)
+            case SwitchTerm(_, _, default, table) => default :: table.map(_.label)
+            case _ => StaticList.empty[String]
+          }
+          val continuation = continuationLabels.flatMap { label =>
+            Counter.block.getOption(Ctx(f.id, label).toString)
+          }.distinct
+          graph(from) ++= continuation
+
+          block.ins.foreach {
+            case CallInst(_, callee, _) =>
+              directCallee(callee).foreach { name =>
+                calls ::= CoverageCallSite(from, name, if (continuation.nonEmpty) continuation else StaticList(from))
+              }
+            case AssignInst(_, CallInst(_, callee, _)) =>
+              directCallee(callee).foreach { name =>
+                calls ::= CoverageCallSite(from, name, if (continuation.nonEmpty) continuation else StaticList(from))
+              }
+            case _ =>
+          }
+        }
+      }
+    }
+
+    CoverageGraphInfo(
+      graph.map(_.toVector.sorted).toVector,
+      entries,
+      returns,
+      calls.reverse
+    ).resolved
+  }
 
   var heapEnv: StaticMap[String, () => Rep[Value]] = StaticMap()
   val blockNameMap: HashMap[Int, String] = new HashMap()

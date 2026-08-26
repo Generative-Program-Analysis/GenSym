@@ -1,9 +1,10 @@
 SRC_FILES := $(wildcard ./*.c)
+include ../../../llvm-toolchain.mk
 all: llsc
 
 llsc:
 	for SRC in $(SRC_FILES) ; do \
-	  clang-11 $$SRC -O0 -emit-llvm -S -disable-O0-optnone -fno-discard-value-names ; \
+	  $(LLVM_CC) $$SRC -O0 -emit-llvm -S -disable-O0-optnone -fno-discard-value-names ; \
 	done
 
 clean:

@@ -45,25 +45,13 @@
 #include <gensym/args.hpp>
 #include <gensym/cli.hpp>
 
-#ifdef PURE_STATE
-#include <gensym/state_pure.hpp>
-#endif
-#ifdef IMPURE_STATE
 #include <gensym/state_tsnt.hpp>
-#endif
 
 #include <gensym/smt_checker.hpp>
 #include <gensym/branch.hpp>
 #include <gensym/misc.hpp>
 
-#ifdef PURE_STATE
-#include <gensym/external_pure.hpp>
-#endif
-
-#ifdef IMPURE_STATE
 #include <gensym/external_imp.hpp>
-#endif
-
 #include <gensym/external.hpp>
 
 #endif

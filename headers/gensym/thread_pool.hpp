@@ -1,10 +1,9 @@
 #ifndef GS_THREAD_POOL_HEADER
 #define GS_THREAD_POOL_HEADER
 
-// Code adapted and changed from https://github.com/bshoshany/thread-pool/blob/master/thread_pool.hpp
-
 #include <atomic>
 #include <chrono>
+#include <condition_variable>
 #include <cstdint>
 #include <functional>
 #include <future>
@@ -16,14 +15,12 @@
 #include <type_traits>
 #include <utility>
 
-#ifdef USE_LKFREE_Q
-/* Pros: Performance is good for long-running + large number of threads.
+/* #include "concurrentqueue/blockingconcurrentqueue.h"
+ * Pros: Performance is good for long-running + large number of threads.
  * Cons:
  *   - number-in-queue is an apprimation, leading to a few seconds latency after execution.
  *   - just FIFO queue, no priority.
  */
-#include "concurrentqueue/blockingconcurrentqueue.h"
-#endif
 
 using TaskFun = std::function<std::monostate()>;
 
@@ -32,12 +29,13 @@ using TaskFun = std::function<std::monostate()>;
 inline void ptree_add_task(uint64_t ssid, const TaskFun& f);
 inline bool ptree_pop_task(TaskFun& task);
 inline void check_pc_to_file(const SS& state);
+inline uint64_t coverage_guided_priority(BlockLabel block);
 
 // The Task structure stored in task pool
 
 struct Task {
   TaskFun f;
-  int weight;
+  uint64_t weight;
 };
 
 template<>
@@ -51,21 +49,24 @@ struct std::less<Task> {
 
 class thread_pool {
 private:
-  std::atomic<bool> running = true;
-  std::atomic<bool> paused = false;
+  bool running = true;
+  bool paused = false;
 
-#ifdef USE_LKFREE_Q
-  moodycamel::ConcurrentQueue<Task> Q;
-#else
+  // Protects task publication and the scheduler state below.  A worker first
+  // reserves a published task under this lock, then removes a task from one of
+  // the independently locked queues.
+  mutable std::mutex scheduler_lock;
+  std::condition_variable task_available;
+  std::condition_variable tasks_finished;
+  size_t queued_tasks = 0;
+  size_t tasks_num_total = 0;
+
   std::vector<std::mutex> qlocks;
   std::vector<std::priority_queue<Task>> ptasks;
-#endif
 
   std::unique_ptr<std::thread[]> threads;
   std::unique_ptr<std::thread::id[]> thread_ids;
 
-  size_t sleep_duration = 500;
-  std::atomic<size_t> tasks_num_total = 0;
   bool inited = false;
 
 public:
@@ -74,7 +75,11 @@ public:
 
   thread_pool() : thread_num(0) {}
   ~thread_pool() {
-    running = false;
+    {
+      const std::scoped_lock lock(scheduler_lock);
+      running = false;
+    }
+    task_available.notify_all();
     for (size_t i = 0; i < thread_num; i++) {
       threads[i].join();
     }
@@ -85,11 +90,8 @@ public:
     thread_num = n_thread;
     queue_num = n_queue;
 
-#ifdef USE_LKFREE_Q
-#else
     qlocks = std::vector<std::mutex>(n_queue);
     ptasks = std::vector<std::priority_queue<Task>>(n_queue);
-#endif
 
     threads.reset(new std::thread[thread_num]);
     thread_ids.reset(new std::thread::id[thread_num]);
@@ -106,107 +108,116 @@ public:
     for (size_t i = 0; i < thread_num; i++) { f(thread_ids[i]); }
   }
 
-  void queue_add_task(const TaskFun& f, int w) {
+  void queue_add_task(const TaskFun& f, uint64_t w) {
     INFO("Adding task into queue with weight " << w);
-#ifdef USE_LKFREE_Q
-    Q.enqueue({f, w});
-#else
     unsigned id = rand_int(queue_num)-1;
     {
       const std::scoped_lock lock(qlocks.at(id));
       ptasks[id].push({f, w});
     }
-#endif
   }
-  void add_task(uint64_t ssid, const TaskFun& f) {
-    tasks_num_total++;
-    if (SearcherKind::randomPath == searcher_kind) {
-      ptree_add_task(ssid, f);
-    } else {
-      ASSERT(SearcherKind::randomWeight == searcher_kind, "unknown searcher");
-      queue_add_task(f, rand_int(1024));
+
+  void add_task(uint64_t ssid, BlockLabel block, const TaskFun& f) {
+    {
+      const std::scoped_lock lock(scheduler_lock);
+      if (SearcherKind::randomPath == searcher_kind) {
+        ptree_add_task(ssid, f);
+      } else {
+        ASSERT(SearcherKind::randomWeight == searcher_kind ||
+               SearcherKind::coverageGuided == searcher_kind, "unknown searcher");
+        auto weight = SearcherKind::coverageGuided == searcher_kind
+          ? coverage_guided_priority(block)
+          : static_cast<uint64_t>(rand_int(1024));
+        queue_add_task(f, weight);
+      }
+      ++queued_tasks;
+      ++tasks_num_total;
     }
+    task_available.notify_one();
   }
 
   void worker(unsigned id) {
-    while (running) {
-      //std::cout << "Running tasks " << running_tasks_num()
-      //          << "; queued tasks " << tasks_num_queued() << "\n";
+    while (true) {
       struct Task task;
-      bool get = false;
-      if (SearcherKind::randomPath == searcher_kind) {
-        get = ptree_pop_task(task.f);
-      } else {
-        ASSERT(SearcherKind::randomWeight == searcher_kind, "unknown searcher");
-        for (size_t i = id; i < id+queue_num; i++) {
-          if (queue_pop_task(i % queue_num, task)) { get = true; break; }
-        }
+      {
+        std::unique_lock lock(scheduler_lock);
+        task_available.wait(lock, [this] {
+          return !running || (!paused && queued_tasks != 0);
+        });
+        if (!running) return;
+
+        --queued_tasks;
       }
-      if (!paused && get) {
-        //std::cout << "thread " << std::this_thread::get_id() << " is running; " << running_tasks_num() << "\n";
-        try {
-          task.f();
-        } catch (NullDerefException e) {
-          std::cout << "Warning: read/write at a null location; generating a test case\n";
-          check_pc_to_file(e.ss.get());
+
+      // Concurrent reservations and insertions can move the task that backs a
+      // reservation to a queue already inspected in this pass.  Retry until a
+      // reserved task is found; unlike the old idle loop, this path is entered
+      // only when published work is known to exist.
+      bool get = false;
+      while (!get) {
+        if (SearcherKind::randomPath == searcher_kind) {
+          get = ptree_pop_task(task.f);
+        } else {
+          ASSERT(SearcherKind::randomWeight == searcher_kind ||
+                 SearcherKind::coverageGuided == searcher_kind, "unknown searcher");
+          for (size_t i = id; i < id+queue_num; i++) {
+            if (queue_pop_task(i % queue_num, task)) { get = true; break; }
+          }
         }
-        //std::cout << "thread " << std::this_thread::get_id() << " finished\n";
-        tasks_num_total--;
-      } else {
-        sleep_or_yield();
+        if (!get) std::this_thread::yield();
+      }
+
+      //std::cout << "thread " << std::this_thread::get_id() << " is running; " << running_tasks_num() << "\n";
+      try {
+        task.f();
+      } catch (NullDerefException e) {
+        std::cout << "Warning: read/write at a null location; generating a test case\n";
+        check_pc_to_file(e.ss.get());
+      }
+      //std::cout << "thread " << std::this_thread::get_id() << " finished\n";
+      {
+        const std::scoped_lock lock(scheduler_lock);
+        --tasks_num_total;
+        if (tasks_num_total == 0 || (paused && tasks_num_total == queued_tasks)) {
+          tasks_finished.notify_all();
+        }
       }
     }
   }
 
   bool queue_pop_task(unsigned id, struct Task& task) {
-#ifdef USE_LKFREE_Q
-    bool found = Q.try_dequeue(task);
-    return found;
-#else
     const std::scoped_lock lock(qlocks.at(id));
     if (ptasks[id].empty()) return false;
     task = std::move(ptasks[id].top());
     ptasks[id].pop();
     return true;
-#endif
   }
 
   void stop_all_tasks() {
-    running = false;
-    paused = true;
+    {
+      const std::scoped_lock lock(scheduler_lock);
+      running = false;
+      paused = true;
+    }
+    task_available.notify_all();
+    tasks_finished.notify_all();
   }
 
   void wait_for_tasks() {
-    while (true) {
-      if (!paused) {
-        if (tasks_num_total == 0) break;
-      } else {
-        if (running_tasks_num() == 0) break;
-      }
-      sleep_or_yield();
-    }
+    std::unique_lock lock(scheduler_lock);
+    tasks_finished.wait(lock, [this] {
+      return paused ? tasks_num_total == queued_tasks : tasks_num_total == 0;
+    });
   }
 
   size_t running_tasks_num() {
-    return tasks_num_total - tasks_num_queued();
+    const std::scoped_lock lock(scheduler_lock);
+    return tasks_num_total - queued_tasks;
   }
 
   size_t tasks_num_queued() {
-#ifdef USE_LKFREE_Q
-    return Q.size_approx();
-#else
-    // FIXME: check balance?
-    size_t sum = 0;
-    for (int i = 0; i < ptasks.size(); i++) {
-      sum += ptasks[i].size();
-    }
-    return sum;
-#endif
-  }
-
-  void sleep_or_yield() {
-    if (sleep_duration) std::this_thread::sleep_for(std::chrono::milliseconds(sleep_duration));
-    else std::this_thread::yield();
+    const std::scoped_lock lock(scheduler_lock);
+    return queued_tasks;
   }
 };
 

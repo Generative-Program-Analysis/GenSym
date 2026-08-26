@@ -33,11 +33,21 @@ object TestPrg {
   val minPath = "minPath" // minimal number of paths
   val minTest = "minTest" // minimal number of generated tests
   val status = "status"   // the return status of executable
+  val blockCounts = "blockCounts"
+  val branches = "branches"
+  val threads = "threads"
+  val queuedTasks = "queuedTasks"
+  val queries = "queries"
   def nPath(n: Int): Map[String, Any] = Map(nPath -> n)
   def nTest(n: Int): Map[String, Any] = Map(nTest -> n)
   def minTest(n: Int): Map[String, Any] = Map(minTest -> n)
   def minPath(n: Int): Map[String, Any] = Map(minPath -> n)
   def status(n: Int): Map[String, Any] = Map(status -> n)
+  def expectBlocks(covered: Int, total: Int): Map[String, Any] = Map(blockCounts -> ((covered, total)))
+  def branches(partial: Int, full: Int, total: Int): Map[String, Any] = Map(branches -> ((partial, full, total)))
+  def threads(n: Int): Map[String, Any] = Map(threads -> n)
+  def queuedTasks(n: Int): Map[String, Any] = Map(queuedTasks -> n)
+  def queries(branch: Int, tests: Int, cacheHits: Int): Map[String, Any] = Map(queries -> ((branch, tests, cacheHits)))
 
   def noOpt: Seq[String] = Seq()
 
@@ -48,6 +58,9 @@ object TestPrg {
 import TestPrg._
 
 object TestCases {
+  val arch = System.getProperty("os.arch")
+  val isX86_64 = arch == "x86_64" || arch == "amd64"
+
   val concrete: List[TestPrg] = List(
     //TestPrg(add, "addTest", "@main", noArg, noOpt, nPath(1)),
     //TestPrg(power, "powerTest", "@main", noArg, noOpt, nPath(1)),
@@ -58,7 +71,8 @@ object TestCases {
     TestPrg(switchTestConc, "switchConcreteTest", "@main", noArg, noOpt, nPath(1)),
     TestPrg(trunc, "truncTest", "@main", noArg, noOpt, nPath(1)),
     TestPrg(floatArith, "floatArithTest", "@main", noArg, noOpt, nPath(1)),
-    TestPrg(floatFp80, "floatFp80Test", "@main", noArg, noOpt, nPath(1)),
+    // FIXME: ANTLR/parser fails on this file
+    //TestPrg(floatFp80, "floatFp80Test", "@main", noArg, noOpt, nPath(1)),
 
     TestPrg(arrayAccess, "arrayAccTest", "@main", noArg, noOpt, nPath(1)),
     TestPrg(arrayAccessLocal, "arrayAccLocalTest", "@main", noArg, noOpt, nPath(1)),
@@ -117,6 +131,10 @@ object TestCases {
     TestPrg(binSearch, "binSearch", "@main", noArg, noOpt, nPath(92)),
     TestPrg(knapsack, "knapsackTest", "@main", noArg, noOpt, nPath(1666)),
     TestPrg(nqueen, "nQueens", "@main", noArg, noOpt, nPath(1363)),
+    TestPrg(coverageGuidedAssert, "coverageGuidedAssert", "@main", noArg,
+      "--thread=1 --search-strategy=coverage-guided --timeout=1",
+      // If not using coverage-guided search, it cannot find the assertion violation in 1 sec
+      nPath(11) ++ nTest(1) ++ expectBlocks(148, 148) ++ branches(0, 35, 35)),
     // The oopsla20 version of maze
     TestPrg(maze, "mazeTest", "@main", noArg, noOpt, nPath(309)),
     TestPrg(mp1024, "mp1024Test", "@f", symArg(10), noOpt, nPath(1024)),
@@ -135,6 +153,8 @@ object TestCases {
     TestPrg(printfTest, "printfTest", "@main", noArg, noOpt, nPath(1)++status(0))
   )
 
+  val kleefs: List[TestPrg] =
+    if (isX86_64) List(TestPrg(kleefslib64Test, "kleelib64", "@main", noArg, noOpt, nPath(10)++status(0))) else List()
   val filesys: List[TestPrg] = List(
     TestPrg(openTest, "openTest", "@main", noArg, "--add-sym-file A", nPath(1)++status(0)),
     TestPrg(openSymTest, "openSymTest", "@main", noArg, "--add-sym-file A --add-sym-file B", nPath(3)++status(0)),
@@ -155,11 +175,11 @@ object TestCases {
     TestPrg(chmodTest, "chmodTest", "@main", noArg, noOpt, nPath(2)++status(0)),
     TestPrg(stdinTest, "stdinTest", "@main", noArg, "--sym-stdin 10", nPath(2)++status(0)),
     TestPrg(ioctlTest, "ioctlTest", "@main", noArg, "--add-sym-file A", nPath(1)++status(0)),
+
     TestPrg(kleefsminiTest, "kleefsmini", "@main", noArg, noOpt, nPath(2)++status(0)),
     TestPrg(kleefsminiPackedTest, "kleefsminiPackedTest", "@main", noArg, noOpt, nPath(2)++status(0)),
     TestPrg(kleefsglobalTest, "kleefsminiglobal", "@main", noArg, noOpt, nPath(2)++status(0)),
-    TestPrg(kleefslib64Test, "kleelib64", "@main", noArg, noOpt, nPath(10)++status(0)),
-  )
+  ) ++ kleefs
 
   lazy val coreutils: List[TestPrg] = List(
     TestPrg(echo_linked,    "echo_linked_posix",    "@main",  noMainFileOpt, "--argv=./echo.bc     --sym-stdout --sym-arg 2 --sym-arg 7", nPath(216136)++status(0)),

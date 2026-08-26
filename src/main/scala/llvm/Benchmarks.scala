@@ -83,6 +83,7 @@ object Benchmarks {
   lazy val binSearch = parseFile("benchmarks/demo-benchmarks/bin_search.ll")
   lazy val knapsack = parseFile("benchmarks/demo-benchmarks/knapsack.ll")
   lazy val nqueen = parseFile("benchmarks/demo-benchmarks/nqueen.ll")
+  lazy val coverageGuidedAssert = parseFile("benchmarks/demo-benchmarks/coverage_guided_assert.ll")
 
   lazy val simple0 = parseFile("benchmarks/ccbse/simple_0.ll")
   lazy val simple1 = parseFile("benchmarks/ccbse/simple_1.ll")
@@ -166,11 +167,23 @@ object TestComp {
   }
 }
 
-object Coreutils {
-  // TODO: clean this up
-  lazy val echo = parseFile("benchmarks/coreutils/echo/echo.ll")
-  lazy val echoWithLib = parseFile("benchmarks/coreutils/echo/echoStdlibString.ll")
-  lazy val trueWithLib = parseFile("benchmarks/coreutils/trueWithLib.ll")
+object CoreutilsPOSIX {
+  val prefix = "benchmarks/coreutils/gensym_posix"
+  lazy val echo = parseFile(s"$prefix/echo.ll")
+  lazy val cat = parseFile(s"$prefix/cat.ll")
+  lazy val tru = parseFile(s"$prefix/true.ll")
+  lazy val fls = parseFile(s"$prefix/false.ll")
+  lazy val base32 = parseFile(s"$prefix/base32.ll")
+  lazy val base64 = parseFile(s"$prefix/base64.ll")
+  lazy val comm = parseFile(s"$prefix/comm.ll")
+  lazy val cut = parseFile(s"$prefix/cut.ll")
+  lazy val dirname = parseFile(s"$prefix/dirname.ll")
+  lazy val expand = parseFile(s"$prefix/expand.ll")
+  lazy val fold = parseFile(s"$prefix/fold.ll")
+  lazy val join = parseFile(s"$prefix/join.ll")
+  lazy val link = parseFile(s"$prefix/link.ll")
+  lazy val paste = parseFile(s"$prefix/paste.ll")
+  lazy val pathchk = parseFile(s"$prefix/pathchk.ll")
 }
 
 object OOPSLA20Benchmarks {
