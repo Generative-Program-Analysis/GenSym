@@ -89,7 +89,7 @@ run_genwasym() {
       log "Skipping C++ generation; already exists: $cpp"
     elif [ "$COMPILE" -eq 1 ]; then
       log "Generating C++ from $wat"
-      INPUT="$wat" OUTPUT_DIR="$BTREE_CPP_DIR" MAIN=main sbt "testOnly genwasym.TestBenchmark -- -z compile-a-single-file"
+      INPUT="$wat" OUTPUT_DIR="$BTREE_CPP_DIR" MAIN=main sbt "testOnly gensym.TestBenchmark -- -z compile-a-single-file"
     else
       echo "Missing generated C++ file: $cpp (use --compile to generate it)" >&2
       exit 1
