@@ -38,7 +38,6 @@ mkdir -p \
 
 install -m 0755 "$SCRIPT_DIR/distribution/bin/genwasym" "$STAGING_DIR/bin/genwasym"
 install -m 0644 "$ASSEMBLY_JAR" "$STAGING_DIR/lib/genwasym.jar"
-install -m 0644 "$SCRIPT_DIR/distribution/README.md" "$STAGING_DIR/README.md"
 install -m 0644 "$SCRIPT_DIR/distribution/VERSION" "$STAGING_DIR/VERSION"
 install -m 0644 "$SCRIPT_DIR/headers/gensym.hpp" "$STAGING_DIR/include/gensym.hpp"
 install -m 0644 "$SCRIPT_DIR/headers/wasm.hpp" "$STAGING_DIR/include/wasm.hpp"

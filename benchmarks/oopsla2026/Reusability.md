@@ -32,7 +32,31 @@ compiles and links the generated C++ with the GenWasym runtime, Z3, and Immer.
 ## How to Build GenWasym CLI from Source
 
 If you are using version v8 or later of the Zenodo artifact, GenWasym is already
-built and available on `PATH`, so you can skip this section.
+built and available on `PATH`, so you can skip this section. Verify it with:
+```sh
+genwasym --help
+```
+
+It should print the following message:
+```quote
+Usage:
+  GenWasym --input FILE [--output FILE | --output-dir DIR]
+           [--main EXPORT] [--print-result]
+
+  GenWasym --input-dir DIR --output-dir DIR [--recursive]
+           [--main EXPORT] [--print-result]
+
+Options:
+  -i, --input FILE       Compile one WebAssembly text file.
+      --input-dir DIR    Compile every .wat file in a directory.
+  -o, --output FILE      C++ output path for a single input file.
+      --output-dir DIR   Directory for generated C++ files.
+  -m, --main EXPORT      Use this exported Wasm function as the entry.
+                          Without it, use the module start function.
+      --recursive        Recurse below --input-dir and preserve layout.
+      --print-result     Emit generated code that prints the final stack.
+  -h, --help             Show this help.
+```
 
 The source package, `genwasym-source.tar.gz`, is available from the
 [artifact page](https://doi.org/10.5281/zenodo.21517229). Build it in a Linux
@@ -66,7 +90,6 @@ dist/genwasym/
 ├── bin/genwasym
 ├── lib/
 ├── include/
-├── README.md
 └── VERSION
 ```
 
