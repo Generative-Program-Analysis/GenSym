@@ -28,5 +28,6 @@ conc_gen/*
 ccbse_gen/*
 headers/gensym/external.hpp
 grammar/.antlr/
+genwasym_runtime/build
 *.interp
 *.tokens

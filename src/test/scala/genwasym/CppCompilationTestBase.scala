@@ -56,12 +56,37 @@ abstract class CppCompilationTestBase extends FunSuite {
       .filter(_.isDirectory)
       .map(_.getCanonicalPath)
 
+  protected lazy val genwasymRuntimeIncludeDir: String = {
+    val fromEnv = sys.env.get("GENWASYM_RUNTIME_INCLUDE_DIR")
+    val fromRepo = firstExistingDir(Seq("./genwasym_runtime/include"))
+    fromEnv.orElse(fromRepo).getOrElse {
+      throw new RuntimeException(
+        "Cannot locate GenWasm runtime include directory. Set GENWASYM_RUNTIME_INCLUDE_DIR or check genwasym_runtime/include."
+      )
+    }
+  }
+
+  protected lazy val genwasymRuntimeLibDir: String = {
+    val fromEnv = sys.env.get("GENWASYM_RUNTIME_LIB_DIR")
+    val fromRepo = firstExistingDir(Seq("./genwasym_runtime/build"))
+    fromEnv.orElse(fromRepo).getOrElse {
+      throw new RuntimeException(
+        "Cannot locate GenWasm runtime library directory. Set GENWASYM_RUNTIME_LIB_DIR or build genwasym_runtime."
+      )
+    }
+  }
+
   protected def prependPath(existing: Option[String], prefix: String): String =
     existing.filter(_.nonEmpty).map(old => s"$prefix:$old").getOrElse(prefix)
 
   protected lazy val z3RuntimeEnv: Seq[(String, String)] = Seq(
     "LD_LIBRARY_PATH" -> prependPath(sys.env.get("LD_LIBRARY_PATH"), z3LibDir),
     "DYLD_LIBRARY_PATH" -> prependPath(sys.env.get("DYLD_LIBRARY_PATH"), z3LibDir)
+  )
+
+  protected lazy val genwasymRuntimeEnv: Seq[(String, String)] = Seq(
+    "LD_LIBRARY_PATH" -> prependPath(sys.env.get("LD_LIBRARY_PATH"), genwasymRuntimeLibDir),
+    "DYLD_LIBRARY_PATH" -> prependPath(sys.env.get("DYLD_LIBRARY_PATH"), genwasymRuntimeLibDir)
   )
 
   protected def compileGeneratedCpp(source: String,
@@ -113,16 +138,16 @@ abstract class CppCompilationTestBase extends FunSuite {
                                                macroDefs: Seq[String] = Seq.empty): Unit = {
     compileGeneratedCpp(
       source = source,
-      headerFolders = headerFolders,
+      headerFolders = genwasymRuntimeIncludeDir +: headerFolders,
       outputCpp = outputCpp,
       outputExe = outputExe,
       compiler = compiler,
       optimizeLevel = optimizeLevel,
       extraIncludeDirs = immerIncludeDirs :+ z3IncludeDir,
       macroDefs = macroDefs,
-      libraryDirs = Seq(z3LibDir),
-      runtimeLibraryDirs = Seq(z3LibDir),
-      libraries = Seq("z3")
+      libraryDirs = Seq(genwasymRuntimeLibDir, z3LibDir),
+      runtimeLibraryDirs = Seq(genwasymRuntimeLibDir, z3LibDir),
+      libraries = Seq("genwasym", "z3")
     )
   }
 
@@ -130,7 +155,7 @@ abstract class CppCompilationTestBase extends FunSuite {
     Process(Seq(exePath), None, env: _*).!!
 
   protected def runExeWithZ3(exePath: String, extraEnv: Seq[(String, String)] = Seq.empty): String =
-    runExe(exePath, z3RuntimeEnv ++ extraEnv)
+    runExe(exePath, z3RuntimeEnv ++ genwasymRuntimeEnv ++ extraEnv)
 
   protected def parseStackValues(output: String): List[Float] = {
     val startMarker = "Stack contents: \n"
