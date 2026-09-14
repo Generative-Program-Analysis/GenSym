@@ -42,8 +42,6 @@ public:
   ~ManagedConcolicCleanup();
 };
 
-static std::monostate reset_stacks();
-
 // A PathFrontier represents the frontier of an unexplored path. From this
 // frontier, we can explore the path by executing the program from the beginning
 // with the model stored in QueryResult.
