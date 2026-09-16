@@ -1,7 +1,7 @@
-package gensym.wasm.parser
+package genwasym.parser
 
-import gensym.wasm.ast._
-import gensym.wasm.source._
+import genwasym.ast._
+import genwasym.source._
 
 import scala.util.Try
 import scala.util.parsing.combinator._
@@ -13,7 +13,7 @@ import org.antlr.v4.runtime._
 
 import scala.collection.JavaConverters._
 import collection.mutable.{HashMap, ListBuffer}
-import gensym.wasm._
+import genwasym._
 
 import java.io.OutputStream
 

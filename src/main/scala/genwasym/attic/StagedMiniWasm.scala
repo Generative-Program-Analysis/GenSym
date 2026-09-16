@@ -1,13 +1,13 @@
-package gensym.wasm.miniwasm.staged
+package genwasym.miniwasm.staged
 
 import scala.collection.mutable.HashMap
 import scala.collection.immutable.{List => StaticList}
 
-import gensym.wasm.ast.{Const => Konst, _}
-//import gensym.wasm.values.{I32 => I32C}
-//import gensym.wasm.types._
-import gensym.wasm.memory._
-//import gensym.wasm.globals._
+import genwasym.ast.{Const => Konst, _}
+//import genwasym.values.{I32 => I32C}
+//import genwasym.types._
+import genwasym.memory._
+//import genwasym.globals._
 
 import lms.core._
 import lms.core.stub._
@@ -405,7 +405,7 @@ object StagedEvalCPSTest extends App {
 
   val module = {
     val file = scala.io.Source.fromFile("./benchmarks/wasm/test.wat").mkString
-    gensym.wasm.parser.Parser.parse(file)
+    genwasym.parser.Parser.parse(file)
   }
   val moduleInst = {
     val types = List()

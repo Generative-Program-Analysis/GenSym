@@ -1,12 +1,12 @@
-package gensym.wasm
+package genwasym
 
-import gensym.wasm.ast._
-import gensym.wasm.source._
-import gensym.wasm.parser._
-import gensym.wasm.memory._
-import gensym.wasm.symbolic._
-import gensym.wasm.miniwasm._
-import gensym.wasm.miniwasmscript.ScriptRunner
+import genwasym.ast._
+import genwasym.source._
+import genwasym.parser._
+import genwasym.memory._
+import genwasym.symbolic._
+import genwasym.miniwasm._
+import genwasym.miniwasmscript.ScriptRunner
 import collection.mutable.ArrayBuffer
 
 import org.scalatest.FunSuite
@@ -54,7 +54,7 @@ class TestEval extends FunSuite {
   test("tribonacci") { testFile("./benchmarks/wasm/tribonacci.wat", None, ExpInt(504)) }
 
   test("return") {
-    intercept[gensym.wasm.miniwasm.Trap] {
+    intercept[genwasym.miniwasm.Trap] {
       testFile("./benchmarks/wasm/return.wat", Some("$real_main"))
     }
   }

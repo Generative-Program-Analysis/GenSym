@@ -1,12 +1,12 @@
-package gensym.wasm
+package genwasym
 
 import org.scalatest.FunSuite
 
 import lms.core.stub.Adapter
 
-import gensym.wasm.miniwasm.{ModuleInstance}
-import gensym.wasm.parser._
-import gensym.wasm.stagedconcolicminiwasm._
+import genwasym.miniwasm.{ModuleInstance}
+import genwasym.parser._
+import genwasym.stagedconcolicminiwasm._
 
 // This 'test file' is not intended to test functionality, but to generate compiled code for btree benchmarks
 class TestBenchmark extends FunSuite {

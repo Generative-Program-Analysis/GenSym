@@ -1,4 +1,4 @@
-package gensym.wasm
+package genwasym
 
 import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Path, Paths}
@@ -6,9 +6,9 @@ import java.nio.file.{Files, Path, Paths}
 import scala.collection.JavaConverters._
 import scala.util.control.NonFatal
 
-import gensym.wasm.miniwasm.ModuleInstance
-import gensym.wasm.parser.Parser
-import gensym.wasm.stagedconcolicminiwasm.WasmToCppCompiler
+import genwasym.miniwasm.ModuleInstance
+import genwasym.parser.Parser
+import genwasym.stagedconcolicminiwasm.WasmToCppCompiler
 
 /** Public Scala and command-line entry point for the GenWasym compiler. */
 object GenWasym {

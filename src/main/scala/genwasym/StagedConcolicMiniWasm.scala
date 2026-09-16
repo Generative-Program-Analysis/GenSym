@@ -1,4 +1,4 @@
-package gensym.wasm.stagedconcolicminiwasm
+package genwasym.stagedconcolicminiwasm
 
 import scala.collection.mutable.{ArrayBuffer, HashMap}
 
@@ -10,13 +10,13 @@ import lms.core.Backend._
 import lms.core.Backend.{Block => LMSBlock, Const => LMSConst}
 import lms.core.Graph
 
-import gensym.wasm.ast._
-import gensym.wasm.ast.{Const => WasmConst, Block => WasmBlock}
-import gensym.wasm.miniwasm.{ModuleInstance}
-import gensym.wasm.symbolic.{SymVal}
+import genwasym.ast._
+import genwasym.ast.{Const => WasmConst, Block => WasmBlock}
+import genwasym.miniwasm.{ModuleInstance}
+import genwasym.symbolic.{SymVal}
 import gensym.lmsx.{SAIDriver, StringOps, SAIOps, SAICodeGenBase, CppSAIDriver, CppSAICodeGenBase}
-import gensym.wasm.symbolic.Concrete
-import gensym.wasm.symbolic.ExploreTree
+import genwasym.symbolic.Concrete
+import genwasym.symbolic.ExploreTree
 import gensym.structure.freer.Explore
 
 object Counter {

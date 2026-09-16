@@ -184,13 +184,13 @@ GenWasym has an accompanying evaluated artifact available on
 Run the GenWasym CLI from the repository root:
 
 ```sh
-sbt 'runMain gensym.wasm.GenWasym --help'
+sbt 'runMain genwasym.GenWasym --help'
 ```
 
 For example, generate C++ for the Fibonacci benchmark:
 
 ```sh
-sbt 'runMain gensym.wasm.GenWasym --input benchmarks/wasm/fib.wat --output target/genwasym/fib.cpp --print-result'
+sbt 'runMain genwasym.GenWasym --input benchmarks/wasm/fib.wat --output target/genwasym/fib.cpp --print-result'
 ```
 
 The CLI writes C++ source. Build the GenWasym runtime, then compile and link the
@@ -220,7 +220,7 @@ module's start function.
 
 To compile a directory of `.wat` files, use `--input-dir DIR --output-dir DIR`.
 Add `--recursive` to include subdirectories and preserve their layout in the
-output directory. Scala callers can use `gensym.wasm.GenWasym.compileFile`
+output directory. Scala callers can use `genwasym.GenWasym.compileFile`
 and `compileDirectory` directly.
 
 ## Publications

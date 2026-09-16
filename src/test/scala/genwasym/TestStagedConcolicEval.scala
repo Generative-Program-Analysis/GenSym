@@ -1,10 +1,10 @@
-package gensym.wasm
+package genwasym
 
 import lms.core.stub.Adapter
 
-import gensym.wasm.miniwasm.{ModuleInstance}
-import gensym.wasm.parser._
-import gensym.wasm.stagedconcolicminiwasm._
+import genwasym.miniwasm.{ModuleInstance}
+import genwasym.parser._
+import genwasym.stagedconcolicminiwasm._
 
 class TestStagedConcolicEval extends CppCompilationTestBase {
   private def runConcolicExe(exePath: String, extraEnv: (String, String)*): String =

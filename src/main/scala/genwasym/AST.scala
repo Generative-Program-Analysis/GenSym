@@ -1,8 +1,8 @@
-package gensym.wasm.ast
+package genwasym.ast
 
 import scala.collection.mutable.HashMap
-import gensym.wasm.miniwasm.ModuleInstance
-import gensym.wasm.source._
+import genwasym.miniwasm.ModuleInstance
+import genwasym.source._
 
 abstract class WIR
 
