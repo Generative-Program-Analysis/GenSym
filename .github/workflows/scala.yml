@@ -73,6 +73,8 @@ jobs:
         cargo build --release
     - name: Generate models
       run: sbt 'runMain gensym.GenerateExternal'
+    - name: Build GenWasm runtime
+      run: make -C genwasym_runtime
     - name: Run tests
       run: |
         sbt 'testOnly gensym.TestImpCPSGS'

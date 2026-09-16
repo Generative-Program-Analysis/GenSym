@@ -2305,7 +2305,7 @@ trait StagedWasmCppGen extends CGenBase with CppSAICodeGenBase {
   includePaths.clear()
   headers.clear()
 
-  registerHeader("headers", "\"wasm.hpp\"")
+  registerHeader("\"wasm.hpp\"")
   registerHeader("<functional>")
   registerHeader("<stdbool.h>")
   registerHeader("<stdint.h>")
@@ -2868,6 +2868,7 @@ trait StagedWasmCppGen extends CGenBase with CppSAICodeGenBase {
     |End of Generated Code
     |*******************************************/
     |int main(int argc, char *argv[]) {
+    |  configure_runtime_options();
     |  start_concolic_execution_with(Snippet, ${Counter.currentId});
     |  return 0;
     |}""".stripMargin)
