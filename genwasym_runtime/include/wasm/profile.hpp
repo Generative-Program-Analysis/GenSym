@@ -84,6 +84,11 @@ public:
   int cache_hit_count;
   int cache_miss_count;
   int call_solver_count;
+
+private:
+  void initialize_z3_output();
+  bool z3_output_initialized = false;
+  int z3_query_count = 0;
 };
 
 extern Profile_t Profile;

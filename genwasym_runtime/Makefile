@@ -34,13 +34,15 @@ $(BUILD_DIR):
 	mkdir -p $(BUILD_DIR)
 
 $(BUILD_DIR)/%.o: lib/%.cpp | $(BUILD_DIR)
-	$(CXX) $(CXXFLAGS) -c $< -o $@
+	$(CXX) $(CXXFLAGS) -MMD -MP -c $< -o $@
 
 $(STATIC_LIB): $(OBJ)
 	ar rcs $(STATIC_LIB) $(OBJ)
 
 $(SHARED_LIB): $(OBJ)
 	$(CXX) -shared $(SHARED_PLATFORM_FLAGS) $(LDFLAGS) -o $(SHARED_LIB) $(OBJ) $(LDLIBS)
+
+-include $(OBJ:.o=.d)
 
 clean:
 	rm -rf $(BUILD_DIR)

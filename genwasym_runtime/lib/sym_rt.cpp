@@ -16,10 +16,10 @@ void SymStack_t::push(SymVal val) {
 
 SymVal SymStack_t::pop() {
   // Pop a symbolic value from the stack
-#ifdef DEBUG
-  printf("[Debug] poping from stack, size of symbolic stack is: %zu\n",
-         stack.size());
-#endif
+  if (DEBUG_ENABLED) {
+    printf("[Debug] poping from stack, size of symbolic stack is: %zu\n",
+           stack.size());
+  }
 #ifdef USE_IMM
   auto ret = *(stack.end() - 1);
   stack.take(stack.size() - 1);
@@ -500,11 +500,11 @@ const NumMap &ImmNumMapBox::operator*() const { return *map_ptr; }
 SymEnv_t::SymEnv_t() : map(), imm_map_box(map) {}
 
 Num SymEnv_t::read(const Symbol &symbol) const {
-#if DEBUG
-  std::cout << "Read symbol: " << symbol.get_id()
-            << " from symbolic environment" << std::endl;
-  std::cout << "Current symbolic environment: " << to_string() << std::endl;
-#endif
+  if (DEBUG_ENABLED) {
+    std::cout << "Read symbol: " << symbol.get_id()
+              << " from symbolic environment" << std::endl;
+    std::cout << "Current symbolic environment: " << to_string() << std::endl;
+  }
   if (map.find(symbol.get_id()) == map.end()) {
     return Num(I32V(0));
   }
@@ -810,6 +810,18 @@ void ExploreTree_t::set_cursor(NodeBox *new_cursor) {
   GENSYM_INFO("Setting cursor to a new node");
   cursor = new_cursor;
   assert(dynamic_cast<SnapshotNode *>(cursor->node.get()) != nullptr);
+
+  // A snapshot resumes inside a branch, bypassing moveCursor(). Record that
+  // branch here so coverage-based termination also works with snapshot reuse.
+  assert(cursor->parent != nullptr);
+  auto branch = dynamic_cast<IfElseNode *>(cursor->parent->node.get());
+  assert(branch != nullptr);
+  if (cursor == branch->true_branch.get()) {
+    true_branch_cov_map[branch->id] = true;
+  } else {
+    assert(cursor == branch->false_branch.get());
+    false_branch_cov_map[branch->id] = true;
+  }
 }
 
 std::monostate ExploreTree_t::fillFinishedNode() { return cursor->fillFinishedNode(); }
@@ -1304,9 +1316,9 @@ Snapshot_t::Snapshot_t(Cont_t cont, MCont_t mcont, SymStack_t stack,
       globals(std::move(globals)), memory(std::move(memory)), cont(cont),
       mcont(mcont), num_map(num_map) {
   Profile.step(StepProfileKind::SNAPSHOT_CREATE);
-#ifdef DEBUG
-  std::cout << "Creating snapshot of size " << stack.size() << std::endl;
-#endif
+  if (DEBUG_ENABLED) {
+    std::cout << "Creating snapshot of size " << stack.size() << std::endl;
+  }
 }
 
 double Snapshot_t::cost_of_snapshot() const {

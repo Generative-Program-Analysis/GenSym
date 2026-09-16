@@ -23,29 +23,20 @@
   } while (0)
 #endif
 
-#ifndef NO_DBG
 #define GENSYM_DBG(obj)                                                        \
   do {                                                                         \
-    std::cout << "LOG: " << obj << " (" << __FILE__ << ":"                     \
-              << std::to_string(__LINE__) << ")" << std::endl;                 \
+    if (DBG_ENABLED) {                                                        \
+      std::cout << "LOG: " << obj << " (" << __FILE__ << ":"                   \
+                << std::to_string(__LINE__) << ")" << std::endl;               \
+    }                                                                          \
   } while (0)
-#else
-#define GENSYM_LOG(message)                                                    \
-  do {                                                                         \
-  } while (0)
-#endif
 
-#ifndef NO_INFO
 #define GENSYM_INFO(obj)                                                       \
   do {                                                                         \
-    std::cout << obj << std::endl;                                             \
+    if (INFO_ENABLED) {                                                       \
+      std::cout << obj << std::endl;                                           \
+    }                                                                          \
   } while (0)
-#else
-#define GENSYM_INFO(message)                                                   \
-  do {                                                                         \
-  } while (0)
-
-#endif
 
 enum class GensymHeapStatus { Allocated, Freed };
 
@@ -94,9 +85,9 @@ std::monostate print_infos(const T &first, const Args &...args) {
 
 template <typename T, typename... Args>
 std::monostate info(const T &first, const Args &...args) {
-#ifdef DEBUG
-  print_infos(first, args...);
-#endif
+  if (DEBUG_ENABLED) {
+    print_infos(first, args...);
+  }
   return std::monostate{};
 }
 
@@ -104,13 +95,13 @@ constexpr const char *DEBUG_OPTS_ENV_VAR = "GENSYM_DEBUG";
 
 template <typename... Args>
 std::monostate infoWhen(const char *dbg_option, const Args &...args) {
-#ifdef DEBUGWHEN
-  const char *env_value = std::getenv(DEBUG_OPTS_ENV_VAR);
-  if (env_value && std::string(env_value).find(std::string(dbg_option)) !=
-                       std::string::npos) {
-    print_infos(args...);
+  if (DEBUG_WHEN_ENABLED) {
+    const char *env_value = std::getenv(DEBUG_OPTS_ENV_VAR);
+    if (env_value && std::string(env_value).find(std::string(dbg_option)) !=
+                         std::string::npos) {
+      print_infos(args...);
+    }
   }
-#endif
   return std::monostate{};
 }
 

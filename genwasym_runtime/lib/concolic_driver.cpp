@@ -167,6 +167,9 @@ void ConcolicDriver::main_exploration_loop() {
     } catch (std::runtime_error &e) {
       std::cout << "Caught runtime error: " << e.what() << std::endl;
       ExploreTree.fillFailedNode();
+      if (RUN_ONCE_MODE) {
+        return;
+      }
 
       if (std::string(e.what()) == "Symbolic assertion failed") {
         GENSYM_INFO("Symbolic assertion failed, continuing to next path...");
@@ -189,9 +192,9 @@ void ConcolicDriver::main_exploration_loop() {
         std::cout << e.what() << std::endl;
       }
     }
-#if defined(RUN_ONCE)
-    return;
-#endif
+    if (RUN_ONCE_MODE) {
+      return;
+    }
   }
 }
 

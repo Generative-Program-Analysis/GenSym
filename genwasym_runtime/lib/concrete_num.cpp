@@ -1,4 +1,5 @@
 #include "wasm/concrete_num.hpp"
+#include "wasm/config.hpp"
 
 #include <cmath>
 #include <iostream>
@@ -22,11 +23,11 @@ double Num::toF64() const { return *reinterpret_cast<const double *>(&value); }
 
 void Num::debug_print(const char *op, const Num &a, const Num &b,
                       const Num &res) {
-#ifdef DEBUG_OP
-  std::cout << "[Debug] " << op << ": lhs=" << static_cast<int32_t>(a.value)
-            << " rhs=" << static_cast<int32_t>(b.value)
-            << " -> res=" << static_cast<int32_t>(res.value) << std::endl;
-#endif
+  if (DEBUG_OP_ENABLED) {
+    std::cout << "[Debug] " << op << ": lhs=" << static_cast<int32_t>(a.value)
+              << " rhs=" << static_cast<int32_t>(b.value)
+              << " -> res=" << static_cast<int32_t>(res.value) << std::endl;
+  }
 }
 
 Num Num::WasmBool(bool condition) const {

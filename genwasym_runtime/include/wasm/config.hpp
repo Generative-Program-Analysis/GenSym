@@ -1,94 +1,135 @@
 #ifndef CONFIG_HPP
 #define CONFIG_HPP
 
-// This file contains configuration settings for the concolic execution
+// These settings have one definition in the runtime library. Configure them
+// before execution; changing them during exploration is not supported.
+enum class ExploreMode {
+  EarlyExit,      // Stop at the first error encountered.
+  ExitByCoverage // Exit when all syntactic branches are covered.
+};
 
-// If ENABLE_PROFILE_STEP defined, the compiled program will collect and print
-// profiling how much steps of each data structure's operations are executed
-#ifdef ENABLE_PROFILE_STEP
-const bool PROFILE_STEP = true;
+extern ExploreMode EXPLORE_MODE;
+extern bool PROFILE_STEP;
+extern bool PROFILE_TIME;
+extern bool PROFILE_Z3_API_CALL;
+extern bool PROFILE_CACHE;
+extern bool PROFILE_PATH_CONDS;
+extern bool PROFILE_SNAPSHOT;
+extern bool REUSE_SNAPSHOT;
+extern bool INTERACTIVE_MODE;
+extern bool ENABLE_COST_MODEL;
+extern bool SOFT_ASSERT;
+extern bool RUN_ONCE_MODE;
+extern bool INFO_ENABLED;
+extern bool DBG_ENABLED;
+extern bool DEBUG_ENABLED;
+extern bool DEBUG_OP_ENABLED;
+extern bool DEBUG_WHEN_ENABLED;
+
+static inline void configure_runtime_options() {
+#ifdef EARLY_EXIT
+  EXPLORE_MODE = ExploreMode::EarlyExit;
+#elif defined(BY_COVERAGE)
+  EXPLORE_MODE = ExploreMode::ExitByCoverage;
 #else
-const bool PROFILE_STEP = false;
+  EXPLORE_MODE = ExploreMode::EarlyExit;
 #endif
 
-// If ENABLE_PROFILE_TIME defined, the compiled program will collect and print
-// the profile of time spent in main loop and constraint solving
-#ifdef ENABLE_PROFILE_TIME
-const bool PROFILE_TIME = true;
+#ifdef ENABLE_PROFILE_STEP
+  PROFILE_STEP = true;
 #else
-const bool PROFILE_TIME = false;
+  PROFILE_STEP = false;
+#endif
+
+#ifdef ENABLE_PROFILE_TIME
+  PROFILE_TIME = true;
+#else
+  PROFILE_TIME = false;
 #endif
 
 #ifdef ENABLE_PROFILE_Z3_API_CALL
-const bool PROFILE_Z3_API_CALL = true;
+  PROFILE_Z3_API_CALL = true;
 #else
-const bool PROFILE_Z3_API_CALL = false;
+  PROFILE_Z3_API_CALL = false;
 #endif
 
 #ifdef ENABLE_PROFILE_CACHE
-const bool PROFILE_CACHE = true;
+  PROFILE_CACHE = true;
 #else
-const bool PROFILE_CACHE = false;
+  PROFILE_CACHE = false;
 #endif
 
 #ifdef ENABLE_PROFILE_PATH_CONDS
-const bool PROFILE_PATH_CONDS = true;
+  PROFILE_PATH_CONDS = true;
 #else
-const bool PROFILE_PATH_CONDS = false;
+  PROFILE_PATH_CONDS = false;
 #endif
 
 #ifdef ENABLE_PROFILE_SNAPSHOT
-const bool PROFILE_SNAPSHOT = true;
+  PROFILE_SNAPSHOT = true;
 #else
-const bool PROFILE_SNAPSHOT = false;
+  PROFILE_SNAPSHOT = false;
 #endif
 
-// This variable define when concolic execution will stop
-enum class ExploreMode {
-  EarlyExit, // Stop at the first error encountered
-
-  ExitByCoverage // Exit when all syntactic branches are covered
-};
-
-#ifdef EARLY_EXIT
-static const ExploreMode EXPLORE_MODE = ExploreMode::EarlyExit;
-#elif defined(BY_COVERAGE)
-static const ExploreMode EXPLORE_MODE = ExploreMode::ExitByCoverage;
-#else
-static const ExploreMode EXPLORE_MODE = ExploreMode::EarlyExit;
-#endif
-
-// This variable decides whether we enable the snapshot reuse optimization
 #ifdef NO_REUSE
-static const bool REUSE_SNAPSHOT = false;
+  REUSE_SNAPSHOT = false;
 #else
-static const bool REUSE_SNAPSHOT = true;
-#endif
-
-// If we use immutable data structures for symbolic states to reduce the cost of
-// copying.
-#ifdef USE_IMM
-static const bool IMMUTABLE_SYMS = true;
-#else
-static const bool IMMUTABLE_SYMS = false;
+  REUSE_SNAPSHOT = true;
 #endif
 
 #ifdef INTERACTIVE
-static const bool INTERACTIVE_MODE = true;
+  INTERACTIVE_MODE = true;
 #else
-static const bool INTERACTIVE_MODE = false;
+  INTERACTIVE_MODE = false;
 #endif
 
 #ifdef USE_COST_MODEL
-static const bool ENABLE_COST_MODEL = true;
+  ENABLE_COST_MODEL = true;
 #else
-static const bool ENABLE_COST_MODEL = false;
+  ENABLE_COST_MODEL = false;
 #endif
 
 #ifdef USE_SOFT_ASSERT
-static const bool SOFT_ASSERT = true;
+  SOFT_ASSERT = true;
 #else
-static const bool SOFT_ASSERT = false;
+  SOFT_ASSERT = false;
 #endif
+
+#ifdef RUN_ONCE
+  RUN_ONCE_MODE = true;
+#else
+  RUN_ONCE_MODE = false;
+#endif
+
+#ifdef NO_INFO
+  INFO_ENABLED = false;
+#else
+  INFO_ENABLED = true;
+#endif
+
+#ifdef NO_DBG
+  DBG_ENABLED = false;
+#else
+  DBG_ENABLED = true;
+#endif
+
+#ifdef DEBUG
+  DEBUG_ENABLED = true;
+#else
+  DEBUG_ENABLED = false;
+#endif
+
+#ifdef DEBUG_OP
+  DEBUG_OP_ENABLED = true;
+#else
+  DEBUG_OP_ENABLED = false;
+#endif
+
+#ifdef DEBUGWHEN
+  DEBUG_WHEN_ENABLED = true;
+#else
+  DEBUG_WHEN_ENABLED = false;
+#endif
+}
 
 #endif // CONFIG_HPP

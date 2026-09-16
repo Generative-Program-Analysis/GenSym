@@ -15,9 +15,10 @@ Profile_t::Profile_t() : step_count(0), cache_hit_count(0), cache_miss_count(0),
   op_count.fill(0);
   time_count.fill(0.0);
   exec_kind_count.fill(0);
+}
 
-  // refresh the output profile directory
-  if (PROFILE_Z3_API_CALL) {
+void Profile_t::initialize_z3_output() {
+  if (!z3_output_initialized) {
     std::filesystem::path out_path(base_profile_output_path);
     std::error_code ec;
     std::filesystem::remove_all(out_path, ec);
@@ -43,6 +44,7 @@ Profile_t::Profile_t() : step_count(0), cache_hit_count(0), cache_miss_count(0),
       throw std::runtime_error("Failed to create z3 expr output directory: " +
                                ec.message());
     }
+    z3_output_initialized = true;
   }
 }
 
@@ -314,9 +316,9 @@ void Profile_t::write_as_json(std::ostream &os) const {
 void Profile_t::record_z3_solver_time(z3::solver expr, double time,
                                       bool is_sat) {
   if (PROFILE_Z3_API_CALL) {
-    static int count = 0;
+    initialize_z3_output();
     std::string expr_file =
-        z3_expr_output_path + "/z3_expr_" + std::to_string(count) + ".smt2";
+        z3_expr_output_path + "/z3_expr_" + std::to_string(z3_query_count) + ".smt2";
     std::error_code ec;
     std::ofstream ofs(expr_file);
     ofs << expr;
@@ -329,7 +331,7 @@ void Profile_t::record_z3_solver_time(z3::solver expr, double time,
          << (is_sat ? "sat" : "unsat") << "\n";
     rofs.close();
 
-    count++;
+    z3_query_count++;
   }
 }
 

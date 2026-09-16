@@ -23,11 +23,11 @@ Stack_t::Stack_t() : count(0), stack_ptr(new Num[STACK_SIZE]) {
 }
 
 std::monostate Stack_t::push(Num &&num) {
-#ifdef DEBUG
-  printf("[Debug] pushing a value %ld to stack, size of concrete stack is: "
-         "%d\n",
-         num.value, count);
-#endif
+  if (DEBUG_ENABLED) {
+    printf("[Debug] pushing a value %ld to stack, size of concrete stack is: "
+           "%d\n",
+           num.value, count);
+  }
   Profile.step(StepProfileKind::PUSH);
   stack_ptr[count] = num;
   count++;
@@ -47,11 +47,11 @@ Num Stack_t::pop() {
     assert(false);
     throw std::runtime_error("Stack underflow");
   }
-#ifdef DEBUG
-  printf("[Debug] popping a value %ld from stack, size of concrete stack is: "
-         "%d\n",
-         stack_ptr[count - 1].value, count);
-#endif
+  if (DEBUG_ENABLED) {
+    printf("[Debug] popping a value %ld from stack, size of concrete stack is: "
+           "%d\n",
+           stack_ptr[count - 1].value, count);
+  }
   Num num = stack_ptr[count - 1];
   count--;
   return num;
@@ -59,11 +59,11 @@ Num Stack_t::pop() {
 
 Num Stack_t::peek() {
   Profile.step(StepProfileKind::PEEK);
-#ifdef DEBUG
-  if (count == 0) {
-    throw std::runtime_error("Stack underflow");
+  if (DEBUG_ENABLED) {
+    if (count == 0) {
+      throw std::runtime_error("Stack underflow");
+    }
   }
-#endif
   return stack_ptr[count - 1];
 }
 
@@ -71,17 +71,17 @@ int32_t Stack_t::size() { return count; }
 
 void Stack_t::shift(int32_t offset, int32_t size) {
   Profile.step(StepProfileKind::SHIFT);
-#ifdef DEBUG
-  if (offset < 0) {
-    throw std::out_of_range("Invalid offset: " + std::to_string(offset));
+  if (DEBUG_ENABLED) {
+    if (offset < 0) {
+      throw std::out_of_range("Invalid offset: " + std::to_string(offset));
+    }
+    if (size < 0) {
+      throw std::out_of_range("Invalid size: " + std::to_string(size));
+    }
+    std::cout << "Shifting stack by offset " << offset << " and size " << size
+              << std::endl;
+    std::cout << "Current stack size: " << count << std::endl;
   }
-  if (size < 0) {
-    throw std::out_of_range("Invalid size: " + std::to_string(size));
-  }
-  std::cout << "Shifting stack by offset " << offset << " and size " << size
-            << std::endl;
-  std::cout << "Current stack size: " << count << std::endl;
-#endif
 
   for (int32_t i = count - size; i < count; ++i) {
     assert(i - offset >= 0);
@@ -231,11 +231,10 @@ int32_t Memory_t::loadInt(int32_t base, int32_t offset) {
   for (int i = 0; i < 4; ++i) {
     result |= static_cast<int32_t>(memory[addr + i]) << (8 * i);
   }
-#ifdef DEBUG
-  std::cout << "[Debug] loading int " << result << " from memory at address "
-            << addr << std::endl;
-
-#endif
+  if (DEBUG_ENABLED) {
+    std::cout << "[Debug] loading int " << result << " from memory at address "
+              << addr << std::endl;
+  }
   // just load a 4-byte integer from memory of the vector
   return result;
 }
@@ -323,10 +322,10 @@ std::monostate Memory_t::storeInt(int32_t base, int32_t offset,
   for (int i = 0; i < 4; ++i) {
     memory[addr + i] = static_cast<uint8_t>((value >> (8 * i)) & 0xFF);
   }
-#ifdef DEBUG
-  std::cout << "[Debug] storing int " << value << " to memory at address "
-            << addr << std::endl;
-#endif
+  if (DEBUG_ENABLED) {
+    std::cout << "[Debug] storing int " << value << " to memory at address "
+              << addr << std::endl;
+  }
   return std::monostate{};
 }
 
@@ -375,10 +374,10 @@ std::monostate Memory_t::storeLong32(int32_t base, int32_t offset,
 }
 
 std::monostate Memory_t::store_byte(int32_t addr, uint8_t value) {
-#ifdef DEBUG
-  std::cout << "[Debug] storing byte " << std::to_string(value)
-            << " to memory at address " << addr << std::endl;
-#endif
+  if (DEBUG_ENABLED) {
+    std::cout << "[Debug] storing byte " << std::to_string(value)
+              << " to memory at address " << addr << std::endl;
+  }
   assert_valid_range(addr, 1);
   memory[addr] = value;
   return std::monostate{};
