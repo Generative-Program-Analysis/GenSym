@@ -1,6 +1,3 @@
-// TODO: maybe rename this to genwasym?
-// need to rewrite everything in src/main/scala/wasm tho
-
 package gensym.wasm
 
 import gensym.wasm.ast._
@@ -43,9 +40,8 @@ class TestEval extends FunSuite {
     runner.run(script)
   }
 
-  // TODO: the power test can be used to test the stack
-  // For now: 2^10 works, 2^100 results in 0 (TODO: why?),
-  // and 2^1000 results in a stack overflow
+  // The power test exercises the stack. i32 arithmetic wraps 2^100 to zero;
+  // deep recursion (for example, 2^1000) can overflow the interpreter's stack.
   test("ack") { testFile("./benchmarks/wasm/ack.wat", Some("real_main"), ExpInt(7)) }
   test("power") { testFile("./benchmarks/wasm/pow.wat", Some("real_main"), ExpInt(1024)) }
   test("start") { testFile("./benchmarks/wasm/start.wat") }

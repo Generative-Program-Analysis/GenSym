@@ -149,7 +149,7 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
     if (ctx.defType.FUNC != null) {
       TypeDef(getVar(ctx.bindVar()), visit(ctx.defType.funcType).asInstanceOf[FuncType])
     } else if (ctx.defType.CONT != null) {
-      // TODO: here, the getVar is more link the typeUse one, although it uses the IdxContext one
+      // The index refers to the function type used by the continuation.
        TypeDef(getVar(ctx.bindVar()), ContType(getVar(ctx.defType.idx).toInt))
     } else {
       error
@@ -293,7 +293,6 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
           F32V(parsedValue)
 
         case F64Type =>
-          // TODO: not processed at all
           val parsedValue = ctx.FLOAT.getText.toDouble
           F64V(parsedValue)
       }
@@ -771,8 +770,6 @@ class GSWasmVisitor extends WatParserBaseVisitor[WIR] {
     else error
   }
 
-  // TODO: we instantiate the module no matter what, might want to change the
-  // behavior in the future
   override def visitScriptModule(ctx: ScriptModuleContext): Module = {
     if (ctx.module_ != null) {
       visitModule_(ctx.module_).asInstanceOf[Module]

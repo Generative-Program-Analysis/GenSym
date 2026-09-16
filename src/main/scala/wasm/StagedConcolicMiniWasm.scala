@@ -1754,7 +1754,6 @@ trait StagedWasmEvaluator extends SAIOps
             }
             // When moving the cursor to a branch, we mark another branch as
             // snapshotNode (this is done by moveCursor's runtime implementation)
-            // TODO: store snapshot into this snapshot node
             def thnK: Rep[Cont[Unit]] = topFun((_: Rep[Unit]) => {
               info(s"Entering the true branch $id of the br_table")
               Stack.popC(ty)
@@ -2025,7 +2024,7 @@ trait StagedWasmEvaluator extends SAIOps
     case Mul(_) => v1 * v2
     case Sub(_) => v1 - v2
     case Shl(_) => v1 << v2
-    case ShrS(_) => v1 shrS v2 // TODO: signed shift right
+    case ShrS(_) => v1 shrS v2
     case ShrU(_) => v1 shrU v2
     case And(_) => v1 & v2
     case DivS(_) => v1 divs v2
@@ -2050,7 +2049,7 @@ trait StagedWasmEvaluator extends SAIOps
         case Mul(_) => v1 * v2
         case Sub(_) => v1 - v2
         case Shl(_) => v1 << v2
-        case ShrS(_) => v1 shrS v2 // TODO: signed shift right
+        case ShrS(_) => v1 shrS v2
         case ShrU(_) => v1 shrU v2
         case And(_) => v1 & v2
         case DivS(_) => v1 divs v2
