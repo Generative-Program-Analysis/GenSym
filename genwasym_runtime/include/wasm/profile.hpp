@@ -7,7 +7,9 @@
 #include <chrono>
 #include <ostream>
 #include <string>
+#include <utility>
 #include <variant>
+#include <vector>
 
 enum class StepProfileKind {
   PUSH,
@@ -66,6 +68,9 @@ public:
 
   std::string base_profile_output_path = "genwasym_profile_output";
   std::string z3_expr_output_path = "genwasym_profile_output/z3_expressions";
+
+  void record_snapshot_history(double resume_cost, double restart_cost);
+  std::vector<std::pair<double, double>> snapshot_history;
 
   int step_count;
   std::array<int, static_cast<std::size_t>(StepProfileKind::OperationCount)>

@@ -575,17 +575,32 @@ SymVal make_unary(UnaryOperation op, const SymVal &value) {
         negated_op = inner_binary->op;
         break;
       }
-
       if (negated_op != inner_binary->op) {
-        auto result =
-            SVFactory::make_binary(negated_op, inner_binary->lhs, inner_binary->rhs);
+        auto result = SVFactory::make_binary(negated_op, inner_binary->lhs,
+                                             inner_binary->rhs);
         UnaryOperationStore.insert({key, result});
         return result;
       }
     }
   }
 
-  auto result = SymVal(SymBookKeeper.allocate<SymUnary>(op, value));
+  if (op == ABS) {
+    if (auto concrete = dynamic_cast<SymConcrete *>(value.symptr.get())) {
+      if (concrete->kind == KindFP) {
+        if (concrete->width() == 32) {
+          auto result = SVFactory::make_concrete_fp(concrete->value.f32_abs(), 32);
+          UnaryOperationStore.insert({key, result});
+          return result;
+        } else if (concrete->width() == 64) {
+          auto result = SVFactory::make_concrete_fp(concrete->value.f64_abs(), 64);
+          UnaryOperationStore.insert({key, result});
+          return result;
+        }
+      }
+    }
+  }
+
+  auto result = SymVal(SVFactory::SymBookKeeper.allocate<SymUnary>(op, value));
   UnaryOperationStore.insert({key, result});
   return result;
 }

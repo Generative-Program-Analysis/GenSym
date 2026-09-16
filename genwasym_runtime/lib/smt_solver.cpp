@@ -427,23 +427,19 @@ EvalRes eval_sym_expr_by_model(const SymVal &sym, z3::model &model) {
 
 std::monostate GENSYM_SYM_ASSERT(SymVal &sym_cond) {
   ManagedTimer timer(TimeProfileKind::SOLVER_TOTAL);
-
   auto start = std::chrono::steady_clock::now();
   std::vector<SymVal> conds = ExploreTree.collect_current_path_conds();
-
   auto result = solver.solve_under_reachable_path(
       std::move(conds), sym_cond.bv_negate().bool2bv());
-
   auto end = std::chrono::steady_clock::now();
   auto time_need_to_be_removed = std::chrono::duration<double>(end - start);
-
   Profile.remove_instruction_time(TimeProfileKind::INSTR,
                                   time_need_to_be_removed.count());
-
   if (result.has_value()) {
-    std::cout << "Symbolic assertion failed" << std::endl;
-    throw std::runtime_error("Symbolic assertion failed");
+    GENSYM_INFO("Symbolic assertion failed");
+    if (!SOFT_ASSERT)
+      throw std::runtime_error("Symbolic assertion failed");
+    GENSYM_INFO("Soft assertion configured, continuing execution...");
   }
-
   return std::monostate{};
 }

@@ -7,6 +7,7 @@
 #include <string>
 #include <unistd.h>
 #include "wasm/profile.hpp"
+#include "wasm/utils.hpp"
 
 Stack_t Stack;
 Frames_t Frames;
@@ -42,7 +43,10 @@ std::monostate Stack_t::push(Num &num) {
 
 Num Stack_t::pop() {
   Profile.step(StepProfileKind::POP);
-  assert(count > 0 && "Stack underflow");
+  if (count <= 0) {
+    assert(false);
+    throw std::runtime_error("Stack underflow");
+  }
 #ifdef DEBUG
   printf("[Debug] popping a value %ld from stack, size of concrete stack is: "
          "%d\n",
@@ -221,28 +225,24 @@ Memory_t::Memory_t(int32_t init_page_count)
 
 int32_t Memory_t::loadInt(int32_t base, int32_t offset) {
   int32_t addr = base + offset;
-  if (!(addr + 3 < memory.size()) || addr < 0) {
-    throw std::runtime_error("Invalid memory access " + std::to_string(addr));
-  }
-
+  assert_valid_range(addr, 4);
   int32_t result = 0;
+  // Little-endian: lowest byte at lowest address
   for (int i = 0; i < 4; ++i) {
     result |= static_cast<int32_t>(memory[addr + i]) << (8 * i);
   }
-
 #ifdef DEBUG
   std::cout << "[Debug] loading int " << result << " from memory at address "
             << addr << std::endl;
-#endif
 
+#endif
+  // just load a 4-byte integer from memory of the vector
   return result;
 }
 
 uint8_t Memory_t::loadByte(int32_t base, int32_t offset) {
   int32_t addr = base + offset;
-  if (!(addr < memory.size()) || addr < 0) {
-    throw std::runtime_error("Invalid memory access " + std::to_string(addr));
-  }
+  assert_valid_range(addr, 1);
   return memory[addr];
 }
 
@@ -308,10 +308,7 @@ int64_t Memory_t::loadLong32S(int32_t base, int32_t offset) {
 
 int64_t Memory_t::loadLong(int32_t base, int32_t offset) {
   int32_t addr = base + offset;
-  if (!(addr + 7 < memory.size()) || addr < 0) {
-    throw std::runtime_error("Invalid memory access " + std::to_string(addr));
-  }
-
+  assert_valid_range(addr, 8);
   int64_t result = 0;
   for (int i = 0; i < 8; ++i) {
     result |= static_cast<int64_t>(memory[addr + i]) << (8 * i);
@@ -322,34 +319,25 @@ int64_t Memory_t::loadLong(int32_t base, int32_t offset) {
 std::monostate Memory_t::storeInt(int32_t base, int32_t offset,
                                   int32_t value) {
   int32_t addr = base + offset;
-  if (!(addr + 3 < memory.size())) {
-    throw std::runtime_error("Invalid memory access " + std::to_string(addr));
-  }
-
+  assert_valid_range(addr, 4);
   for (int i = 0; i < 4; ++i) {
     memory[addr + i] = static_cast<uint8_t>((value >> (8 * i)) & 0xFF);
   }
-
 #ifdef DEBUG
   std::cout << "[Debug] storing int " << value << " to memory at address "
             << addr << std::endl;
 #endif
-
   return std::monostate{};
 }
 
 std::monostate Memory_t::storeLong(int32_t base, int32_t offset,
                                    int64_t value) {
   int32_t addr = base + offset;
-  if (!(addr + 7 < memory.size()) || addr < 0) {
-    throw std::runtime_error("Invalid memory access " + std::to_string(addr));
-  }
-
+  assert_valid_range(addr, 8);
   for (int i = 0; i < 8; ++i) {
-    memory[addr + i] =
-        static_cast<uint8_t>((static_cast<uint64_t>(value) >> (8 * i)) & 0xFF);
+    memory[addr + i] = static_cast<uint8_t>(
+        (static_cast<uint64_t>(value) >> (8 * i)) & 0xFF);
   }
-
   return std::monostate{};
 }
 
@@ -391,8 +379,7 @@ std::monostate Memory_t::store_byte(int32_t addr, uint8_t value) {
   std::cout << "[Debug] storing byte " << std::to_string(value)
             << " to memory at address " << addr << std::endl;
 #endif
-
-  assert(addr < memory.size());
+  assert_valid_range(addr, 1);
   memory[addr] = value;
   return std::monostate{};
 }
@@ -431,26 +418,44 @@ void Memory_t::reset() {
 FuncTable_t::FuncTable_t() : table(20) {}
 
 Func_t FuncTable_t::read(int32_t index) {
-  if (index < 0 || index >= table.size()) {
+  auto offset = index - start_index.value();
+  if (offset < 0 || offset >= table.size()) {
     throw std::runtime_error("Function table read out of bounds: " +
                              std::to_string(index));
   }
-
-  if (!table[index]) {
-    assert(false);
+  if (!table[offset]) {
+    std::cout << "Function table entry at index " << index
+              << " is empty or invalid" << std::endl;
+    assert(false && "Function table entry is empty or invalid");
     throw std::runtime_error("Function table entry at index " +
                              std::to_string(index) + " is empty or invalid");
   }
-
-  return table[index];
+  return table[offset];
 }
 
 std::monostate FuncTable_t::set(Num offset, int32_t index, Func_t func) {
+  if (start_index.has_value()) {
+    assert(offset.toInt() == start_index &&
+           "Currently only supporting one function table per module.");
+  } else {
+    start_index = offset.toInt();
+  }
   if (index < 0 || index >= table.size()) {
     throw std::runtime_error("Function table set out of bounds: " +
                              std::to_string(index));
   }
+  table[index] = func;
+  return std::monostate{};
+}
 
-  table[offset.toInt() + index] = func;
+void Memory_t::assert_valid_range(int32_t addr, size_t width) const {
+  assert(addr >= 0);
+  assert(static_cast<size_t>(addr) + width <= memory.size());
+  GENSYM_ASSERT_ADDR_ALLOCATED(addr, width);
+}
+
+std::monostate FuncTable_t::setStart(int32_t index) {
+  // set start index to be the function at index 0
+  start_index = index;
   return std::monostate{};
 }

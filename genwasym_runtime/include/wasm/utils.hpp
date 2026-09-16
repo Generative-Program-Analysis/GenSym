@@ -1,15 +1,24 @@
 #ifndef UTILS_HPP
 #define UTILS_HPP
+#include "config.hpp"
+#include <cstddef>
+#include <cstdint>
 #include <iostream>
+#include <limits>
+#include <unordered_map>
 #include <variant>
 
 #ifndef GENSYM_ASSERT
 #define GENSYM_ASSERT(condition)                                               \
   do {                                                                         \
     if (!(condition)) {                                                        \
-      throw std::runtime_error(std::string("Assertion failed: ") + " (" +      \
-                               __FILE__ + ":" + std::to_string(__LINE__) +     \
-                               ")");                                           \
+      std::string message = std::string("Assertion failed: ") + " (" +         \
+                            __FILE__ + ":" + std::to_string(__LINE__) + ")";   \
+      if (SOFT_ASSERT) {                                                       \
+        GENSYM_INFO(message);                                                  \
+      } else {                                                                 \
+        throw std::runtime_error(message);                                     \
+      }                                                                        \
     }                                                                          \
   } while (0)
 #endif
@@ -37,6 +46,25 @@
   } while (0)
 
 #endif
+
+enum class GensymHeapStatus { Allocated, Freed };
+
+struct GensymHeapRecord {
+  int32_t size;
+  GensymHeapStatus status;
+};
+
+extern std::unordered_map<int32_t, GensymHeapRecord> GENSYM_HEAP_RECORDS;
+
+bool GENSYM_IS_IN_ALLOCATED_RANGE(int32_t addr, size_t width);
+
+bool GENSYM_SHOULD_CHECK_ALLOCATION(int32_t addr);
+
+void GENSYM_ASSERT_ADDR_ALLOCATED(int32_t addr, size_t width);
+
+int32_t GENSYM_ALLOC(int32_t base, int32_t size);
+
+std::monostate GENSYM_FREE(int32_t ptr);
 
 #if __cplusplus < 202002L
 #include <string>

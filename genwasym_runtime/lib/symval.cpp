@@ -225,3 +225,7 @@ SymVal FPConcrete(Num num, int width) {
   assert(width == 32 || width == 64);
   return SVFactory::make_concrete_fp(num, width);
 }
+
+SymVal SymVal::abs() const {
+  return SVFactory::make_unary(ABS, *this);
+}

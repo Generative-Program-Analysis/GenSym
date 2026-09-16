@@ -53,6 +53,7 @@ struct SymVal {
   SymVal shr_s(const SymVal &other) const;
   SymVal bv_negate() const;
   SymVal bool_not() const;
+  SymVal abs() const;
   SymVal bitwise_and(const SymVal &other) const;
   SymVal bitwise_xor(const SymVal &other) const;
   SymVal bitwise_or(const SymVal &other) const;
@@ -88,6 +89,8 @@ template <typename... Args> inline bool allConcrete(const Args &...args) {
                 "all_concrete only accepts SymVal arguments");
   return (... && args.is_concrete());
 }
+
+Num isSymbolic(int index);
 
 SymVal Concrete(Num num, int width);
 SymVal FPConcrete(Num num, int width);

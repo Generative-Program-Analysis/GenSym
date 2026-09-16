@@ -286,7 +286,7 @@ struct Node {
   friend struct NodeBox;
   virtual ~Node();
   void set_cost(double c);
-  double get_cost() const;
+  double cost_of_restart() const;
   virtual std::string to_string() = 0;
   void to_graphviz(std::ostream &os);
   virtual void generate_dot(std::ostream &os, int parent_dot_id,
@@ -358,6 +358,7 @@ struct SnapshotNode : Node {
   const Snapshot_t &get_snapshot() const;
   Snapshot_t move_out_snapshot();
 
+  double cost_of_snapshot_resume() const;
   bool worth_to_reuse() const;
 
 protected:

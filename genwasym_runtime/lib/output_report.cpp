@@ -40,7 +40,7 @@ void dump_all_summary_json(const Profile_t &profile,
       << ",\n";
   ofs << "  \"unreachable_count\": " << overall.unreachable_count;
 
-  if (PROFILE_STEP || PROFILE_TIME) {
+  if (PROFILE_STEP || PROFILE_TIME || PROFILE_SNAPSHOT) {
     ofs << ",\n";
     profile.write_as_json(ofs);
   }

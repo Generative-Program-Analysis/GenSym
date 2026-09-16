@@ -563,7 +563,7 @@ Node::~Node() {}
 
 void Node::set_cost(double c) { instr_cost = c; }
 
-double Node::get_cost() const { return instr_cost; }
+double Node::cost_of_restart() const { return instr_cost; }
 
 void Node::to_graphviz(std::ostream &os) {
   os << "digraph G {\n";
@@ -717,7 +717,7 @@ bool SnapshotNode::worth_to_reuse() const {
   }
   // find out the best way to reach the current position via our cost model
   auto snapshot_cost = snapshot.cost_of_snapshot();
-  double re_execution_cost = get_cost();
+  double re_execution_cost = cost_of_restart();
   // std::cout << "Snapshot cost: " << snapshot_cost
   //           << ", re-execution cost: " << re_execution_cost << std::endl;
   if (snapshot_cost <= re_execution_cost) {
@@ -1062,7 +1062,7 @@ Snapshot_t makeSnapshot(Control control) {
 
 double NodeBox::instr_cost() const {
   if (node) {
-    return node->get_cost();
+    return node->cost_of_restart();
   } else {
     return 0.0;
   }
@@ -1708,3 +1708,14 @@ Snapshot_t::resume_execution(NodeBox *node) const {
   CURRENT_MCONT = mcont;
   return cont(std::monostate{});
 }
+
+Num isSymbolic(int index) {
+  auto it = SVFactory::SymbolStore.find(index);
+  if (it != SVFactory::SymbolStore.end()) {
+    return Num(I32V(1));
+  } else {
+    return Num(I32V(0));
+  }
+}
+
+double SnapshotNode::cost_of_snapshot_resume() const { return snapshot.cost_of_snapshot(); }

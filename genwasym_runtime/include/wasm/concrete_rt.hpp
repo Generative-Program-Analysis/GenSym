@@ -6,6 +6,7 @@
 #include "immer/vector_transient.hpp"
 #include <cstdint>
 #include <memory>
+#include <optional>
 #include <variant>
 #include <vector>
 
@@ -81,6 +82,8 @@ static const int32_t pagesize = 65536;
 struct Memory_t {
   Memory_t(int32_t init_page_count);
 
+  void assert_valid_range(int32_t addr, size_t width) const;
+
   int32_t loadInt(int32_t base, int32_t offset);
   uint8_t loadByte(int32_t base, int32_t offset);
   int32_t loadInt8U(int32_t base, int32_t offset);
@@ -123,6 +126,10 @@ struct FuncTable_t {
 
   Func_t read(int32_t index);
   std::monostate set(Num offset, int32_t index, Func_t func);
+  std::monostate setStart(int32_t index);
+
+private:
+  std::optional<int32_t> start_index;
 };
 
 extern FuncTable_t FuncTable;

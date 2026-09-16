@@ -51,7 +51,9 @@ int SymConcrete::width() {
 }
 
 SymExtract::SymExtract(SymVal value, int high, int low)
-    : value(value), high(high), low(low) {}
+    : value(value), high(high), low(low) {
+  assert(value->value_kind() == KindBV);
+}
 
 int SymExtract::size() {
   if (_cached_dag_size.has_value()) {
@@ -150,10 +152,15 @@ SymUnary::SymUnary(UnaryOperation op, SymVal value) : op(op), value(value) {
   switch (op) {
   case BOOL2BV:
     assert(value->value_kind() == KindBool);
-    _width = 32;
+    _width = 32; // Only 32 bit bit vector can be converted to boolean and
+                 // vice versa.
     break;
   case NOT:
     _width = 1;
+    break;
+  case ABS:
+    assert(value->value_kind() == KindFP);
+    _width = value->width();
     break;
   default:
     assert(false && "Unknown unary operation");
@@ -174,18 +181,25 @@ int SymUnary::size() {
 
 ValueKind SymUnary::value_kind() {
   switch (op) {
-  case NOT:
+  case NOT: {
     return ValueKind::KindBool;
-  case BOOL2BV:
+  }
+  case BOOL2BV: {
     return ValueKind::KindBV;
-  default:
+  }
+  case ABS: {
+    return ValueKind::KindFP;
+  }
+  default: {
     assert(false && "Unknown unary operation");
+  }
   }
 }
 
 z3::expr Symbolic::build_z3_expr_aux() {
   if (auto sym = dynamic_cast<Symbol *>(this)) {
     switch (sym->value_kind()) {
+
     case KindBV: {
       return global_z3_ctx().bv_const(
           ("s_int" + std::to_string(sym->get_id())).c_str(), width());
@@ -231,7 +245,6 @@ z3::expr Symbolic::build_z3_expr_aux() {
 
     z3::expr left = binary->lhs->z3_expr();
     z3::expr right = binary->rhs->z3_expr();
-
     switch (binary->op) {
     case EQ_BOOL: {
       return left == right;
@@ -325,7 +338,6 @@ z3::expr Symbolic::build_z3_expr_aux() {
     auto bit_width = 32;
     z3::expr zero_bv = global_z3_ctx().bv_val(0, bit_width);
     z3::expr one_bv = global_z3_ctx().bv_val(1, bit_width);
-
     switch (unary->op) {
     case NOT: {
       return !unary->value->z3_expr();
@@ -333,6 +345,11 @@ z3::expr Symbolic::build_z3_expr_aux() {
     case BOOL2BV: {
       z3::expr bool_expr = unary->value->z3_expr();
       return z3::ite(bool_expr, one_bv, zero_bv);
+    }
+    case ABS: {
+      z3::expr fp_expr = unary->value->z3_expr();
+      return z3::to_expr(global_z3_ctx(),
+                         Z3_mk_fpa_abs(global_z3_ctx(), fp_expr));
     }
     default:
       throw std::runtime_error("Unary operation not supported: " +
@@ -346,7 +363,6 @@ z3::expr Symbolic::build_z3_expr_aux() {
     auto res = s.extract(high, low);
     return res;
   }
-
   throw std::runtime_error("Unsupported symbolic value type");
 }
 

@@ -41,6 +41,7 @@ enum UnaryOperation {
   NOT,     // bool not
   BOOL2BV, // bool to bitvector,
   EXTEND,  // bitvector extension, extend i32 to i64
+  ABS,     // floating-point absolute value
 };
 
 enum ValueKind { KindBV, KindBool, KindFP };

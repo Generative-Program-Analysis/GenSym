@@ -98,6 +98,8 @@ struct Num {
   Num convert_i64_to_f32_s() const;
   Num convert_i64_to_f32_u() const;
 
+  Num trunc_f32_to_i32_s() const;
+  Num trunc_f32_to_i32_u() const;
   Num f32_min(const Num &other) const;
   Num f32_max(const Num &other) const;
   Num f32_copysign(const Num &other) const;

@@ -44,4 +44,3 @@ $(SHARED_LIB): $(OBJ)
 
 clean:
 	rm -rf $(BUILD_DIR)
-	
