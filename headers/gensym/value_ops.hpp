@@ -265,26 +265,51 @@ inline char proj_IntV_char(const PtrVal& v) {
   return static_cast<char>(proj_IntV(intV));
 }
 
+/* Concrete floating-point values are kept in their native representation;
+ * `bw` selects which member of the union is the live one.
+ */
+union FloatV_val {
+  float f32;
+  double f64;
+  long double f80;
+  FloatV_val(FloatData f, size_t bw) {
+    switch (bw) {
+      case 32: f32 = f; break;
+      case 64: f64 = f; break;
+      case 80: f80 = f; break;
+      default: ABORT("Making a float of unsupported bitwidth " << bw);
+    }
+  }
+};
+
 struct FloatV : Value {
-  long double f;
+  FloatV_val f;
   size_t bw;
-  FloatV(long double f, size_t bw=32) : f(f), bw(bw) {
+  FloatV(FloatData f, size_t bw=32) : f(f, bw), bw(bw) {
     hash_combine(hash(), std::string("floatv"));
-    hash_combine(hash(), f);
+    hash_combine(hash(), as_ld());
     hash_combine(hash(), bw);
   }
-  FloatV(const FloatV& v): FloatV(v.f, v.bw) {}
+  FloatV(const FloatV& v) : FloatV(v.as_ld(), v.bw) {}
   std::string toString() const override {
     std::ostringstream ss;
-    ss << "FloatV(f=" << f << ", bw=" << bw << ")";
+    ss << "FloatV(f=" << as_ld() << ", bw=" << bw << ")";
     return ss.str();
   }
   virtual bool is_conc() const override { return true; }
   virtual size_t get_bw() const override { return bw; }
+  FloatData as_ld() const {
+    switch (bw) {
+      case 32: return f.f32;
+      case 64: return f.f64;
+      case 80: return f.f80;
+    }
+    ABORT("Reading a float of unsupported bitwidth " << bw);
+  }
 
   virtual bool compare(const Value* v) const override {
     auto that = static_cast<decltype(this)>(v);
-    if (this->f != that->f) return false;
+    if (this->as_ld() != that->as_ld()) return false;
     return this->bw == that->bw;
   }
   virtual List<PtrVal> to_bytes() {
@@ -295,23 +320,19 @@ struct FloatV : Value {
   }
 };
 
-inline PtrVal make_FloatV(long double f) {
-  auto ret = make_simple<FloatV>(f);
-  return hashconsing(ret);
-}
-
-inline PtrVal make_FloatV(long double f, size_t bw) {
+inline PtrVal make_FloatV(FloatData f, size_t bw=32) {
   auto ret = make_simple<FloatV>(f, bw);
   return hashconsing(ret);
 }
 
 inline PtrVal make_FloatV_fp80(std::array<unsigned char, 10> buf) {
-  //std::cout << "*(long double*)buf.data(): " << *(long double*) buf.data() << std::endl;
-  return make_FloatV(*(long double*) buf.data(), 80);
+  long double f = 0;
+  std::memcpy(&f, buf.data(), buf.size());
+  return make_FloatV(f, 80);
 }
 
-inline long double proj_FloatV(PtrVal v) {
-  return v->to_FloatV()->f;
+inline FloatData proj_FloatV(const PtrVal& v) {
+  return v->to_FloatV()->as_ld();
 }
 
 inline PtrVal ui_tofp(PtrVal v) {
@@ -323,13 +344,12 @@ inline PtrVal ui_tofp(PtrVal v) {
 inline PtrVal fp_toui(PtrVal v, size_t bw) {
   auto fp = v->to_FloatV();
   ASSERT(fp != nullptr, "value passed to fp_toui is not a FloatV");
-  return make_IntV((uint64_t)fp->f, bw);
+  return make_IntV((uint64_t)fp->as_ld(), bw);
 }
 
 inline PtrVal fp_tosi(const PtrVal& v, size_t bw) {
-  auto fp = v->to_FloatV();
-  ASSERT(fp != nullptr, "value passed to fp_tosi is not a FloatV");
-  return make_IntV(fp->f, bw);
+  ASSERT(v->to_FloatV() != nullptr, "value passed to fp_tosi is not a FloatV");
+  return make_IntV(proj_FloatV(v), bw);
 }
 
 inline PtrVal si_tofp(const PtrVal& v) {
@@ -892,52 +912,52 @@ inline PtrVal float_op_2(fOP op, const PtrVal& v1, const PtrVal& v2) {
   }
 
   if (f1 && f2) {
+    auto apply = [&](auto x, auto y) -> PtrVal {
     switch (op) {
-      case fOP::op_fadd:   return make_FloatV(f1->f + f2->f, MAX(f1->bw, f2->bw));
-      case fOP::op_fsub:   return make_FloatV(f1->f - f2->f, MAX(f1->bw, f2->bw));
-      case fOP::op_fmul:   return make_FloatV(f1->f * f2->f, MAX(f1->bw, f2->bw));
-      case fOP::op_fdiv:   return make_FloatV(f1->f / f2->f, MAX(f1->bw, f2->bw));
-      case fOP::op_oeq:    return make_IntV(f1->f == f2->f, 1);
-      case fOP::op_ogt:    return make_IntV(f1->f > f2->f, 1);
-      case fOP::op_oge:    return make_IntV(f1->f >= f2->f, 1);
-      case fOP::op_olt:    return make_IntV(f1->f < f2->f, 1);
-      case fOP::op_ole:    return make_IntV(f1->f <= f2->f, 1);
-      case fOP::op_one:    return make_IntV(f1->f != f2->f, 1);
-      case fOP::op_ueq:    return make_IntV(f1->f == f2->f, 1);
-      case fOP::op_ugt:    return make_IntV(f1->f > f2->f, 1);
-      case fOP::op_uge:    return make_IntV(f1->f >= f2->f, 1);
-      case fOP::op_ult:    return make_IntV(f1->f < f2->f, 1);
-      case fOP::op_ule:    return make_IntV(f1->f <= f2->f, 1);
-      case fOP::op_une:    return make_IntV(f1->f != f2->f, 1);
+      case fOP::op_fadd:   return make_FloatV(x + y, bw1);
+      case fOP::op_fsub:   return make_FloatV(x - y, bw1);
+      case fOP::op_fmul:   return make_FloatV(x * y, bw1);
+      case fOP::op_fdiv:   return make_FloatV(x / y, bw1);
+      case fOP::op_oeq:    return make_IntV(x == y, 1);
+      case fOP::op_ogt:    return make_IntV(x > y, 1);
+      case fOP::op_oge:    return make_IntV(x >= y, 1);
+      case fOP::op_olt:    return make_IntV(x < y, 1);
+      case fOP::op_ole:    return make_IntV(x <= y, 1);
+      case fOP::op_one:    return make_IntV(x != y, 1);
+      case fOP::op_ueq:    return make_IntV(x == y, 1);
+      case fOP::op_ugt:    return make_IntV(x > y, 1);
+      case fOP::op_uge:    return make_IntV(x >= y, 1);
+      case fOP::op_ult:    return make_IntV(x < y, 1);
+      case fOP::op_ule:    return make_IntV(x <= y, 1);
+      case fOP::op_une:    return make_IntV(x != y, 1);
       /* TODO: QNAN <2022-03-10, David Deng> */
       case fOP::op_ord:    return make_IntV(1);
       case fOP::op_uno:    return make_IntV(0);
       case fOP::const_false:  return make_IntV(0, 1);
       case fOP::const_true:   return make_IntV(1, 1);
     }
-    ABORT("Unknown float_op_2 operation");
+    ABORT("Unknown float_op_2 operation");};
+    switch (bw1) {
+      case 32: return apply(f1->f.f32, f2->f.f32);
+      case 64: return apply(f1->f.f64, f2->f.f64);
+      case 80: return apply(f1->f.f80, f2->f.f80);
+    }
+    ABORT("Operating on a float of unsupported bitwidth " << bw1);
   } else {
     ABORT("Non-concrete Float Detected");
-  }
+  }  
 }
-
-/* TODO: implement those two <2022-03-10, David Deng> */
 
 inline PtrVal fp_ext(const PtrVal& v1, int from, int to) {
   auto f1 = v1->to_FloatV();
   ASSERT((f1 != nullptr), "extending a non-FloatV value");
-  return make_FloatV(f1->f, to);
+  return make_FloatV(proj_FloatV(v1), to);
 }
 
 inline PtrVal fp_trunc(const PtrVal& v1, int from, int to) {
   auto f1 = v1->to_FloatV();
   ASSERT((f1 != nullptr), "truncating a non-FloatV value");
-  /* TODO: support other bw values (e.g. fp80) <2022-03-10, David Deng> */
-  switch (to) {
-    case 32: return make_FloatV(float(f1->f), to);
-    case 64: return make_FloatV(double(f1->f), to);
-    default: return make_FloatV(f1->f, to);
-  }
+  return make_FloatV(proj_FloatV(v1), to);
 }
 
 inline std::string ptrval_to_string(const PtrVal& ptr) {
