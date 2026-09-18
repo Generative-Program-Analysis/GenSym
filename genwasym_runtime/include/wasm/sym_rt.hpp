@@ -5,10 +5,6 @@
 #include "config.hpp"
 #include "controls.hpp"
 #include "heap_mem_bookkeeper.hpp"
-#include "immer/map.hpp"
-#include "immer/map_transient.hpp"
-#include "immer/vector.hpp"
-#include "immer/vector_transient.hpp"
 #include "profile.hpp"
 #include "symbolic.hpp"
 #include "symval.hpp"
@@ -34,9 +30,20 @@
 #include <vector>
 
 class Snapshot_t;
+struct SymStackRepr;
+struct SymFramesRepr;
+struct SymMemoryRepr;
+struct PathConditionsRepr;
 
 class SymStack_t {
 public:
+  SymStack_t();
+  ~SymStack_t();
+  SymStack_t(const SymStack_t &other);
+  SymStack_t &operator=(const SymStack_t &other);
+  SymStack_t(SymStack_t &&other) noexcept;
+  SymStack_t &operator=(SymStack_t &&other) noexcept;
+
   void push(SymVal val);
 
   SymVal pop();
@@ -55,11 +62,7 @@ public:
 
 private:
   int symbolic_size = 0;
-#ifdef USE_IMM
-  immer::vector_transient<SymVal> stack;
-#else
-  std::vector<SymVal> stack;
-#endif
+  std::unique_ptr<SymStackRepr> repr_;
 };
 
 extern SymStack_t SymStack;
@@ -67,6 +70,13 @@ extern SymStack_t SymStack;
 class SymFrames_t {
 
 public:
+  SymFrames_t();
+  ~SymFrames_t();
+  SymFrames_t(const SymFrames_t &other);
+  SymFrames_t &operator=(const SymFrames_t &other);
+  SymFrames_t(SymFrames_t &&other) noexcept;
+  SymFrames_t &operator=(SymFrames_t &&other) noexcept;
+
   void restore_frame_ptr(Frames_t &frame) const;
 
   void pushFramePtr();
@@ -93,25 +103,21 @@ private:
   size_t current_frame_base() const;
 
   int symbolic_size = 0;
-#ifdef USE_IMM
-  immer::vector_transient<size_t> frame_ptrs;
-  immer::vector_transient<SymVal> stack;
-#else
-  std::vector<size_t> frame_ptrs;
-  std::vector<SymVal> stack;
-#endif
+  std::unique_ptr<SymFramesRepr> repr_;
 };
 
 struct NodeBox;
-struct SymEnv_t;
+class SymEnv_t;
 
 class SymMemory_t {
 public:
-#ifdef USE_IMM
-  immer::map_transient<int, SymVal> memory;
-#else
-  std::unordered_map<int, SymVal> memory;
-#endif
+  SymMemory_t();
+  ~SymMemory_t();
+  SymMemory_t(const SymMemory_t &other);
+  SymMemory_t &operator=(const SymMemory_t &other);
+  SymMemory_t(SymMemory_t &&other) noexcept;
+  SymMemory_t &operator=(SymMemory_t &&other) noexcept;
+
   int symbolic_size = 0;
 
   SymVal loadSymByte(int32_t addr);
@@ -171,6 +177,13 @@ public:
   std::monostate reset();
 
   int total_sym_size() const;
+
+private:
+  friend void resume_conc_memory(const SymMemory_t &, Memory_t &,
+                                const SymEnv_t &);
+  friend void resume_conc_memory_by_model(const SymMemory_t &, Memory_t &,
+                                         z3::model &);
+  std::unique_ptr<SymMemoryRepr> repr_;
 };
 
 extern SymMemory_t SymMemory;
@@ -274,12 +287,15 @@ struct NodeBox {
   bool isUnexplored() const;
   bool isSnapshotNode() const;
   std::vector<SymVal> collect_path_conds();
-  // Collect and cache path conditions in an immutable vector.
-  immer::vector<SymVal> collect_path_conds_imm();
+  // Collect path conditions using the runtime's shared cache.
+  std::vector<SymVal> collect_path_conds_imm();
 
   [[deprecated]] void reach_here(std::function<void()>);
 
   Node *operator->();
+
+private:
+  const PathConditionsRepr &cached_path_conds();
 };
 
 struct Node {
@@ -305,7 +321,7 @@ protected:
 
 private:
   double instr_cost = 0.0;
-  std::optional<immer::vector<SymVal>> path_conds_cache;
+  std::shared_ptr<const PathConditionsRepr> path_conds_cache;
 };
 
 struct IfElseNode : Node {
