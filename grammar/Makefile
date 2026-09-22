@@ -3,9 +3,9 @@ ANTLR4 = antlr-4.13.0-complete.jar
 
 CURRENT_DIR := $(shell pwd)
 LLVM_OUTPUT = $(CURRENT_DIR)/../src/main/java/llvm
-WASM_OUTPUT = $(CURRENT_DIR)/../src/main/java/wasm
+WASM_OUTPUT = $(CURRENT_DIR)/../src/main/java/genwasym
 LLVM_PACKAGE = gensym.llvm
-WASM_PACKAGE = gensym.wasm
+WASM_PACKAGE = genwasym
 
 llvm:
 	java -jar $(ANTLR4) -o $(LLVM_OUTPUT) -package $(LLVM_PACKAGE) LLVMLexer.g4

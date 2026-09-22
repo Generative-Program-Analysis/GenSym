@@ -1,8 +1,8 @@
-package gensym.wasm.ast
+package genwasym.ast
 
 import scala.collection.mutable.HashMap
-import gensym.wasm.miniwasm.ModuleInstance
-import gensym.wasm.source._
+import genwasym.miniwasm.ModuleInstance
+import genwasym.source._
 
 abstract class WIR
 
@@ -33,7 +33,6 @@ case class ElemListExpr(exprs: List[List[Instr]]) extends ElemList
 abstract class FuncField extends WIR
 case class FuncBodyDef(tipe: FuncType, localNames: List[String], locals: List[ValueType], body: List[Instr])
     extends FuncField
-// TODO: FunInline was never used
 case class FunInlineImport(mod: String, name: String, typeUse: Option[Int], imports: Any /*FIXME*/ ) extends FuncField
 case class FunInlineExport(fd: List[FuncDef]) extends FuncField
 
@@ -148,7 +147,6 @@ case class RefFunc(func: Int) extends Instr
 case class CallRef(ty: Int) extends Instr
 
 case class Resume(ty: Int, ons: List[Handler]) extends Instr
-// TODO: make sure this class wants to extend WIR
 case class Handler(tag: Int, label: Int) extends WIR
 
 // resumable try-catch:
@@ -292,9 +290,7 @@ case class ExportGlobal(i: Int) extends ExportDesc
 
 case class Script(cmds: List[Cmd]) extends WIR
 abstract class Cmd extends WIR
-// TODO: can we turn abstract class sealed?
 case class CmdModule(module: Module) extends Cmd
-// TODO: extend if needed
 case class CMdInstnace() extends Cmd
 
 abstract class Action extends Cmd
@@ -302,7 +298,7 @@ case class Invoke(instName: Option[String], name: String, args: List[Value]) ext
 
 abstract class Assertion extends Cmd
 case class AssertInvalid() extends Assertion
-case class AssertReturn(action: Action, expect: List[Num] /* TODO: support multiple expect result type*/)
+case class AssertReturn(action: Action, expect: List[Num])
     extends Assertion
 case class AssertTrap(action: Action, message: String) extends Assertion
 
@@ -347,4 +343,3 @@ case class RefExternV(externAddr: Int) extends Ref {
 }
 
 case class RTGlobal(ty: GlobalType, var value: Value)
-

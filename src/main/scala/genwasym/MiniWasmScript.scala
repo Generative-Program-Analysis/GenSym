@@ -1,7 +1,7 @@
-package gensym.wasm.miniwasmscript
+package genwasym.miniwasmscript
 
-import gensym.wasm.miniwasm._
-import gensym.wasm.ast._
+import genwasym.miniwasm._
+import genwasym.ast._
 import scala.collection.mutable.{ListBuffer, Map, ArrayBuffer}
 
 sealed class ScriptRunner {

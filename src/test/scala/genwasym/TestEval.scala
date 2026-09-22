@@ -1,15 +1,12 @@
-// TODO: maybe rename this to genwasym?
-// need to rewrite everything in src/main/scala/wasm tho
+package genwasym
 
-package gensym.wasm
-
-import gensym.wasm.ast._
-import gensym.wasm.source._
-import gensym.wasm.parser._
-import gensym.wasm.memory._
-import gensym.wasm.symbolic._
-import gensym.wasm.miniwasm._
-import gensym.wasm.miniwasmscript.ScriptRunner
+import genwasym.ast._
+import genwasym.source._
+import genwasym.parser._
+import genwasym.memory._
+import genwasym.symbolic._
+import genwasym.miniwasm._
+import genwasym.miniwasmscript.ScriptRunner
 import collection.mutable.ArrayBuffer
 
 import org.scalatest.FunSuite
@@ -43,9 +40,8 @@ class TestEval extends FunSuite {
     runner.run(script)
   }
 
-  // TODO: the power test can be used to test the stack
-  // For now: 2^10 works, 2^100 results in 0 (TODO: why?),
-  // and 2^1000 results in a stack overflow
+  // The power test exercises the stack. i32 arithmetic wraps 2^100 to zero;
+  // deep recursion (for example, 2^1000) can overflow the interpreter's stack.
   test("ack") { testFile("./benchmarks/wasm/ack.wat", Some("real_main"), ExpInt(7)) }
   test("power") { testFile("./benchmarks/wasm/pow.wat", Some("real_main"), ExpInt(1024)) }
   test("start") { testFile("./benchmarks/wasm/start.wat") }
@@ -58,7 +54,7 @@ class TestEval extends FunSuite {
   test("tribonacci") { testFile("./benchmarks/wasm/tribonacci.wat", None, ExpInt(504)) }
 
   test("return") {
-    intercept[gensym.wasm.miniwasm.Trap] {
+    intercept[genwasym.miniwasm.Trap] {
       testFile("./benchmarks/wasm/return.wat", Some("$real_main"))
     }
   }

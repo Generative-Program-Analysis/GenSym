@@ -1,7 +1,7 @@
-package gensym.wasm.concolicmemory
+package genwasym.concolicmemory
 
-import gensym.wasm.symbolic._
-import gensym.wasm.ast._
+import genwasym.symbolic._
+import genwasym.ast._
 
 import scala.collection.mutable.HashMap
 

@@ -1,8 +1,8 @@
-package gensym.wasm.miniwasm
+package genwasym.miniwasm
 
-import gensym.wasm.ast._
-import gensym.wasm.source._
-import gensym.wasm.memory._
+import genwasym.ast._
+import genwasym.source._
+import genwasym.memory._
 
 import scala.collection.mutable.ArrayBuffer
 import scala.collection.mutable.HashMap

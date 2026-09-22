@@ -1,4 +1,4 @@
-package gensym.wasm
+package genwasym
 
 import java.io.{File, PrintWriter}
 import org.scalatest.FunSuite

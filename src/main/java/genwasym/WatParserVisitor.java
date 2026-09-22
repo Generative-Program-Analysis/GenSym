@@ -1,5 +1,5 @@
 // Generated from WatParser.g4 by ANTLR 4.13.0
-package gensym.wasm;
+package genwasym;
 import org.antlr.v4.runtime.tree.ParseTreeVisitor;
 
 /**

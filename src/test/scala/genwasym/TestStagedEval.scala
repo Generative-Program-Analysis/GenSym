@@ -1,10 +1,10 @@
-package gensym.wasm
+package genwasym
 
 import lms.core.stub.Adapter
 
-import gensym.wasm.parser._
-import gensym.wasm.miniwasm._
-import gensym.wasm.stagedminiwasm._
+import genwasym.parser._
+import genwasym.miniwasm._
+import genwasym.stagedminiwasm._
 
 class TestStagedEval extends CppCompilationTestBase {
   def testFileToScala(filename: String, main: Option[String] = None, printRes: Boolean = false) = {

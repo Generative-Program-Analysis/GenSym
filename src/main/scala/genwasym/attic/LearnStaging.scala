@@ -1,4 +1,4 @@
-package gensym.wasm.learnstaging
+package genwasym.learnstaging
 
 import lms.core.stub._
 import lms.macros.SourceContext

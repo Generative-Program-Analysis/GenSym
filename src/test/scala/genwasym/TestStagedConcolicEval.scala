@@ -1,10 +1,10 @@
-package gensym.wasm
+package genwasym
 
 import lms.core.stub.Adapter
 
-import gensym.wasm.miniwasm.{ModuleInstance}
-import gensym.wasm.parser._
-import gensym.wasm.stagedconcolicminiwasm._
+import genwasym.miniwasm.{ModuleInstance}
+import genwasym.parser._
+import genwasym.stagedconcolicminiwasm._
 
 class TestStagedConcolicEval extends CppCompilationTestBase {
   private def runConcolicExe(exePath: String, extraEnv: (String, String)*): String =
@@ -150,7 +150,6 @@ class TestStagedConcolicEval extends CppCompilationTestBase {
   // test("loop - concrete") { testFileConcreteCpp("./benchmarks/wasm/loop.wat", None, expect=Some(List(10))) }
   test("even-odd - concrete") { testFileConcreteCpp("./benchmarks/wasm/even_odd.wat", None, expect=Some(List(1))) }
   test("global - concrete") { testFileConcreteCpp("./benchmarks/wasm/global-sym.wat", None) }
-  // TODO: Waiting symbolic memory's implementations
   test("load - concrete") { testFileConcreteCpp("./benchmarks/wasm/load.wat", None, expect=Some(List(1))) }
   test("select - concrete") { testFileConcreteCpp("./benchmarks/wasm/select.wat", Some("real_main")) }
   test("load overflow 1 - concrete") { testFileConcreteCpp("./benchmarks/wasm/load-overflow1.wat", None, expect=Some(List(1))) }
