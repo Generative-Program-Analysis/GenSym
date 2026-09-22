@@ -194,12 +194,14 @@ sbt 'runMain genwasym.GenWasym --input benchmarks/wasm/fib.wat --output target/g
 ```
 
 The CLI writes C++ source. Build the GenWasym runtime, then compile and link the
-generated program with `libgenwasym.a` and Z3:
+generated program with `libgenwasym.a` and Z3. 
+GenWasym uses Z3 for constraint solving and requires Z3 have been installed. Set `Z3_PREFIX` to the absolute
+path of your Z3 installation, containing `include/` and `lib/`:
 
 ```sh
-make -C genwasym_runtime
+Z3_PREFIX="/absolute/path/to/z3"
+make -C genwasym_runtime Z3_PREFIX="$Z3_PREFIX"
 
-Z3_PREFIX="$PWD/third-party/z3/build/z3_install/usr/local"
 clang++ -std=c++17 -DUSE_IMM \
   -Igenwasym_runtime/include -Iheaders -Ithird-party/immer \
   -I"$Z3_PREFIX/include" \
