@@ -3,7 +3,6 @@
 
 #include "concrete_num.hpp"
 #include "controls.hpp"
-#include "immer/vector_transient.hpp"
 #include <cstdint>
 #include <memory>
 #include <optional>
@@ -39,9 +38,16 @@ class SymFrames_t;
 
 const int FRAME_SIZE = 1024 * 8;
 
+struct FramesRepr;
+
 class Frames_t {
 public:
   Frames_t();
+  ~Frames_t();
+  Frames_t(const Frames_t &other);
+  Frames_t &operator=(const Frames_t &other);
+  Frames_t(Frames_t &&other) noexcept;
+  Frames_t &operator=(Frames_t &&other) noexcept;
 
   std::monostate popFrameCaller(std::int32_t size);
   std::monostate popFrameCallee(std::int32_t size);
@@ -62,11 +68,7 @@ private:
   int32_t count;
   Num *stack_ptr;
 
-#ifdef USE_IMM
-  immer::vector_transient<size_t> frame_ptrs;
-#else
-  std::vector<size_t> frame_ptrs;
-#endif
+  std::unique_ptr<FramesRepr> repr_;
 };
 
 extern Frames_t Frames;
