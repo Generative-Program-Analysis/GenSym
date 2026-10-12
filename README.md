@@ -11,6 +11,15 @@ are two tools in the GenSym:
 Both tools achieve high performance by the usage of advanced compiler
 technologies and applying continuations for different optimization.
 
+## Table of contents
+
+- [GenSym](#gensym---symbolic-execution-engine-for-llvm-ir)
+  - [Usage of GenSym](#usage-of-gensym)
+  - [Demonstration](#demonstration)
+  - [Precompiled native runtime](#precompiled-native-runtime)
+- [GenWasym](#genwasym---concolic-execution-engine-for-webassembly)
+  - [Usage of GenWasym](#usage-of-genwasym)
+- [Publications](#publications)
 
 ## GenSym - Symbolic Execution Engine for LLVM IR
 
@@ -296,7 +305,7 @@ If you would like to mention GenSym/GenWasym in research papers, please cite the
 * Compiling WebAssembly Concolic Execution with Staging, Continuations, and Snapshots  
   Dinghong Zhong, Alexander Bai, Mikail Khan, Guannan Wei  
   Proceedings of the ACM on Programming Languages, Volume 10 (OOPSLA 2026)  
-  [Paper (ACM DL)](https://dl.acm.org/doi/10.1145/3839498)
+  [PDF](https://continuation.passing.style/static/papers/zhong26.pdf)
 
 Other related publications:
   
