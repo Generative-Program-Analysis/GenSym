@@ -201,7 +201,7 @@ class TestStagedConcolicEval extends CppCompilationTestBase {
   }
 
   test("small-snapshot-concrete") {
-    testFileConcreteCpp("./benchmarks/wasm/compare_wasp/small-snapshot.wat", Some("main"))
+    testFileConcreteCpp("./benchmarks/wasm/compare_wasp/small-snapshot.wat", Some("main"), expect=Some(List(19)))
   }
 
   // TODO: support float point operations in symbolic semantics

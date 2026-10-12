@@ -1,9 +1,23 @@
 #include "wasm/union_find.hpp"
+#include "runtime_repr.hpp"
 
-UnionFind::UnionFind() = default;
+UnionFind::UnionFind() : repr_(std::make_unique<UnionFindRepr>()) {}
+UnionFind::~UnionFind() = default;
+UnionFind::UnionFind(UnionFind &&other) noexcept = default;
+UnionFind &UnionFind::operator=(UnionFind &&other) noexcept = default;
+
+UnionFind::UnionFind(const UnionFind &other)
+    : repr_(other.repr_ ? std::make_unique<UnionFindRepr>(*other.repr_)
+                       : std::make_unique<UnionFindRepr>()) {}
+
+UnionFind &UnionFind::operator=(const UnionFind &other) {
+  if (this != &other) *this = UnionFind(other);
+  return *this;
+}
 
 int UnionFind::find(int x) const {
-  auto parent_opt = parent.find(x);
+  if (!repr_) return x;
+  auto parent_opt = repr_->parent.find(x);
   if (!parent_opt) {
     return x;
   }
@@ -14,6 +28,7 @@ int UnionFind::find(int x) const {
 }
 
 void UnionFind::unite(int x, int y) {
+  if (!repr_) repr_ = std::make_unique<UnionFindRepr>();
   int root_x = find(x);
   int root_y = find(y);
 
@@ -21,18 +36,18 @@ void UnionFind::unite(int x, int y) {
     return;
   }
 
-  auto rank_x_ptr = rank.find(root_x);
-  auto rank_y_ptr = rank.find(root_y);
+  auto rank_x_ptr = repr_->rank.find(root_x);
+  auto rank_y_ptr = repr_->rank.find(root_y);
   int rank_x = rank_x_ptr ? *rank_x_ptr : 0;
   int rank_y = rank_y_ptr ? *rank_y_ptr : 0;
 
   if (rank_x < rank_y) {
-    parent.set(root_x, root_y);
+    repr_->parent.set(root_x, root_y);
   } else if (rank_x > rank_y) {
-    parent.set(root_y, root_x);
+    repr_->parent.set(root_y, root_x);
   } else {
-    parent.set(root_y, root_x);
-    rank.set(root_x, rank_x + 1);
+    repr_->parent.set(root_y, root_x);
+    repr_->rank.set(root_x, rank_x + 1);
   }
 }
 
@@ -41,6 +56,8 @@ bool UnionFind::connected(int x, int y) const {
 }
 
 void UnionFind::clear() {
-  parent = immer::map_transient<int, int>();
-  rank = immer::map_transient<int, int>();
+  if (repr_) {
+    repr_->parent = {};
+    repr_->rank = {};
+  }
 }

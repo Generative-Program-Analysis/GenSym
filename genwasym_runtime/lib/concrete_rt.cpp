@@ -1,4 +1,5 @@
 #include "wasm/concrete_rt.hpp"
+#include "runtime_repr.hpp"
 
 #include <cassert>
 #include <cstdio>
@@ -114,24 +115,40 @@ void Stack_t::set_from_front(int32_t index, const Num &num) {
   stack_ptr[index] = num;
 }
 
-Frames_t::Frames_t() : count(0), stack_ptr(new Num[FRAME_SIZE]), frame_ptrs() {
+Frames_t::Frames_t()
+    : count(0), stack_ptr(new Num[FRAME_SIZE]),
+      repr_(std::make_unique<FramesRepr>()) {
   size_t page_size = static_cast<size_t>(sysconf(_SC_PAGESIZE));
   for (int i = 0; i < FRAME_SIZE; i += page_size) {
     stack_ptr[i] = Num(0);
   }
 }
 
+Frames_t::~Frames_t() = default;
+Frames_t::Frames_t(Frames_t &&other) noexcept = default;
+Frames_t &Frames_t::operator=(Frames_t &&other) noexcept = default;
+
+Frames_t::Frames_t(const Frames_t &other)
+    : count(other.count), stack_ptr(other.stack_ptr),
+      repr_(other.repr_ ? std::make_unique<FramesRepr>(*other.repr_)
+                       : std::make_unique<FramesRepr>()) {}
+
+Frames_t &Frames_t::operator=(const Frames_t &other) {
+  if (this != &other) *this = Frames_t(other);
+  return *this;
+}
+
 std::monostate Frames_t::popFrameCaller(std::int32_t size) {
   assert(size >= 0);
   assert(size <= count);
-  assert(!frame_ptrs.empty());
+  assert(!repr_->frame_ptrs.empty());
   auto frame_base = current_frame_base();
   assert(frame_base + size == count);
   count -= size;
 #ifdef USE_IMM
-  frame_ptrs.take(frame_ptrs.size() - 1);
+  repr_->frame_ptrs.take(repr_->frame_ptrs.size() - 1);
 #else
-  frame_ptrs.pop_back();
+  repr_->frame_ptrs.pop_back();
 #endif
   return std::monostate{};
 }
@@ -144,7 +161,7 @@ std::monostate Frames_t::popFrameCallee(std::int32_t size) {
 }
 
 Num Frames_t::get(std::int32_t index) {
-  assert(!frame_ptrs.empty() && "No active frame");
+  assert(!repr_->frame_ptrs.empty() && "No active frame");
   auto frame_base = current_frame_base();
   assert(index >= 0 && frame_base + index < count && "Index out of bounds");
   Profile.step(StepProfileKind::GET);
@@ -153,7 +170,7 @@ Num Frames_t::get(std::int32_t index) {
 }
 
 void Frames_t::set(std::int32_t index, Num num) {
-  assert(!frame_ptrs.empty() && "No active frame");
+  assert(!repr_->frame_ptrs.empty() && "No active frame");
   auto frame_base = current_frame_base();
   assert(index >= 0 && frame_base + index < count && "Index out of bounds");
   Profile.step(StepProfileKind::SET);
@@ -161,8 +178,9 @@ void Frames_t::set(std::int32_t index, Num num) {
 }
 
 void Frames_t::pushFrameCaller(std::int32_t size) {
+  if (!repr_) repr_ = std::make_unique<FramesRepr>();
   assert(size >= 0);
-  frame_ptrs.push_back(count);
+  repr_->frame_ptrs.push_back(count);
   count += size;
   for (std::int32_t i = 0; i < size; ++i) {
     stack_ptr[count - size + i] = Num(0);
@@ -171,7 +189,7 @@ void Frames_t::pushFrameCaller(std::int32_t size) {
 
 void Frames_t::pushFrameCallee(std::int32_t size) {
   assert(size >= 0);
-  assert(!frame_ptrs.empty() && "No active frame");
+  assert(!repr_->frame_ptrs.empty() && "No active frame");
   auto old_count = count;
   count += size;
   for (std::int32_t i = 0; i < size; ++i) {
@@ -181,11 +199,7 @@ void Frames_t::pushFrameCallee(std::int32_t size) {
 
 void Frames_t::reset() {
   count = 0;
-#ifdef USE_IMM
-  frame_ptrs = immer::vector_transient<size_t>();
-#else
-  frame_ptrs.clear();
-#endif
+  if (repr_) repr_->frame_ptrs = {};
 }
 
 size_t Frames_t::size() const { return count; }
@@ -201,11 +215,7 @@ void Frames_t::resize(int32_t new_size) {
 }
 
 size_t Frames_t::current_frame_base() const {
-#ifdef USE_IMM
-  return *(frame_ptrs.end() - 1);
-#else
-  return frame_ptrs.back();
-#endif
+  return repr_->frame_ptrs[repr_->frame_ptrs.size() - 1];
 }
 
 void initRand() {

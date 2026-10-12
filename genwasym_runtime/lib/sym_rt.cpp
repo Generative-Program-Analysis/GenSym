@@ -1,4 +1,5 @@
 #include "wasm/sym_rt.hpp"
+#include "runtime_repr.hpp"
 
 SymStack_t SymStack;
 SymMemory_t SymMemory;
@@ -9,66 +10,112 @@ ExploreTree_t ExploreTree;
 
 int Node::current_id = 0;
 
+SymStack_t::SymStack_t() : repr_(std::make_unique<SymStackRepr>()) {}
+SymStack_t::~SymStack_t() = default;
+SymStack_t::SymStack_t(SymStack_t &&other) noexcept = default;
+SymStack_t &SymStack_t::operator=(SymStack_t &&other) noexcept = default;
+
+SymStack_t::SymStack_t(const SymStack_t &other)
+    : symbolic_size(other.symbolic_size),
+      repr_(other.repr_ ? std::make_unique<SymStackRepr>(*other.repr_)
+                       : std::make_unique<SymStackRepr>()) {}
+
+SymStack_t &SymStack_t::operator=(const SymStack_t &other) {
+  if (this != &other) *this = SymStack_t(other);
+  return *this;
+}
+
+SymFrames_t::SymFrames_t() : repr_(std::make_unique<SymFramesRepr>()) {}
+SymFrames_t::~SymFrames_t() = default;
+SymFrames_t::SymFrames_t(SymFrames_t &&other) noexcept = default;
+SymFrames_t &SymFrames_t::operator=(SymFrames_t &&other) noexcept = default;
+
+SymFrames_t::SymFrames_t(const SymFrames_t &other)
+    : symbolic_size(other.symbolic_size),
+      repr_(other.repr_ ? std::make_unique<SymFramesRepr>(*other.repr_)
+                       : std::make_unique<SymFramesRepr>()) {}
+
+SymFrames_t &SymFrames_t::operator=(const SymFrames_t &other) {
+  if (this != &other) *this = SymFrames_t(other);
+  return *this;
+}
+
+SymMemory_t::SymMemory_t() : repr_(std::make_unique<SymMemoryRepr>()) {}
+SymMemory_t::~SymMemory_t() = default;
+SymMemory_t::SymMemory_t(SymMemory_t &&other) noexcept = default;
+SymMemory_t &SymMemory_t::operator=(SymMemory_t &&other) noexcept = default;
+
+SymMemory_t::SymMemory_t(const SymMemory_t &other)
+    : symbolic_size(other.symbolic_size),
+      repr_(other.repr_ ? std::make_unique<SymMemoryRepr>(*other.repr_)
+                       : std::make_unique<SymMemoryRepr>()) {}
+
+SymMemory_t &SymMemory_t::operator=(const SymMemory_t &other) {
+  if (this != &other) *this = SymMemory_t(other);
+  return *this;
+}
+
 void SymStack_t::push(SymVal val) {
+  if (!repr_) repr_ = std::make_unique<SymStackRepr>();
   // Push a symbolic value to the stack
-  stack.push_back(val);
+  repr_->stack.push_back(val);
 }
 
 SymVal SymStack_t::pop() {
   // Pop a symbolic value from the stack
   if (DEBUG_ENABLED) {
     printf("[Debug] poping from stack, size of symbolic stack is: %zu\n",
-           stack.size());
+           repr_->stack.size());
   }
+  auto ret = repr_->stack[repr_->stack.size() - 1];
 #ifdef USE_IMM
-  auto ret = *(stack.end() - 1);
-  stack.take(stack.size() - 1);
-  return ret;
+  repr_->stack.take(repr_->stack.size() - 1);
 #else
-  auto ret = stack.back();
-  stack.pop_back();
-  return ret;
+  repr_->stack.pop_back();
 #endif
+  return ret;
 }
 
-SymVal SymStack_t::peek() { return *(stack.end() - 1); }
+SymVal SymStack_t::peek() { return repr_->stack[repr_->stack.size() - 1]; }
 
 std::monostate SymStack_t::shift(int32_t offset, int32_t size) {
-  auto n = stack.size();
+  if (!repr_) {
+    assert(offset == 0 && size == 0);
+    return std::monostate{};
+  }
+  auto n = repr_->stack.size();
   for (size_t i = n - size; i < n; ++i) {
     assert(i - offset >= 0);
 #ifdef USE_IMM
-    stack.set(i - offset, stack[i]);
+    repr_->stack.set(i - offset, repr_->stack[i]);
 #else
-    stack[i - offset] = stack[i];
+    repr_->stack[i - offset] = repr_->stack[i];
 #endif
   }
 #ifdef USE_IMM
-  stack.take(n - offset);
+  repr_->stack.take(n - offset);
 #else
-  stack.erase(stack.begin() + (n - offset), stack.end());
+  repr_->stack.erase(repr_->stack.begin() + (n - offset), repr_->stack.end());
 #endif
   return std::monostate();
 }
 
 void SymStack_t::reset() {
-// Reset the symbolic stack
-#ifdef USE_IMM
-  stack = immer::vector_transient<SymVal>();
-#else
-  stack.clear();
-#endif
+  if (!repr_) repr_ = std::make_unique<SymStackRepr>();
+  // Reset the symbolic stack
+  repr_->stack = {};
   symbolic_size = 0;
 }
 
-size_t SymStack_t::size() const { return stack.size(); }
+size_t SymStack_t::size() const { return repr_ ? repr_->stack.size() : 0; }
 
-SymVal SymStack_t::operator[](size_t index) const { return stack[index]; }
+SymVal SymStack_t::operator[](size_t index) const { return repr_->stack[index]; }
 
 int SymStack_t::total_sym_size() const {
+  if (!repr_) return 0;
   ManagedTimer timer(TimeProfileKind::COUNT_SYM_SIZE);
   int total_size = 0;
-  for (const auto &val : stack) {
+  for (const auto &val : repr_->stack) {
     // std::cout << "Symbolic Expression: " << val->z3_expr() << "\n";
     // std::cout << "Val size: " << val.size() << "\n";
     total_size += val->size();
@@ -77,52 +124,50 @@ int SymStack_t::total_sym_size() const {
 }
 
 void SymFrames_t::pushFramePtr() {
-#ifdef USE_IMM
-  frame_ptrs.push_back(stack.size());
-#else
-  frame_ptrs.push_back(stack.size());
-#endif
+  if (!repr_) repr_ = std::make_unique<SymFramesRepr>();
+  repr_->frame_ptrs.push_back(repr_->stack.size());
 }
 
 void SymFrames_t::pushFrameSlot(int width) {
-#ifdef USE_IMM
-  stack.push_back(SVFactory::make_concrete_bv(I64V(0), width));
-#else
-  stack.emplace_back(SVFactory::make_concrete_bv(I64V(0), width));
-#endif
+  if (!repr_) repr_ = std::make_unique<SymFramesRepr>();
+  repr_->stack.push_back(SVFactory::make_concrete_bv(I64V(0), width));
 }
 
 std::monostate SymFrames_t::popFrameCaller(int size) {
   assert(size >= 0);
-  assert(static_cast<size_t>(size) <= stack.size());
-  assert(!frame_ptrs.empty());
+  assert(static_cast<size_t>(size) <= repr_->stack.size());
+  assert(!repr_->frame_ptrs.empty());
   auto frame_base = current_frame_base();
-  assert(frame_base + size == stack.size());
+  assert(frame_base + size == repr_->stack.size());
 
 #ifdef USE_IMM
-  stack.take(stack.size() - size);
+  repr_->stack.take(repr_->stack.size() - size);
 #else
-  stack.erase(stack.end() - size, stack.end());
+  repr_->stack.erase(repr_->stack.end() - size, repr_->stack.end());
 #endif
 
 #ifdef USE_IMM
-  frame_ptrs.take(frame_ptrs.size() - 1);
+  repr_->frame_ptrs.take(repr_->frame_ptrs.size() - 1);
 #else
-  frame_ptrs.pop_back();
+  repr_->frame_ptrs.pop_back();
 #endif
 
   return std::monostate{};
 }
 
 std::monostate SymFrames_t::popFrameCallee(int size) {
+  if (!repr_) {
+    assert(size == 0);
+    return std::monostate{};
+  }
   // Pop the frame of the given size
   assert(size >= 0);
-  assert(static_cast<size_t>(size) <= stack.size());
+  assert(static_cast<size_t>(size) <= repr_->stack.size());
 
 #ifdef USE_IMM
-  stack.take(stack.size() - size);
+  repr_->stack.take(repr_->stack.size() - size);
 #else
-  stack.erase(stack.end() - size, stack.end());
+  repr_->stack.erase(repr_->stack.end() - size, repr_->stack.end());
 #endif
 
   return std::monostate{};
@@ -130,66 +175,59 @@ std::monostate SymFrames_t::popFrameCallee(int size) {
 
 SymVal SymFrames_t::get(int index) {
   // Get the symbolic value at the given frame index
-  assert(!frame_ptrs.empty());
+  assert(!repr_->frame_ptrs.empty());
   auto frame_base = current_frame_base();
   assert(index >= 0 &&
-         static_cast<size_t>(frame_base + index) < stack.size());
-  auto res = stack[frame_base + index];
+         static_cast<size_t>(frame_base + index) < repr_->stack.size());
+  auto res = repr_->stack[frame_base + index];
   return res;
 }
 
 void SymFrames_t::set(int index, SymVal val) {
   // Set the symbolic value at the given index
   assert(val.symptr != nullptr);
-  assert(!frame_ptrs.empty());
+  assert(!repr_->frame_ptrs.empty());
   auto frame_base = current_frame_base();
   assert(index >= 0 &&
-         static_cast<size_t>(frame_base + index) < stack.size());
+         static_cast<size_t>(frame_base + index) < repr_->stack.size());
 #ifdef USE_IMM
-  stack.set(frame_base + index, val);
+  repr_->stack.set(frame_base + index, val);
 #else
-  stack[frame_base + index] = val;
+  repr_->stack[frame_base + index] = val;
 #endif
 }
 
 void SymFrames_t::reset() {
+  if (!repr_) repr_ = std::make_unique<SymFramesRepr>();
   // Reset the symbolic frames
-
-#ifdef USE_IMM
-  stack = immer::vector_transient<SymVal>();
-  frame_ptrs = immer::vector_transient<size_t>();
-#else
-  stack.clear();
-  frame_ptrs.clear();
-#endif
+  repr_->stack = {};
+  repr_->frame_ptrs = {};
   symbolic_size = 0;
 }
 
-size_t SymFrames_t::size() const { return stack.size(); }
+size_t SymFrames_t::size() const { return repr_ ? repr_->stack.size() : 0; }
 
-SymVal SymFrames_t::operator[](size_t index) const { return stack[index]; }
+SymVal SymFrames_t::operator[](size_t index) const { return repr_->stack[index]; }
 
 int SymFrames_t::total_sym_size() const {
+  if (!repr_) return 0;
   ManagedTimer timer(TimeProfileKind::COUNT_SYM_SIZE);
   int total_size = 0;
-  for (const auto &val : stack) {
+  for (const auto &val : repr_->stack) {
     total_size += val->size();
   }
   return total_size;
 }
 
 size_t SymFrames_t::current_frame_base() const {
-#ifdef USE_IMM
-  return *(frame_ptrs.end() - 1);
-#else
-  return frame_ptrs.back();
-#endif
+  return repr_->frame_ptrs[repr_->frame_ptrs.size() - 1];
 }
 
 SymVal SymMemory_t::loadSymByte(int32_t addr) {
-// if the address is not in the memory, it must be a zero-initialized memory
+  if (!repr_) repr_ = std::make_unique<SymMemoryRepr>();
+  // If the address is absent, the memory is zero-initialized.
 #ifdef USE_IMM
-  auto it = memory.find(addr);
+  auto it = repr_->memory.find(addr);
   if (it != nullptr) {
     return *it;
   } else {
@@ -197,79 +235,81 @@ SymVal SymMemory_t::loadSymByte(int32_t addr) {
     return s;
   }
 #else
-  auto it = memory.find(addr);
-  SymVal s = (it != memory.end()) ? it->second : SVFactory::ZeroByte;
+  auto it = repr_->memory.find(addr);
+  SymVal s = (it != repr_->memory.end()) ? it->second : SVFactory::ZeroByte;
   return s;
 #endif
 }
 
 SymVal SymMemory_t::loadSym(int32_t base, int32_t offset) {
+  if (!repr_) repr_ = std::make_unique<SymMemoryRepr>();
   // calculate the real address
 
 #ifdef USE_IMM
   int32_t addr = base + offset;
-  auto it = memory.find(addr);
+  auto it = repr_->memory.find(addr);
   SymVal s0 = it ? *it : SVFactory::ZeroByte;
-  it = memory.find(addr + 1);
+  it = repr_->memory.find(addr + 1);
   SymVal s1 = it ? *it : SVFactory::ZeroByte;
-  it = memory.find(addr + 2);
+  it = repr_->memory.find(addr + 2);
   SymVal s2 = it ? *it : SVFactory::ZeroByte;
-  it = memory.find(addr + 3);
+  it = repr_->memory.find(addr + 3);
   SymVal s3 = it ? *it : SVFactory::ZeroByte;
 
   return s3.concat(s2).concat(s1).concat(s0);
 #else
   int32_t addr = base + offset;
-  auto it = memory.find(addr);
-  SymVal s0 = (it != memory.end()) ? it->second : SVFactory::ZeroByte;
-  it = memory.find(addr + 1);
-  SymVal s1 = (it != memory.end()) ? it->second : SVFactory::ZeroByte;
-  it = memory.find(addr + 2);
-  SymVal s2 = (it != memory.end()) ? it->second : SVFactory::ZeroByte;
-  it = memory.find(addr + 3);
-  SymVal s3 = (it != memory.end()) ? it->second : SVFactory::ZeroByte;
+  auto it = repr_->memory.find(addr);
+  SymVal s0 = (it != repr_->memory.end()) ? it->second : SVFactory::ZeroByte;
+  it = repr_->memory.find(addr + 1);
+  SymVal s1 = (it != repr_->memory.end()) ? it->second : SVFactory::ZeroByte;
+  it = repr_->memory.find(addr + 2);
+  SymVal s2 = (it != repr_->memory.end()) ? it->second : SVFactory::ZeroByte;
+  it = repr_->memory.find(addr + 3);
+  SymVal s3 = (it != repr_->memory.end()) ? it->second : SVFactory::ZeroByte;
 
   return s3.concat(s2).concat(s1).concat(s0);
 #endif
 }
 
 SymVal SymMemory_t::loadSymLong(int32_t base, int32_t offset) {
+  if (!repr_) repr_ = std::make_unique<SymMemoryRepr>();
 #ifdef USE_IMM
   int32_t addr = base + offset;
-  auto it = memory.find(addr);
+  auto it = repr_->memory.find(addr);
   SymVal s0 = it ? *it : SVFactory::ZeroByte;
-  it = memory.find(addr + 1);
+  it = repr_->memory.find(addr + 1);
   SymVal s1 = it ? *it : SVFactory::ZeroByte;
-  it = memory.find(addr + 2);
+  it = repr_->memory.find(addr + 2);
   SymVal s2 = it ? *it : SVFactory::ZeroByte;
-  it = memory.find(addr + 3);
+  it = repr_->memory.find(addr + 3);
   SymVal s3 = it ? *it : SVFactory::ZeroByte;
-  it = memory.find(addr + 4);
+  it = repr_->memory.find(addr + 4);
   SymVal s4 = it ? *it : SVFactory::ZeroByte;
-  it = memory.find(addr + 5);
+  it = repr_->memory.find(addr + 5);
   SymVal s5 = it ? *it : SVFactory::ZeroByte;
-  it = memory.find(addr + 6);
+  it = repr_->memory.find(addr + 6);
   SymVal s6 = it ? *it : SVFactory::ZeroByte;
-  it = memory.find(addr + 7);
+  it = repr_->memory.find(addr + 7);
   SymVal s7 = it ? *it : SVFactory::ZeroByte;
 #else
   int32_t addr = base + offset;
-  auto it = memory.find(addr);
-  SymVal s0 = (it != memory.end()) ? it->second : SVFactory::ZeroByte;
-  it = memory.find(addr + 1);
-  SymVal s1 = (it != memory.end()) ? it->second : SVFactory::ZeroByte;
-  it = memory.find(addr + 2);
-  SymVal s2 = (it != memory.end()) ? it->second : SVFactory::ZeroByte;
-  it = memory.find(addr + 3);
-  SymVal s3 = (it != memory.end()) ? it->second : SVFactory::ZeroByte;
-  it = memory.find(addr + 4);
-  SymVal s4 = (it != memory.end()) ? it->second : SVFactory::ZeroByte;
-  it = memory.find(addr + 5);
-  SymVal s5 = (it != memory.end()) ? it->second : SVFactory::ZeroByte;
-  it = memory.find(addr + 6);
-  SymVal s6 = (it != memory.end()) ? it->second : SVFactory::ZeroByte;
-  it = memory.find(addr + 7);
-  SymVal s7 = (it != memory.end()) ? it->second : SVFactory::ZeroByte;
+  auto it = repr_->memory.find(addr);
+  SymVal s0 = (it != repr_->memory.end()) ? it->second : SVFactory::ZeroByte;
+  it = repr_->memory.find(addr + 1);
+  SymVal s1 = (it != repr_->memory.end()) ? it->second : SVFactory::ZeroByte;
+  it = repr_->memory.find(addr + 2);
+  SymVal s2 = (it != repr_->memory.end()) ? it->second : SVFactory::ZeroByte;
+  it = repr_->memory.find(addr + 3);
+  SymVal s3 = (it != repr_->memory.end()) ? it->second : SVFactory::ZeroByte;
+  it = repr_->memory.find(addr + 4);
+  SymVal s4 = (it != repr_->memory.end()) ? it->second : SVFactory::ZeroByte;
+  it = repr_->memory.find(addr + 5);
+  SymVal s5 = (it != repr_->memory.end()) ? it->second : SVFactory::ZeroByte;
+  it = repr_->memory.find(addr + 6);
+  SymVal s6 = (it != repr_->memory.end()) ? it->second : SVFactory::ZeroByte;
+  it = repr_->memory.find(addr + 7);
+  SymVal s7 = (it != repr_->memory.end()) ? it->second : SVFactory::ZeroByte;
 #endif
 
   return s7.concat(s6)
@@ -449,20 +489,21 @@ std::monostate SymMemory_t::storeSymDouble(int32_t base, int32_t offset, SymVal 
 }
 
 std::monostate SymMemory_t::storeSymByte(int32_t addr, SymVal value) {
+  if (!repr_) repr_ = std::make_unique<SymMemoryRepr>();
   // assume the input value is 8-bit symbolic value
   bool exists;
 #ifdef USE_IMM
-  auto it = memory.find(addr);
+  auto it = repr_->memory.find(addr);
   exists = (it != nullptr);
 #else
-  auto it = memory.find(addr);
-  exists = (it != memory.end());
+  auto it = repr_->memory.find(addr);
+  exists = (it != repr_->memory.end());
 #endif
   auto old_value = loadSymByte(addr);
 #ifdef USE_IMM
-  memory.set(addr, value);
+  repr_->memory.set(addr, value);
 #else
-  auto inserted = memory.insert({addr, value});
+  auto inserted = repr_->memory.insert({addr, value});
   if (!inserted.second) {
     inserted.first->second = value;
   }
@@ -471,18 +512,15 @@ std::monostate SymMemory_t::storeSymByte(int32_t addr, SymVal value) {
 }
 
 std::monostate SymMemory_t::reset() {
-#ifdef USE_IMM
-  memory = immer::map_transient<int, SymVal>();
-#else
-  memory.clear();
-#endif
+  if (repr_) repr_->memory = {};
   return std::monostate{};
 }
 
 int SymMemory_t::total_sym_size() const {
+  if (!repr_) return 0;
   ManagedTimer timer(TimeProfileKind::COUNT_SYM_SIZE);
   int total_size = 0;
-  for (const auto &[_, val] : memory) {
+  for (const auto &[_, val] : repr_->memory) {
     total_size += val->size();
   }
   return total_size;
@@ -1045,7 +1083,8 @@ EvalRes::EvalRes(Num value, int width, ValueKind kind)
       : value(value), width(width), kind(kind) {}
 
 void SymFrames_t::restore_frame_ptr(Frames_t &frame) const {
-  frame.frame_ptrs = frame_ptrs;
+  if (!frame.repr_) frame.repr_ = std::make_unique<FramesRepr>();
+  frame.repr_->frame_ptrs = repr_ ? repr_->frame_ptrs : FramePointers{};
 }
 
 std::monostate memoryInitialize(int32_t offset,
@@ -1248,30 +1287,34 @@ std::vector<SymVal> NodeBox::collect_path_conds() {
   return result;
 }
 
-immer::vector<SymVal> NodeBox::collect_path_conds_imm() {
+std::vector<SymVal> NodeBox::collect_path_conds_imm() {
   ManagedTimer timer(TimeProfileKind::COLLECT_PATH_CONDITIONS);
+  const auto &values = cached_path_conds().values;
+  return {values.begin(), values.end()};
+}
 
+const PathConditionsRepr &NodeBox::cached_path_conds() {
   auto box = this;
-  if (box->node->path_conds_cache.has_value()) {
-    return box->node->path_conds_cache.value();
+  if (box->node->path_conds_cache) {
+    return *box->node->path_conds_cache;
   }
 
+  auto cache = std::make_shared<PathConditionsRepr>();
   if (!box->parent) {
     // root node, and no path conditions
-    immer::vector<SymVal> empty;
-    box->node->path_conds_cache = empty;
-    return empty;
+    box->node->path_conds_cache = std::move(cache);
+    return *box->node->path_conds_cache;
   }
 
-  auto parent_conds = box->parent->collect_path_conds_imm();
-  immer::vector<SymVal> result = parent_conds;
+  cache->values = box->parent->cached_path_conds().values;
+  auto &result = cache->values;
   if (auto if_else_node = dynamic_cast<IfElseNode *>(box->parent->node.get())) {
     if (if_else_node->true_branch.get() == box) {
       // If the current box is the true branch, add the condition
-      result = result.push_back(if_else_node->cond);
+      result.push_back(if_else_node->cond);
     } else if (if_else_node->false_branch.get() == box) {
       // If the current box is the false branch, add the negated condition
-      result = result.push_back(if_else_node->cond.bv_negate().bool2bv());
+      result.push_back(if_else_node->cond.bv_negate().bool2bv());
     } else {
       throw std::runtime_error("Unexpected node structure in explore tree");
     }
@@ -1283,7 +1326,7 @@ immer::vector<SymVal> NodeBox::collect_path_conds_imm() {
       if (pair.second.get() == box) {
         // We are in this branch
         // Add the condition that leads to this branch
-        result = result.push_back(
+        result.push_back(
             call_indirect_node->cond.eq(Concrete(I32V(pair.first), 32)));
         found = true;
         break;
@@ -1300,13 +1343,13 @@ immer::vector<SymVal> NodeBox::collect_path_conds_imm() {
         negated_conditions = negated_conditions.bitwise_and(
             call_indirect_node->cond.neq(Concrete(I32V(pair.first), 32)));
       }
-      result = result.push_back(negated_conditions);
+      result.push_back(negated_conditions);
     }
   } else {
     // should never reach here
   }
-  box->node->path_conds_cache = result;
-  return result;
+  box->node->path_conds_cache = std::move(cache);
+  return *box->node->path_conds_cache;
 }
 
 Snapshot_t::Snapshot_t(Cont_t cont, MCont_t mcont, SymStack_t stack,
@@ -1624,9 +1667,8 @@ void resume_conc_memory(const SymMemory_t &sym_memory, Memory_t &memory,
                                const SymEnv_t &sym_env) {
   GENSYM_INFO("Restoring concrete memory from symbolic memory");
   memory.reset();
-  for (const auto &pair : sym_memory.memory) {
-    int32_t addr = pair.first;
-    SymVal sym = pair.second;
+  if (!sym_memory.repr_) return;
+  for (const auto &[addr, sym] : sym_memory.repr_->memory) {
     assert(sym.symptr != nullptr);
     auto res = eval_sym_expr(sym, sym_env);
     auto conc = res.value;
@@ -1639,9 +1681,8 @@ void resume_conc_memory_by_model(const SymMemory_t &sym_memory,
                                         Memory_t &memory, z3::model &model) {
   GENSYM_INFO("Restoring concrete memory from symbolic memory");
   memory.reset();
-  for (const auto &pair : sym_memory.memory) {
-    int32_t addr = pair.first;
-    SymVal sym = pair.second;
+  if (!sym_memory.repr_) return;
+  for (const auto &[addr, sym] : sym_memory.repr_->memory) {
     assert(sym.symptr != nullptr);
     auto res = eval_sym_expr_by_model(sym, model);
     auto conc = res.value;
