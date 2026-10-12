@@ -100,6 +100,10 @@ class TestStagedConcolicEval extends CppCompilationTestBase {
 
   test("ack-cpp-concolic") { testFileConcolicCpp("./benchmarks/wasm/ack.wat", Some("real_main")) }
 
+  test("quadratic-branch-concolic") {
+    testFileConcolicCpp("./benchmarks/wasm/concolic-branch.wat", Some("real_main"))
+  }
+
   test("bug-finding-concolic") {
     testFileConcolicCpp("./benchmarks/wasm/branch-strip-buggy.wat", Some("real_main"))
   }

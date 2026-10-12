@@ -187,51 +187,116 @@ Run the GenWasym CLI from the repository root:
 sbt 'runMain genwasym.GenWasym --help'
 ```
 
-For example, generate C++ for the Fibonacci benchmark:
+For example, [the test case](benchmarks/wasm/concolic-branch.wat) explores
+different paths through a function with two symbolic integer inputs.
 
-```sh
-sbt 'runMain genwasym.GenWasym --input benchmarks/wasm/fib.wat --output target/genwasym/fib.cpp --print-result'
+The `real_main` wrapper creates the symbolic inputs by `i32.symbolic` and calls
+`f`. The complete WAT source is:
+
+```wat
+(module
+  (type (func (param i32 i32) (result i32)))
+  (type (func (result i32)))
+
+  ;; Parameters 0 and 1 are x and y.
+  (func $f (type 0) (param i32 i32) (result i32)
+    ;; if (x <= 0 || y <= 0) return -1;
+    ;; Short-circuit: test y only when x > 0.
+    local.get 0
+    i32.const 0
+    i32.le_s
+    if (result i32)
+      i32.const -1  ;; x <= 0: return -1.
+    else
+      local.get 1
+      i32.const 0
+      i32.le_s
+      if (result i32)
+        i32.const -1  ;; x > 0 and y <= 0: return -1.
+      else
+        ;; if (x * x + y * y == 25) return 1;
+        local.get 0
+        local.get 0
+        i32.mul
+        local.get 1
+        local.get 1
+        i32.mul
+        i32.add
+        i32.const 25
+        i32.eq
+        if (result i32)
+          i32.const 1  ;; The sum of squares is 25: return 1.
+        else
+          i32.const 0  ;; Otherwise, return 0.
+        end
+      end
+    end)
+
+  (func $real_main (type 1) (result i32)
+    ;; Create symbolic x with identifier 0.
+    i32.const 0
+    i32.symbolic
+    ;; Create symbolic y with identifier 1.
+    i32.const 1
+    i32.symbolic
+    call 0)  ;; Call f(x, y).
+
+  (export "real_main" (func 1)))
 ```
 
-The CLI writes C++ source. Build the GenWasym runtime, then compile and link the
-generated program with `libgenwasym.a` and Z3. 
-GenWasym uses Z3 for constraint solving and requires Z3 have been installed. Set `Z3_PREFIX` to the absolute
-path of your Z3 installation, containing `include/` and `lib/`:
+Generate C++ for the concolic execution, selecting `real_main` as the entrypoint:
 
 ```sh
+sbt 'runMain genwasym.GenWasym --input benchmarks/wasm/concolic-branch.wat --output target/genwasym/branch.cpp --main real_main --print-result'
+```
+
+Build the runtime, then compile and link the generated C++ with `libgenwasym.a`
+and Z3. Set `Z3_PREFIX` to your Z3 installation directory (containing `include/`
+and `lib/`):
+
+```sh
+# Build the runtime library.
 Z3_PREFIX="/absolute/path/to/z3"
 make -C genwasym_runtime Z3_PREFIX="$Z3_PREFIX"
-
+# Compile and link the generated C++ code with the runtime library and Z3.
 clang++ -std=c++17 -DUSE_IMM \
   -Igenwasym_runtime/include -Iheaders -Ithird-party/immer \
   -I"$Z3_PREFIX/include" \
-  target/genwasym/fib.cpp genwasym_runtime/build/libgenwasym.a \
+  target/genwasym/branch.cpp genwasym_runtime/build/libgenwasym.a \
   -L"$Z3_PREFIX/lib" -Wl,-rpath,"$Z3_PREFIX/lib" -lz3 \
-  -o target/genwasym/fib
-./target/genwasym/fib
+  -o target/genwasym/branch
+./target/genwasym/branch
 ```
 
-This example prints the result `144` along with runtime statistics. The runtime
-is compiled once and reused across generated programs. Its public headers are
-in `genwasym_runtime/include`. Keep `-DUSE_IMM` consistent between the runtime
-and generated programs because it determines the layout of runtime types; the
-runtime Makefile enables it by default.
+Running the executable explores four paths with no failures. Example output:
 
-Use `--main NAME` to select an exported Wasm function, or omit it to use the
-module's start function.
-
-To compile a directory of `.wat` files, use `--input-dir DIR --output-dir DIR`.
-Add `--recursive` to include subdirectories and preserve their layout in the
-output directory. Scala callers can use `genwasym.GenWasym.compileFile`
-and `compileDirectory` directly.
+```text
+...
+Execution finished successfully
+Explore Tree Overall Result:
+  Unexplored paths: 0
+  Finished paths: 4
+  Failed paths: 0
+  Unreachable paths: 0
+  NotToExplore paths: 0
+Number of calls to solver: 7
+Execution Kind Summary:
+Total RESTART executions: 1
+Total FROMSNAPSHOT executions: 3
+```
 
 ## Publications
 
-If you would like to mention GenSym in research papers, please cite this paper:
+If you would like to mention GenSym/GenWasym in research papers, please cite the following papers:
 * Compiling Parallel Symbolic Execution with Continuations  
   Guannan Wei, Songlin Jia, Ruiqi Gao, Haotian Deng, Shangyin Tan, Oliver Bračevac, Tiark Rompf  
   The 45th International Conference on Software Engineering (ICSE 2023)  
   [PDF](https://continuation.passing.style/static/papers/icse23.pdf)
+
+* Compiling WebAssembly Concolic Execution with Staging, Continuations, and Snapshots  
+  Dinghong Zhong, Alexander Bai, Mikail Khan, Guannan Wei  
+  Proceedings of the ACM on Programming Languages, Volume 10 (OOPSLA 2026)  
+  [Paper (ACM DL)](https://dl.acm.org/doi/10.1145/3839498)
 
 Other related publications:
   
