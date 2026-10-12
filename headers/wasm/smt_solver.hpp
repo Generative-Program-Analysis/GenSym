@@ -73,8 +73,7 @@ struct GroupResult {
 };
 
 static std::optional<int> group_of_symval(const SymVal &sym, UnionFind &uf) {
-  // TODO: This process is un optimized and slow, just want to see if the idea
-  // of independent resolving works
+  // Group symbols connected by an expression for independent constraint solving.
   if (auto symbol = dynamic_cast<Symbol *>(sym.symptr.get())) {
     return symbol->get_id();
   } else if (auto concrete = dynamic_cast<SymConcrete *>(sym.symptr.get())) {
@@ -101,9 +100,7 @@ static std::optional<int> group_of_symval(const SymVal &sym, UnionFind &uf) {
 }
 
 static VectorGroupMap build_group_map(const std::vector<SymVal> &conditions) {
-  // TODO: This is a slow temporary solution which only used for validating the
-  // idea of independent constraint resolving, the intermediate result of
-  // independent solving is reusable
+  // Build independent groups of constraints. Grouping is recomputed on each call.
   ManagedTimer timer(TimeProfileKind::SPLIT_CONDITIONS);
   if (conditions.empty()) {
     return VectorGroupMap{};

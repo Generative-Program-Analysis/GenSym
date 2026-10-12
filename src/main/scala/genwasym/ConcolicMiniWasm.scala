@@ -1,11 +1,11 @@
-package gensym.wasm.concolicminiwasm
+package genwasym.concolicminiwasm
 
-import gensym.wasm.ast._
-import gensym.wasm.source._
-// import gensym.wasm.memory._
-import gensym.wasm.concolicmemory._
-import gensym.wasm.symbolic._
-import gensym.wasm.parser._
+import genwasym.ast._
+import genwasym.source._
+// import genwasym.memory._
+import genwasym.concolicmemory._
+import genwasym.symbolic._
+import genwasym.parser._
 
 import scala.util.Random
 

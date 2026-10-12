@@ -1,5 +1,5 @@
-package gensym.wasm.symbolic
-import gensym.wasm.ast._
+package genwasym.symbolic
+import genwasym.ast._
 
 import z3.scala._
 import scala.collection.mutable.HashMap

@@ -1,11 +1,11 @@
-package gensym.wasm
+package genwasym
 
-import gensym.wasm.ast._
-import gensym.wasm.source._
-import gensym.wasm.parser._
-import gensym.wasm.memory._
-import gensym.wasm.symbolic._
-import gensym.wasm.concolicminiwasm._
+import genwasym.ast._
+import genwasym.source._
+import genwasym.parser._
+import genwasym.memory._
+import genwasym.symbolic._
+import genwasym.concolicminiwasm._
 
 import org.scalatest.FunSuite
 class TestConcolic extends FunSuite {
@@ -29,7 +29,7 @@ class TestConcolic extends FunSuite {
 }
 
 class TestDriver extends FunSuite {
-  import gensym.wasm.concolicdriver._
+  import genwasym.concolicdriver._
   import scala.collection.mutable.{HashMap, HashSet}
   import z3.scala._
 
@@ -53,19 +53,19 @@ class TestDriver extends FunSuite {
 
 }
 
-// TODO: from: GenSym/src/main/scala/wasm/tests/TestConcolicWasm.scala
+// Legacy tests from TestConcolicWasm.scala.
 
-// package gensym.wasm.test
+// package genwasym.test
 
-// import gensym.wasm.ast._
-// import gensym.wasm.source._
-// import gensym.wasm.parser._
-// import gensym.wasm.memory._
-// import gensym.wasm.symbolic._
+// import genwasym.ast._
+// import genwasym.source._
+// import genwasym.parser._
+// import genwasym.memory._
+// import genwasym.symbolic._
 
 // object ConcolicWasmTest {
 //   def fileTestConcolicEval(file: String, mainFun: String) = {
-//     import gensym.wasm.concolicminiwasm._
+//     import genwasym.concolicminiwasm._
 //     import collection.mutable.ArrayBuffer
 //     val module = Parser.parseFile(file)
 //     Evaluator.execWholeProgram(module, mainFun)

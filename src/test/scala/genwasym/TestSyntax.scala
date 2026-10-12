@@ -1,6 +1,6 @@
-package gensym.wasm
+package genwasym
 
-import gensym.wasm.parser.Parser
+import genwasym.parser.Parser
 import org.scalatest.FunSuite
 
 class TestSyntax extends FunSuite {
@@ -11,7 +11,6 @@ class TestSyntax extends FunSuite {
   }
 
   test("basic script") {
-    testFile("./benchmarks/wasm/script/script_basic.wabt")
+    testFile("./benchmarks/wasm/script/script_basic.wast")
   }
 }
-

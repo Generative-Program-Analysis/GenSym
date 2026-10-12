@@ -1,9 +1,9 @@
-package gensym.wasm.concolicdriver
+package genwasym.concolicdriver
 
-import gensym.wasm.concolicminiwasm._
-import gensym.wasm.ast._
-import gensym.wasm.parser._
-import gensym.wasm.symbolic._
+import genwasym.concolicminiwasm._
+import genwasym.ast._
+import genwasym.parser._
+import genwasym.symbolic._
 
 import scala.collection.immutable.Queue
 import scala.collection.mutable.{HashMap, HashSet}

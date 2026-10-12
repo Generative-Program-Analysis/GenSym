@@ -1,7 +1,7 @@
-package gensym.wasm
+package genwasym
 
-import gensym.wasm.parser.Parser
-import gensym.wasm.miniwasmscript.ScriptRunner
+import genwasym.parser.Parser
+import genwasym.miniwasmscript.ScriptRunner
 
 import org.scalatest.FunSuite
 

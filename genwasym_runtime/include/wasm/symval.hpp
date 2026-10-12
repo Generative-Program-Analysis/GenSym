@@ -66,7 +66,6 @@ struct SymVal {
   // only for i32 symbolic values, extend to i64 by sign extension
   SymVal extend_to_i64() const;
 
-  // TODO: add bitwise operations, and use the underlying bitvector theory
   bool is_concrete() const;
 
   static SymVal get_witness_symbol();

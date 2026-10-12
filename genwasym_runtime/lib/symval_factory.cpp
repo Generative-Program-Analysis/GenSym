@@ -430,7 +430,7 @@ SymVal make_binary(BinOperation op, const SymVal &lhs, const SymVal &rhs) {
     return result;
   }
 
-  if ((op == GT_BOOL || op == LT_BOOL || NEQ_BOOL) && lhs == rhs) {
+  if ((op == GT_BOOL || op == LT_BOOL || op == NEQ_BOOL) && lhs == rhs) {
     auto result = SVFactory::make_concrete_bool(false);
     BinaryOperationStore.insert({key, result});
     return result;

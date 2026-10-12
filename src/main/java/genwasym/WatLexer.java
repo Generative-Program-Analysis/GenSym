@@ -1,5 +1,5 @@
 // Generated from WatLexer.g4 by ANTLR 4.13.0
-package gensym.wasm;
+package genwasym;
 import org.antlr.v4.runtime.Lexer;
 import org.antlr.v4.runtime.CharStream;
 import org.antlr.v4.runtime.Token;

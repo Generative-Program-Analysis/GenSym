@@ -1,12 +1,18 @@
 CXX = clang++
 
-CXXFLAGS = -std=c++17 -Wall -Iinclude -I../headers -I../third-party/immer -I../third-party/z3/build/z3_install/usr/local/include -fPIC -DUSE_IMM
+CXXFLAGS = -std=c++17 -Wall -Iinclude -I../headers -I../third-party/immer -fPIC -DUSE_IMM
 
 BUILD_DIR = build
 
-Z3_LIB_DIR = ../third-party/z3/build/z3_install/usr/local/lib
+Z3_PREFIX ?=
+Z3_INCLUDE_DIR ?= $(if $(strip $(Z3_PREFIX)),$(Z3_PREFIX)/include)
+Z3_LIB_DIR ?= $(if $(strip $(Z3_PREFIX)),$(Z3_PREFIX)/lib)
 
-LDFLAGS = -L$(Z3_LIB_DIR) -Wl,-rpath,$(Z3_LIB_DIR)
+Z3_CPPFLAGS = $(if $(strip $(Z3_INCLUDE_DIR)),-I"$(Z3_INCLUDE_DIR)")
+Z3_LDFLAGS =
+ifneq ($(strip $(Z3_LIB_DIR)),)
+Z3_LDFLAGS = -L"$(Z3_LIB_DIR)" -Wl,-rpath,"$(Z3_LIB_DIR)"
+endif
 
 LDLIBS = -lz3
 
@@ -34,13 +40,13 @@ $(BUILD_DIR):
 	mkdir -p $(BUILD_DIR)
 
 $(BUILD_DIR)/%.o: lib/%.cpp | $(BUILD_DIR)
-	$(CXX) $(CXXFLAGS) -MMD -MP -c $< -o $@
+	$(CXX) $(CPPFLAGS) $(Z3_CPPFLAGS) $(CXXFLAGS) -MMD -MP -c $< -o $@
 
 $(STATIC_LIB): $(OBJ)
 	ar rcs $(STATIC_LIB) $(OBJ)
 
 $(SHARED_LIB): $(OBJ)
-	$(CXX) -shared $(SHARED_PLATFORM_FLAGS) $(LDFLAGS) -o $(SHARED_LIB) $(OBJ) $(LDLIBS)
+	$(CXX) -shared $(SHARED_PLATFORM_FLAGS) $(LDFLAGS) $(Z3_LDFLAGS) -o $(SHARED_LIB) $(OBJ) $(LDLIBS)
 
 -include $(OBJ:.o=.d)
 
