@@ -1,8 +1,11 @@
 FLAGS := -I ../ -I ../../third-party/immer -I ../../third-party/parallel-hashmap -I ../../third-party/stp/build/include/ -L ../../third-party/stp/build/lib/ -lstp -fPIC
 
-targets = fact_lms fact_plain sym_test conc_test stp_test fs_test external_test coverage_test
+targets = fact_lms fact_plain sym_test conc_test stp_test fs_test external_test coverage_test float_test
 
 all: $(targets)
+
+float_test: float_test.cpp ../gensym/value_ops.hpp
+	g++ -std=c++17 float_test.cpp -o float_test $(FLAGS)
 
 coverage_test: coverage_test.cpp ../gensym.hpp
 	g++ -std=c++17 coverage_test.cpp -o coverage_test $(FLAGS) -pthread
